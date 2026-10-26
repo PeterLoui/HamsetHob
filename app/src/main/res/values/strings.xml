@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">همسة حب</string>
+    <string name="widget_verse_desc">رسالة اليوم بتصميم زجاجي</string>
+    <string name="widget_lock_desc">التاريخ القبطي ورسالة اليوم لشاشة القفل</string>
+    <string name="widget_verse_label">رسالة اليوم</string>
+    <string name="widget_lock_label">همسة حب - شاشة القفل</string>
+</resources>
