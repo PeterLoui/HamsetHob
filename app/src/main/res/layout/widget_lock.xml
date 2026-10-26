@@ -7,6 +7,7 @@
     android:orientation="vertical"
     android:gravity="center_horizontal"
     android:padding="16dp"
+    android:clipToOutline="true"
     android:background="@drawable/glass_widget_bg">
 
     <LinearLayout

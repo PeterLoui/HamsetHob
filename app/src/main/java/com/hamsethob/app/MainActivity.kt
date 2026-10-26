@@ -56,6 +56,7 @@ import com.hamsethob.app.ui.SynaxariumScreen
 import com.hamsethob.app.ui.Tab
 import com.hamsethob.app.ui.Wallpaper
 import com.hamsethob.app.ui.appColors
+import com.hamsethob.app.ui.fadeBottomEdge
 import com.hamsethob.app.widget.DailyWorker
 import com.hamsethob.app.widget.MorningWorker
 import kotlinx.coroutines.delay
@@ -133,7 +134,7 @@ class MainActivity : ComponentActivity() {
                     LocalLayoutDirection provides LayoutDirection.Rtl,
                     LocalAppColors provides colors,
                     LocalScriptureFont provides scriptureFont,
-                    LocalBottomInset provides if (radio.nowPlaying != null) 180.dp else 110.dp,
+                    LocalBottomInset provides 20.dp,
                 ) {
                     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
                     val overlays = remember { mutableStateListOf<Overlay>() }
@@ -158,6 +159,15 @@ class MainActivity : ComponentActivity() {
                             Overlay.Favorites -> FavoritesScreen(services.favorites, { open(Overlay.Chapter(it)) }, ::back)
                             Overlay.Radio -> RadioScreen(radio, ::back)
                             null -> {
+                                // المحتوى ينتهي فوق الشريط السفلي ويتلاشى عند حافته، فلا يظهر شيء خلف الشريط
+                                val barArea = if (radio.nowPlaying != null) 160.dp else 92.dp
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .navigationBarsPadding()
+                                        .padding(bottom = barArea)
+                                        .fadeBottomEdge(28.dp)
+                                ) {
                                 when (tab) {
                                     Tab.HOME -> HomeScreen(
                                         today = today,
@@ -174,6 +184,7 @@ class MainActivity : ComponentActivity() {
                                     Tab.READINGS -> ReadingsScreen(today, services.katameros) { open(Overlay.Synaxarium(it)) }
                                     Tab.CALENDAR -> CalendarScreen(today)
                                     Tab.MORE -> MoreScreen(services) { open(Overlay.Favorites) }
+                                }
                                 }
                                 Column(
                                     Modifier
