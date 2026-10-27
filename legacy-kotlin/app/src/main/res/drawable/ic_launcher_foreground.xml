@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- قلب زجاجي بداخله صليب -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#40FFFFFF"
+        android:strokeColor="#E6FFFFFF"
+        android:strokeWidth="1.6"
+        android:pathData="M54,78 C40,68 32,60 32,49 C32,42 37,37 43.5,37 C48,37 51.5,39.5 54,43 C56.5,39.5 60,37 64.5,37 C71,37 76,42 76,49 C76,60 68,68 54,78 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M52.2,45h3.6v6h5.4v3.6h-5.4v11h-3.6v-11h-5.4v-3.6h5.4z" />
+</vector>

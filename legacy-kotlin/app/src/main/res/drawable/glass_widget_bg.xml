@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  زجاج مُضبَّب (frosted glass) للويدجت: الويدجتس لا تستطيع تمويه الخلفية فعلياً،
+  فنحاكي الضبابية بطبقة حليبية شفافة + لمعة علوية + حبيبات دقيقة + حافة مضيئة.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- تعتيم خفيف يحفظ وضوح النص فوق الخلفيات الفاتحة -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <solid android:color="#26140B26" />
+        </shape>
+    </item>
+    <!-- الطبقة الحليبية المضببة -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#59FFFFFF"
+                android:centerColor="#38FFFFFF"
+                android:endColor="#47FFFFFF" />
+        </shape>
+    </item>
+    <!-- حبيبات الزجاج المصنفر -->
+    <item>
+        <bitmap
+            android:src="@drawable/frost_noise"
+            android:tileMode="repeat" />
+    </item>
+    <!-- لمعة من الزاوية العلوية -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <gradient
+                android:type="radial"
+                android:centerX="0.2"
+                android:centerY="0"
+                android:gradientRadius="240dp"
+                android:startColor="#4DFFFFFF"
+                android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+    <!-- الحافة المضيئة -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <stroke android:width="1.2dp" android:color="#A6FFFFFF" />
+        </shape>
+    </item>
+    <!-- حافة داخلية خافتة تعطي سُمك الزجاج -->
+    <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="26dp" />
+            <stroke android:width="1dp" android:color="#26FFFFFF" />
+        </shape>
+    </item>
+</layer-list>
