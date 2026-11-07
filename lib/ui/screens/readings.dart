@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../core/coptic.dart';
 import '../../data/katameros.dart';
@@ -80,7 +79,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
               return Column(children: [
                 Text('تعذّر تحميل القراءات، تأكد من الاتصال بالإنترنت', style: TextStyle(color: c.textSoft)),
                 const SizedBox(height: 12),
-                GlassChip(label: 'إعادة المحاولة', onTap: () => _setDate(_date)),
+                AppChip(label: 'إعادة المحاولة', onTap: () => _setDate(_date)),
               ]);
             }
             final r = snap.data;

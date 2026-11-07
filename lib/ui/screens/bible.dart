@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
@@ -69,19 +68,16 @@ class _BibleScreenState extends State<BibleScreen> {
         padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top, 16, 0),
         sliver: SliverList.list(children: [
           const ScreenHeader('الكتاب المقدس', subtitle: 'ترجمة فاندايك'),
-          GlassSearchBar(
-            placeholder: 'ابحث في الكتاب المقدس… (مثال: المحبة)',
+          AppSearchBar(
+            placeholder: c.classic ? 'ابحث في الكتاب المقدس' : 'ابحث في الكتاب المقدس… (مثال: المحبة)',
             onChanged: _onQuery,
-            height: 48,
-            textStyle: TextStyle(color: c.text, fontSize: 15),
-            placeholderStyle: TextStyle(color: c.textFaint, fontSize: 15),
           ),
           const SizedBox(height: 14),
           if (!searching) ...[
-            GlassSegmentedControl(
-              segments: const [GlassSegment(label: 'العهد القديم'), GlassSegment(label: 'العهد الجديد')],
+            AppSegmented(
+              labels: const ['العهد القديم', 'العهد الجديد'],
               selectedIndex: _testament,
-              onSegmentSelected: (i) => setState(() {
+              onSelected: (i) => setState(() {
                 _testament = i;
                 _openBook = 0;
               }),
@@ -148,9 +144,9 @@ class _BibleScreenState extends State<BibleScreen> {
                         for (var ch = 1; ch <= b.chapters; ch++)
                           Material(
                             color: c.chip,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(c.classic ? 8 : 14),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(c.classic ? 8 : 14),
                               onTap: () => widget.onOpenChapter(VerseRef(b.number, ch, 0)),
                               child: SizedBox(width: 44, height: 44, child: Center(child: Text(ar(ch), style: TextStyle(color: c.text)))),
                             ),
@@ -293,8 +289,8 @@ class _ChapterScreenState extends State<ChapterScreen> {
         ),
         const SizedBox(height: 10),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          GlassButton(icon: Icon(Icons.chevron_right, color: c.text), label: 'الإصحاح السابق', onTap: () => _move(-1), width: 64, height: 48, shape: const LiquidRoundedSuperellipse(borderRadius: 24), useOwnLayer: true, settings: glassSettings),
-          GlassButton(icon: Icon(Icons.chevron_left, color: c.text), label: 'الإصحاح التالي', onTap: () => _move(1), width: 64, height: 48, shape: const LiquidRoundedSuperellipse(borderRadius: 24), useOwnLayer: true, settings: glassSettings),
+          AppIconButton(icon: Icon(Icons.chevron_right, color: c.text), label: 'الإصحاح السابق', onTap: () => _move(-1)),
+          AppIconButton(icon: Icon(Icons.chevron_left, color: c.text), label: 'الإصحاح التالي', onTap: () => _move(1)),
         ]),
       ]),
     );

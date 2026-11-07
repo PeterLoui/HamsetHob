@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
@@ -72,10 +71,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           subtitle: 'الأعياد وبدايات الأصوام',
           trailing: SizedBox(
             width: 150,
-            child: GlassSegmentedControl(
-              segments: const [GlassSegment(label: 'ميلادي'), GlassSegment(label: 'قبطي')],
+            child: AppSegmented(
+              labels: const ['ميلادي', 'قبطي'],
               selectedIndex: _coptic ? 1 : 0,
-              onSegmentSelected: (i) => setState(() {
+              onSelected: (i) => setState(() {
                 _coptic = i == 1;
                 _anchor = today;
               }),

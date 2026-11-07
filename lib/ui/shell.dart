@@ -144,7 +144,7 @@ class _ShellState extends State<Shell> {
     final top = _overlays.isEmpty ? null : _overlays.last;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     // مساحة الشريط السفلي: المحتوى ينتهي فوقه ولا يظهر شيء خلفه
-    final barArea = 64 + 20 + safeBottom + 8;
+    final barArea = bottomBarHeight(context) + safeBottom;
 
     return PopScope(
       canPop: _overlays.isEmpty && _tab == 0,

@@ -4,29 +4,45 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/synaxarium.dart';
 import '../data/store.dart';
 
-/// ألوان الواجهة حسب الوضع (فاتح/داكن) والموسم الكنسي.
+/// ألوان الواجهة حسب الوضع (فاتح/داكن) والموسم الكنسي والتصميم.
+///
+/// [classic] = تصميم «مخطوطة» في الفاتح و«سهرانية» في الداكن:
+/// أسطح ثابتة وخطوط رفيعة بدل الزجاج السائل والتدرجات.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
     required this.isDark,
+    required this.classic,
     required this.wallpaper,
     required this.blobs,
+    required this.surface,
+    required this.card,
+    required this.navBar,
+    required this.hairline,
     required this.text,
     required this.textSoft,
     required this.textFaint,
     required this.accent,
+    required this.onAccent,
     required this.fast,
     required this.saint,
     required this.chip,
     required this.glassTint,
+    required this.uiFont,
+    required this.headingFont,
   });
 
-  final bool isDark;
+  final bool isDark, classic;
   final List<Color> wallpaper;
   final List<Color> blobs;
-  final Color text, textSoft, textFaint, accent, fast, saint, chip, glassTint;
+  final Color surface, card, navBar, hairline;
+  final Color text, textSoft, textFaint, accent, onAccent, fast, saint, chip, glassTint;
+  final String uiFont;
+  final String? headingFont;
 
-  factory AppColors.of(bool dark, Season season) {
+  factory AppColors.of(bool dark, Season season, {bool classic = false}) {
+    if (classic) return dark ? _vigil : _manuscript;
+
     final (wall, blobs) = switch ((season, dark)) {
       (Season.ordinary, true) => (
           const [Color(0xFF140B26), Color(0xFF2A1446), Color(0xFF4A1B4F)],
@@ -56,31 +72,93 @@ class AppColors extends ThemeExtension<AppColors> {
     return dark
         ? AppColors(
             isDark: true,
+            classic: false,
             wallpaper: wall,
             blobs: blobs,
+            surface: wall.first,
+            card: const Color(0x1FFFFFFF),
+            navBar: Colors.transparent,
+            hairline: const Color(0x26FFFFFF),
             text: Colors.white,
             textSoft: const Color(0xD9FFFFFF),
             textFaint: const Color(0xB3FFFFFF),
             accent: const Color(0xFFF3C77A),
+            onAccent: const Color(0xFF2A1446),
             fast: const Color(0xFFB9A7FF),
             saint: const Color(0xFFFFC2DA),
             chip: const Color(0x26FFFFFF),
             glassTint: const Color(0x1FFFFFFF),
+            uiFont: 'IBM Plex Sans Arabic',
+            headingFont: null,
           )
         : AppColors(
             isDark: false,
+            classic: false,
             wallpaper: wall,
             blobs: blobs,
+            surface: wall.first,
+            card: const Color(0x52FFFFFF),
+            navBar: Colors.transparent,
+            hairline: const Color(0x1A2A1638),
             text: const Color(0xFF2A1638),
             textSoft: const Color(0xD92A1638),
             textFaint: const Color(0xB32A1638),
             accent: const Color(0xFF9A5E12),
+            onAccent: const Color(0xFF2A1446),
             fast: const Color(0xFF5B45C9),
             saint: const Color(0xFFB0306A),
             chip: const Color(0x1A2A1638),
             glassTint: const Color(0x52FFFFFF),
+            uiFont: 'IBM Plex Sans Arabic',
+            headingFont: null,
           );
   }
+
+  /// «مخطوطة»: رقّ فاتح وحبر، والأحمر للتاريخ القبطي وأرقام الآيات.
+  static const _manuscript = AppColors(
+    isDark: false,
+    classic: true,
+    wallpaper: [Color(0xFFF3EEE4), Color(0xFFF3EEE4)],
+    blobs: [Colors.transparent, Colors.transparent, Colors.transparent, Colors.transparent],
+    surface: Color(0xFFF3EEE4),
+    card: Color(0xFFFBF8F2),
+    navBar: Color(0xFFF3EEE4),
+    hairline: Color(0x1F211B14),
+    text: Color(0xFF211B14),
+    textSoft: Color(0xFF5C5347),
+    textFaint: Color(0xFF776E61),
+    accent: Color(0xFFA3271B),
+    onAccent: Color(0xFFFFFFFF),
+    fast: Color(0xFF5B3A82),
+    saint: Color(0xFF5C5347),
+    chip: Color(0xFFE9E2D4),
+    glassTint: Color(0xFFFBF8F2),
+    uiFont: 'IBM Plex Sans Arabic',
+    headingFont: 'Amiri',
+  );
+
+  /// «سهرانية»: خشب غامق وشمع، والعسلي للحاجات الحيّة بس.
+  static const _vigil = AppColors(
+    isDark: true,
+    classic: true,
+    wallpaper: [Color(0xFF14120F), Color(0xFF14120F)],
+    blobs: [Colors.transparent, Colors.transparent, Colors.transparent, Colors.transparent],
+    surface: Color(0xFF14120F),
+    card: Color(0xFF1D1A16),
+    navBar: Color(0xFF100E0C),
+    hairline: Color(0x17EFE7DA),
+    text: Color(0xFFEFE7DA),
+    textSoft: Color(0xFFADA495),
+    textFaint: Color(0xFF8C8477),
+    accent: Color(0xFFE2A84B),
+    onAccent: Color(0xFF1A140A),
+    fast: Color(0xFFB9A3D9),
+    saint: Color(0xFFADA495),
+    chip: Color(0xFF28241E),
+    glassTint: Color(0xFF1D1A16),
+    uiFont: 'Noto Kufi Arabic',
+    headingFont: 'Noto Naskh Arabic',
+  );
 
   Color kindColor(Kind k) => switch (k) { Kind.feast => accent, Kind.fast => fast, Kind.saint => saint };
 
@@ -99,15 +177,35 @@ extension AppColorsX on BuildContext {
     final base = TextStyle(fontSize: size, height: 1.8, color: color ?? colors.text);
     return AppSettings.instance.scriptureFont ? GoogleFonts.amiri(textStyle: base) : base;
   }
+
+  /// العناوين الكبيرة: خط التصميم في مخطوطة وسهرانية، والخط العادي في الزجاج.
+  TextStyle heading({double size = 26, Color? color}) {
+    final c = colors;
+    final base = TextStyle(
+      fontSize: size,
+      height: 1.3,
+      fontWeight: c.classic ? FontWeight.w500 : FontWeight.w700,
+      color: color ?? c.text,
+    );
+    final font = c.headingFont;
+    return font == null ? base : GoogleFonts.getFont(font, textStyle: base);
+  }
 }
 
 ThemeData buildTheme(AppColors c) {
   final base = c.isDark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: Colors.transparent,
-    textTheme: GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme).apply(bodyColor: c.text, displayColor: c.text),
+    textTheme: GoogleFonts.getTextTheme(c.uiFont, base.textTheme).apply(bodyColor: c.text, displayColor: c.text),
     iconTheme: IconThemeData(color: c.text),
-    colorScheme: base.colorScheme.copyWith(primary: c.accent, onSurface: c.textSoft),
+    colorScheme: base.colorScheme.copyWith(
+      primary: c.accent,
+      onPrimary: c.onAccent,
+      onSurface: c.textSoft,
+      surface: c.classic ? c.card : base.colorScheme.surface,
+    ),
+    splashFactory: c.classic ? InkRipple.splashFactory : base.splashFactory,
+    dividerTheme: DividerThemeData(color: c.hairline, thickness: 1, space: 1),
     extensions: [c],
   );
 }

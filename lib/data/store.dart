@@ -25,6 +25,10 @@ class AppSettings extends ChangeNotifier {
   ThemeChoice get theme => ThemeChoice.values.byName(_prefs.getString('theme') ?? 'system');
   set theme(ThemeChoice v) => _set(() => _prefs.setString('theme', v.name));
 
+  /// تصميم مخطوطة (فاتح) وسهرانية (داكن) بدل الزجاج السائل.
+  bool get classicDesign => _prefs.getBool('classic_design') ?? true;
+  set classicDesign(bool v) => _set(() => _prefs.setBool('classic_design', v));
+
   bool get seasonalColors => _prefs.getBool('seasonal') ?? true;
   set seasonalColors(bool v) => _set(() => _prefs.setBool('seasonal', v));
 

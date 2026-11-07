@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
@@ -95,10 +94,9 @@ class _RadioScreenState extends State<RadioScreen> {
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, i) {
               final cat = sermonCategories[i];
-              return GlassChip(
+              return AppChip(
                 label: cat.name,
                 selected: cat.id == _category,
-                selectedColor: c.accent,
                 onTap: () {
                   _category = cat.id;
                   _load(reset: true);
@@ -108,11 +106,8 @@ class _RadioScreenState extends State<RadioScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        GlassSearchBar(
-          placeholder: 'ابحث في العظات… (مثال: التوبة)',
-          height: 48,
-          textStyle: TextStyle(color: c.text, fontSize: 15),
-          placeholderStyle: TextStyle(color: c.textFaint, fontSize: 15),
+        AppSearchBar(
+          placeholder: c.classic ? 'ابحث في العظات' : 'ابحث في العظات… (مثال: التوبة)',
           onChanged: (q) {
             _debounce?.cancel();
             _debounce = Timer(const Duration(milliseconds: 450), () {
@@ -165,10 +160,9 @@ class _NowPlaying extends StatelessWidget {
             ),
             if (now != null) ...[
               const SizedBox(height: 10),
-              GlassSlider(
+              AppSlider(
                 value: dur == 0 ? 0 : (player.position.inMilliseconds / dur).clamp(0, 1).toDouble(),
                 onChanged: (v) => player.seekTo(Duration(milliseconds: (v * dur).round())),
-                activeColor: c.accent,
               ),
               Row(children: [
                 Text(formatTime(player.position), style: TextStyle(fontSize: 11, color: c.textFaint)),
@@ -189,7 +183,7 @@ class _NowPlaying extends StatelessWidget {
               ]),
             ],
             const SizedBox(height: 12),
-            Pill(player.radioOn ? 'إيقاف البث المتواصل' : '▶  بث متواصل عشوائي',
+            Pill(player.radioOn ? 'إيقاف البث المتواصل' : (c.classic ? 'بث متواصل عشوائي' : '▶  بث متواصل عشوائي'),
                 onTap: player.radioOn ? player.stopRadio : onStartRadio),
             if (player.error != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(player.error!, style: TextStyle(fontSize: 12, color: c.saint))),
@@ -225,7 +219,7 @@ class _SermonRow extends StatelessWidget {
                 child: player.loadingId == sermon.id
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : AppIconView(current && player.isPlaying ? AppIcon.pause : AppIcon.play,
-                        size: 18, color: current ? const Color(0xFF2A1446) : c.text),
+                        size: 18, color: current ? c.onAccent : c.text),
               ),
             ),
             const SizedBox(width: 12),

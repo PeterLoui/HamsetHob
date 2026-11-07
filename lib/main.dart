@@ -55,7 +55,7 @@ class _HamsetAppState extends State<HamsetApp> with WidgetsBindingObserver {
       ThemeChoice.system => WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark,
     };
     final season = settings.seasonalColors ? seasonOf(DateTime.now()) : Season.ordinary;
-    final colors = AppColors.of(dark, season);
+    final colors = AppColors.of(dark, season, classic: settings.classicDesign);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(

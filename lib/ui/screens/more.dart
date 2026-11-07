@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
@@ -73,22 +72,29 @@ class _MoreScreenState extends State<MoreScreen> {
         children: [
           const ScreenHeader('المزيد'),
           _group(null, [
-            _item('♡  المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
+            _item(c.classic ? 'المفضلة' : '♡  المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
           ]),
           _label('المظهر'),
-          GlassSegmentedControl(
-            segments: [for (final t in ThemeChoice.values) GlassSegment(label: t.label)],
+          _toggle('تصميم مخطوطة وسهرانية', 'مخطوطة في الوضع النهاري، سهرانية في الوضع الليلي', settings.classicDesign, (v) {
+            settings.classicDesign = v;
+            widget.onSettingsChanged();
+          }),
+          const SizedBox(height: 6),
+          AppSegmented(
+            labels: [for (final t in ThemeChoice.values) t.label],
             selectedIndex: settings.theme.index,
-            onSegmentSelected: (i) {
+            onSelected: (i) {
               settings.theme = ThemeChoice.values[i];
               widget.onSettingsChanged();
             },
           ),
           const SizedBox(height: 10),
-          _toggle('ألوان المواسم الكنسية', 'بنفسجي في الأصوام وذهبي في الأعياد', settings.seasonalColors, (v) {
-            settings.seasonalColors = v;
-            widget.onSettingsChanged();
-          }),
+          // ألوان المواسم بتغيّر خلفية الزجاج، فمالهاش لازمة في مخطوطة/سهرانية
+          if (!settings.classicDesign)
+            _toggle('ألوان المواسم الكنسية', 'بنفسجي في الأصوام وذهبي في الأعياد', settings.seasonalColors, (v) {
+              settings.seasonalColors = v;
+              widget.onSettingsChanged();
+            }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {
@@ -171,7 +177,7 @@ class _MoreScreenState extends State<MoreScreen> {
             Text(subtitle, style: TextStyle(fontSize: 12, color: c.textSoft)),
           ]),
         ),
-        GlassSwitch(value: value, onChanged: onChanged, activeColor: c.accent, semanticLabel: title),
+        AppSwitch(value: value, onChanged: onChanged, label: title),
       ]),
     );
   }

@@ -95,12 +95,13 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$greeting  •  ${weekdayName(widget.today)}', style: TextStyle(fontSize: 14, color: c.textFaint)),
-              Text('همسة حب', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: c.text)),
+              Text(c.classic ? weekdayName(widget.today) : '$greeting  •  ${weekdayName(widget.today)}',
+                  style: TextStyle(fontSize: 14, color: c.textFaint)),
+              Text('همسة حب', style: c.classic ? context.heading(size: 26) : TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: c.text)),
             ]),
           ),
           RoundAction(
-            icon: Icon(Icons.favorite, color: c.saint, size: 22),
+            icon: Icon(c.classic ? Icons.favorite_border : Icons.favorite, color: c.classic ? c.textSoft : c.saint, size: 22),
             onTap: widget.onOpenFavorites,
             tooltip: 'المفضلة',
             size: 46,
@@ -149,8 +150,11 @@ class _DateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final coptic = CopticDate.fromGregorian(today);
-    final shadow = [Shadow(color: c.isDark ? const Color(0x66000000) : const Color(0x55FFFFFF), blurRadius: 8)];
-    TextStyle big() => TextStyle(fontSize: 40, height: 1.1, fontWeight: FontWeight.w700, color: c.text, shadows: shadow);
+    final shadow = c.classic ? const <Shadow>[] : [Shadow(color: c.isDark ? const Color(0x66000000) : const Color(0x55FFFFFF), blurRadius: 8)];
+    // مخطوطة/سهرانية: التاريخ القبطي بلون التصميم المميز (أحمر الروبريك أو العسلي)
+    TextStyle big({bool coptic = false}) => c.classic
+        ? context.heading(size: 40, color: coptic ? c.accent : c.text).copyWith(height: 1.1)
+        : TextStyle(fontSize: 40, height: 1.1, fontWeight: FontWeight.w700, color: c.text, shadows: shadow);
     TextStyle small() => TextStyle(fontSize: 15, color: c.textSoft, shadows: shadow);
 
     return GlassPanel(
@@ -180,9 +184,11 @@ class _DateCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: c.isDark
-                  ? const [Color(0x33140B26), Color(0x11140B26), Color(0x77140B26)]
-                  : const [Color(0x66FFFFFF), Color(0x33FFFFFF), Color(0x99FFFFFF)],
+              colors: c.classic
+                  ? [c.card.withValues(alpha: .7), c.card.withValues(alpha: .45), c.card.withValues(alpha: .9)]
+                  : c.isDark
+                      ? const [Color(0x33140B26), Color(0x11140B26), Color(0x77140B26)]
+                      : const [Color(0x66FFFFFF), Color(0x33FFFFFF), Color(0x99FFFFFF)],
             ),
           ),
         ),
@@ -193,7 +199,7 @@ class _DateCard extends StatelessWidget {
             Align(
               alignment: AlignmentDirectional.topStart,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(ar(coptic.day), style: big()),
+                Text(ar(coptic.day), style: big(coptic: true)),
                 Text('${coptic.monthName} ${ar(coptic.year)} ش', style: small()),
               ]),
             ),
@@ -213,16 +219,21 @@ class _DateCard extends StatelessWidget {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                    decoration: BoxDecoration(color: c.chip, borderRadius: BorderRadius.circular(99)),
+                    decoration: BoxDecoration(color: c.chip, borderRadius: BorderRadius.circular(c.classic ? 6 : 99)),
                     child: Text(commemoration.kind.label,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.kindColor(commemoration.kind))),
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: c.classic ? FontWeight.w500 : FontWeight.w700,
+                            color: c.kindColor(commemoration.kind))),
                   ),
                   const SizedBox(height: 6),
                   Text(commemoration.title,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.text, shadows: shadow)),
+                      style: c.classic
+                          ? context.heading(size: 20)
+                          : TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.text, shadows: shadow)),
                   Text(commemoration.detail,
                       textAlign: TextAlign.center,
                       maxLines: 1,
@@ -245,22 +256,29 @@ class _DateCard extends StatelessWidget {
 class _CrossArt extends StatelessWidget {
   const _CrossArt();
   @override
-  Widget build(BuildContext context) => CustomPaint(painter: _CrossPainter(context.colors.text.withValues(alpha: .33)));
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    // مخطوطة/سهرانية: صليب خفيف من غير توهج ذهبي وراه
+    return CustomPaint(painter: _CrossPainter(c.text.withValues(alpha: c.classic ? .12 : .33), glow: !c.classic));
+  }
 }
 
 class _CrossPainter extends CustomPainter {
-  _CrossPainter(this.color);
+  _CrossPainter(this.color, {this.glow = true});
   final Color color;
+  final bool glow;
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height * .42);
     final arm = size.height * .22;
     final w = arm * .34;
-    canvas.drawCircle(
-      center,
-      arm * 2.2,
-      Paint()..shader = RadialGradient(colors: const [Color(0x55F3C77A), Color(0x00F3C77A)]).createShader(Rect.fromCircle(center: center, radius: arm * 2.2)),
-    );
+    if (glow) {
+      canvas.drawCircle(
+        center,
+        arm * 2.2,
+        Paint()..shader = RadialGradient(colors: const [Color(0x55F3C77A), Color(0x00F3C77A)]).createShader(Rect.fromCircle(center: center, radius: arm * 2.2)),
+      );
+    }
     final s = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -271,7 +289,7 @@ class _CrossPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CrossPainter old) => old.color != color;
+  bool shouldRepaint(covariant _CrossPainter old) => old.color != color || old.glow != glow;
 }
 
 class _MessageCard extends StatelessWidget {
@@ -289,9 +307,15 @@ class _MessageCard extends StatelessWidget {
       settings: frostedSettings,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('✦', style: TextStyle(color: c.accent, fontSize: 16)),
-          const SizedBox(width: 8),
-          Expanded(child: Text('رسالة اليوم', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text))),
+          if (!c.classic) ...[
+            Text('✦', style: TextStyle(color: c.accent, fontSize: 16)),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+              child: Text('رسالة اليوم',
+                  style: c.classic
+                      ? TextStyle(fontSize: 13, color: c.textFaint)
+                      : TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text))),
           if (v != null) VerseActions(ref: v.ref, text: v.text),
           const SizedBox(width: 8),
           RoundAction(icon: Icon(Icons.refresh, color: c.text, size: 20), onTap: onRefresh, tooltip: 'رسالة أخرى'),
@@ -400,7 +424,7 @@ class _RadioCard extends StatelessWidget {
               ])
             else
               Row(children: [
-                Pill('▶  بث متواصل', onTap: () => player.startRadio()),
+                Pill(c.classic ? 'بث متواصل' : '▶  بث متواصل', onTap: () => player.startRadio()),
                 const SizedBox(width: 10),
                 Pill('تصفح العظات', onTap: onOpen),
               ]),
@@ -433,8 +457,8 @@ class PlayButton extends StatelessWidget {
         tooltip: player.isPlaying ? 'إيقاف مؤقت' : 'تشغيل',
         onTap: player.toggle,
         icon: player.isBuffering || player.loadingId != null
-            ? SizedBox(width: size * .45, height: size * .45, child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : AppIconView(player.isPlaying ? AppIcon.pause : AppIcon.play, size: size * .5, color: const Color(0xFF2A1446)),
+            ? SizedBox(width: size * .45, height: size * .45, child: CircularProgressIndicator(strokeWidth: 2, color: c.onAccent))
+            : AppIconView(player.isPlaying ? AppIcon.pause : AppIcon.play, size: size * .5, color: c.onAccent),
       ),
     );
   }
