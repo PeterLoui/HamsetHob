@@ -89,8 +89,6 @@ class _StationsScreenState extends State<StationsScreen> {
             },
           ),
         ),
-        const SizedBox(height: 16),
-        Text('إذاعات تانية هتتضاف قريباً', style: TextStyle(fontSize: 12, color: c.textFaint)),
       ],
     );
   }

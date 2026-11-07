@@ -222,7 +222,12 @@ class _ShellState extends State<Shell> {
           const Positioned(left: 0, top: 0, child: WidgetGlassCapture()),
           const Positioned.fill(child: Wallpaper()),
           Positioned.fill(
-            child: AdaptiveLiquidGlassLayer(
+            // المحتوى بيبدأ تحت منطقة التلاشي، فالتغبيش يلمس بس اللي بيطلع لفوق وأنت بتعمل سكرول
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: MediaQuery.paddingOf(context).copyWith(top: MediaQuery.paddingOf(context).top + StatusBarFade.fade),
+              ),
+              child: AdaptiveLiquidGlassLayer(
               settings: glassSettings,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
@@ -250,6 +255,7 @@ class _ShellState extends State<Shell> {
                         },
                       ),
               ),
+            ),
             ),
           ),
           const Positioned(left: 0, right: 0, top: 0, child: StatusBarFade()),

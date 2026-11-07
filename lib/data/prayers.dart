@@ -66,7 +66,7 @@ class Liturgy {
 const liturgies = [
   Liturgy('basil', 'القداس الباسيلي', 'للقديس باسيليوس الكبير', 'Arab-Copts-Mass-Book-002-index-El-Kodas-El-Basily.html'),
   Liturgy('gregory', 'القداس الغريغوري', 'للقديس غريغوريوس الناطق بالإلهيات', 'Arab-Copts-Mass-Book-003-index-Al-Koddas-Al-Ghreghory.html'),
-  Liturgy('cyril', 'القداس الكيرلسي', 'للقديس مرقس الرسول (القداس الكيرلسي)', 'Arab-Copts-Mass-Book-004-index-ElKodas-El-Kirollosy.html'),
+  Liturgy('cyril', 'القداس الكيرلسي', 'للقديس مرقس الرسول، دوّنه القديس كيرلس الكبير', 'Arab-Copts-Mass-Book-004-index-ElKodas-El-Kirollosy.html'),
 ];
 
 /// جزء من القداس في الفهرس.
@@ -124,7 +124,7 @@ class LiturgyRepository {
       if (!seen.add(href)) continue;
       out.add(LiturgyPart(title, _base.resolve(href).toString()));
     }
-    if (out.isEmpty) throw const FormatException('فهرس فاضي');
+    if (out.isEmpty) throw const FormatException('الفهرس فارغ');
     return _indexes[l.id] = out;
   }
 
@@ -211,6 +211,16 @@ class Station {
   final String url;
 }
 
+/// المحطات من copt4g.com/copticradio، اللي بتشتغل بس (اتجربت كلها في نوفمبر ٢٠٢٦).
 const stations = [
-  Station('noor514', 'راديو نور العالم 5.14', 'http://45.80.149.67:8000/radio514'),
+  Station('noor514', 'إذاعة أنتم نور العالم 5:14', 'https://stream.radiojar.com/ps7z45v12k8uv'),
+  Station('akbat', 'إذاعة أقباط العالم', 'http://66.70.249.70:5828/stream'),
+  Station('church', 'إذاعة الكنيسة: ألحان وقداسات', 'http://66.70.249.70:5736/;stream.mp3'),
+  Station('sermons', 'إذاعة العظات', 'http://66.70.249.70:5832/;stream.mp3'),
+  Station('khalwa', 'إذاعة وقت الخلوة', 'http://66.70.249.70:5784/;stream.mp3'),
+  Station('rakoty', 'راكوتي: مارجرجس سبورتنج', 'https://sc-e1.streamcyclone.com/rakoty_live/rakoty/playlist.m3u8'),
+  Station('haya', 'قناة الحياة', 'http://s9.voscast.com:7042/;'),
+  Station('orthodoxiya', 'الأرثوذكسية (روم أرثوذكس)', 'http://s5.viastreaming.net:7040/;'),
+  Station('af_music', 'الإيمان العتيق: موسيقى', 'https://ancientfaith.streamguys1.com/music'),
+  Station('af_talk', 'الإيمان العتيق: عظات', 'https://ancientfaith.streamguys1.com/talk'),
 ];

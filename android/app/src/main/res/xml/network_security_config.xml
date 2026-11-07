@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- كل الاتصالات HTTPS، ما عدا سيرفر بث راديو نور العالم اللي شغال على http -->
+<!-- كل الاتصالات HTTPS، ما عدا سيرفرات بث الإذاعات اللي شغالة على http بس -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">66.70.249.70</domain>
         <domain includeSubdomains="false">45.80.149.67</domain>
+        <domain includeSubdomains="true">radiojar.com</domain>
+        <domain includeSubdomains="false">s9.voscast.com</domain>
+        <domain includeSubdomains="false">s5.viastreaming.net</domain>
     </domain-config>
 </network-security-config>

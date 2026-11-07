@@ -97,25 +97,88 @@ class _PrayersScreenState extends State<PrayersScreen> {
   }
 }
 
-/// صلاة من الأجبية كاملة.
-class AgpeyaPrayerScreen extends StatelessWidget {
+/// صلاة من الأجبية: كل مزمور أو جزء في صفحة لوحده.
+/// التقليب بالسحب، أو بالزرارين تحت، أو بالشريط اللي بينهم.
+class AgpeyaPrayerScreen extends StatefulWidget {
   const AgpeyaPrayerScreen({super.key, required this.prayer, required this.onBack});
   final Prayer prayer;
   final VoidCallback onBack;
 
   @override
+  State<AgpeyaPrayerScreen> createState() => _AgpeyaPrayerScreenState();
+}
+
+class _AgpeyaPrayerScreenState extends State<AgpeyaPrayerScreen> {
+  final _pages = PageController();
+  int _i = 0;
+
+  int get _count => widget.prayer.sections.length;
+
+  void _go(int step) {
+    final next = _i + step;
+    if (next < 0 || next >= _count) return;
+    _pages.animateToPage(next, duration: const Duration(milliseconds: 320), curve: const Cubic(0.22, 1, 0.36, 1));
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return ListView(
-      padding: _pagePadding(context),
-      children: [
-        ScreenHeader(prayer.title, subtitle: prayer.subtitle ?? 'الأجبية', onBack: onBack),
-        for (final s in prayer.sections) ...[
-          if (s.title.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8, bottom: 4), child: Text(s.title, style: context.heading(size: 18))),
-          Padding(padding: const EdgeInsets.only(bottom: 18), child: Text(s.text, style: context.scripture(size: 19))),
+    final pad = MediaQuery.paddingOf(context);
+    final side = c.classic ? 24.0 : 16.0;
+    final p = widget.prayer;
+    final many = _count > 1;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 8),
+      child: Column(children: [
+        ScreenHeader(
+          p.title,
+          subtitle: many ? '${p.subtitle ?? 'الأجبية'} · ${ar(_i + 1)} من ${ar(_count)}' : (p.subtitle ?? 'الأجبية'),
+          onBack: widget.onBack,
+        ),
+        Expanded(
+          child: PageView.builder(
+            controller: _pages,
+            itemCount: _count,
+            onPageChanged: (i) => setState(() => _i = i),
+            itemBuilder: (context, i) {
+              final s = p.sections[i];
+              return ListView(
+                padding: const EdgeInsets.only(bottom: 16),
+                children: [
+                  if (s.title.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(s.title, style: context.heading(size: 21))),
+                  Text(s.text, style: context.scripture(size: 20)),
+                  if (i == _count - 1) ...[
+                    const SizedBox(height: 20),
+                    Text('النص: مشروع الأجبية مفتوح المصدر (abanoubha/agpeya)', style: TextStyle(fontSize: 11, color: c.textFaint)),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+        if (many) ...[
+          const SizedBox(height: 8),
+          Row(children: [
+            AppIconButton(icon: Icon(Icons.chevron_right, color: _i > 0 ? c.text : c.textFaint), label: 'السابق', onTap: () => _go(-1)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: AppSlider(
+                  value: _i / (_count - 1),
+                  onChanged: (v) => _pages.jumpToPage((v * (_count - 1)).round()),
+                ),
+              ),
+            ),
+            AppIconButton(icon: Icon(Icons.chevron_left, color: _i < _count - 1 ? c.text : c.textFaint), label: 'التالي', onTap: () => _go(1)),
+          ]),
         ],
-        Text('النص: مشروع الأجبية مفتوح المصدر (abanoubha/agpeya)', style: TextStyle(fontSize: 11, color: c.textFaint)),
-      ],
+      ]),
     );
   }
 }
