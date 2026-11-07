@@ -145,8 +145,8 @@ class _NowPlaying extends StatelessWidget {
             Container(
               width: 64,
               height: 64,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: c.accent.withValues(alpha: .22)),
-              child: Center(child: AppIconView(AppIcon.radio, size: 34, color: c.accent)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: c.live.withValues(alpha: c.classic ? .08 : .22)),
+              child: Center(child: AppIconView(AppIcon.radio, size: 34, color: c.live)),
             ),
             const SizedBox(height: 12),
             Text(now?.title ?? 'اختر عظة أو ابدأ البث المتواصل',
@@ -214,12 +214,12 @@ class _SermonRow extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: current ? c.accent : c.chip),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: current ? c.live : c.chip),
               child: Center(
                 child: player.loadingId == sermon.id
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : AppIconView(current && player.isPlaying ? AppIcon.pause : AppIcon.play,
-                        size: 18, color: current ? c.onAccent : c.text),
+                        size: 18, color: current ? c.onLive : c.text),
               ),
             ),
             const SizedBox(width: 12),
@@ -227,7 +227,7 @@ class _SermonRow extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(sermon.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
-                Text(categoryName(sermon.categoryId), style: TextStyle(fontSize: 11, color: c.accent)),
+                Text(categoryName(sermon.categoryId), style: TextStyle(fontSize: 11, color: c.classic ? c.textFaint : c.accent)),
                 if (sermon.summary.isNotEmpty)
                   Text(sermon.summary,
                       maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, height: 1.5, color: c.textSoft)),
@@ -273,7 +273,7 @@ class MiniPlayer extends StatelessWidget {
                       maxLines: 1, style: TextStyle(fontSize: 11, color: c.textSoft)),
                 ]),
               ),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.accent)),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.classic ? c.textFaint : c.accent)),
             ]),
           ),
         );

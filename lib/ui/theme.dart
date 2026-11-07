@@ -160,6 +160,11 @@ class AppColors extends ThemeExtension<AppColors> {
     headingFont: 'Noto Naskh Arabic',
   );
 
+  /// لون الأزرار والحاجات الشغالة (تشغيل، سويتش، زرار أساسي):
+  /// حبر في مخطوطة عشان الأحمر يفضل للتاريخ القبطي وأرقام الآيات، وعسلي في سهرانية.
+  Color get live => classic && !isDark ? text : accent;
+  Color get onLive => classic && !isDark ? surface : onAccent;
+
   Color kindColor(Kind k) => switch (k) { Kind.feast => accent, Kind.fast => fast, Kind.saint => saint };
 
   @override

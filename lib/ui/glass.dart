@@ -156,7 +156,7 @@ class Pill extends StatelessWidget {
     final c = context.colors;
     final r = BorderRadius.circular(c.classic ? 8 : 99);
     return Material(
-      color: filled ? c.accent : c.chip,
+      color: filled ? c.live : c.chip,
       borderRadius: r,
       child: InkWell(
         borderRadius: r,
@@ -167,7 +167,7 @@ class Pill extends StatelessWidget {
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: c.classic ? FontWeight.w500 : FontWeight.w600,
-                  color: filled ? c.onAccent : c.text)),
+                  color: filled ? c.onLive : c.text)),
         ),
       ),
     );
@@ -244,8 +244,8 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
     final c = context.colors;
     if (c.classic) {
       final safe = MediaQuery.paddingOf(context).bottom;
-      // مخطوطة: التبويب المفتوح بالأحمر. سهرانية: أوف وايت ونقطة عسلية تحته.
-      final on = c.isDark ? c.text : c.accent;
+      // التبويب المفتوح بالحبر (الأحمر للتاريخ القبطي وأرقام الآيات بس)، وفي سهرانية نقطة عسلية تحته.
+      final on = c.text;
       return Container(
         height: 64 + safe,
         padding: EdgeInsets.only(bottom: safe),
@@ -439,9 +439,9 @@ class AppSlider extends StatelessWidget {
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
         trackHeight: 3,
-        activeTrackColor: c.accent,
+        activeTrackColor: c.live,
         inactiveTrackColor: c.chip,
-        thumbColor: c.accent,
+        thumbColor: c.live,
         overlayShape: SliderComponentShape.noOverlay,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
@@ -466,8 +466,8 @@ class AppSwitch extends StatelessWidget {
       child: Switch(
         value: value,
         onChanged: onChanged,
-        thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.onAccent : c.card),
-        trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.accent : c.chip),
+        thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.onLive : c.card),
+        trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.live : c.chip),
         trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),
     );

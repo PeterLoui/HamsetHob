@@ -114,7 +114,7 @@ class _MoreScreenState extends State<MoreScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('جارٍ التحميل… ${ar((_progress! * 100).round())}٪', style: TextStyle(color: c.text)),
                   const SizedBox(height: 8),
-                  LinearProgressIndicator(value: _progress, color: c.accent, backgroundColor: c.chip),
+                  LinearProgressIndicator(value: _progress, color: c.live, backgroundColor: c.chip),
                 ]),
               )
             else if (_offline == true)
@@ -137,7 +137,7 @@ class _MoreScreenState extends State<MoreScreen> {
 
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
-        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.accent)),
+        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: context.colors.classic ? FontWeight.w400 : FontWeight.w700, color: context.colors.classic ? context.colors.textFaint : context.colors.accent)),
       );
 
   Widget _group(String? title, List<Widget> children) => GlassPanel(

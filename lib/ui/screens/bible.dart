@@ -253,7 +253,7 @@ class _ChapterScreenState extends State<ChapterScreen> {
                           color: v.number == _selected
                               ? c.chip
                               : v.number == _highlight
-                                  ? c.accent.withValues(alpha: .2)
+                                  ? (c.classic ? c.chip : c.accent.withValues(alpha: .2))
                                   : Colors.transparent,
                         ),
                         child: InkWell(
