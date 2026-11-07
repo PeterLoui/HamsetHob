@@ -93,7 +93,7 @@ object Widgets {
     fun render(ctx: Context) {
         val p = WidgetStore.prefs(ctx)
         val coptic = CopticDay.of(LocalDate.now())
-        val text = p.getString("text", null)?.let { "«$it»" } ?: "افتح التطبيق لتحميل رسالة اليوم"
+        val text = p.getString("text", null) ?: "افتح التطبيق لتحميل رسالة اليوم"
         val ref = p.getString("ref", "") ?: ""
         val open = openIntent(ctx, p.getInt("book", 0), p.getInt("chapter", 1), p.getInt("verse", 1))
         val manager = AppWidgetManager.getInstance(ctx)
@@ -110,7 +110,7 @@ object Widgets {
         val lock = RemoteViews(ctx.packageName, R.layout.widget_lock).apply {
             setGlass(ctx, this, "lock")
             setTextViewText(R.id.coptic_day, arabicDigits(coptic.day))
-            setTextViewText(R.id.coptic_month, "${coptic.monthName} ${arabicDigits(coptic.year)} ش")
+            setTextViewText(R.id.coptic_month, coptic.monthName)
             setTextViewText(R.id.verse_text, text)
             setTextViewText(R.id.verse_ref, ref)
             setOnClickPendingIntent(R.id.root, open)
@@ -120,12 +120,10 @@ object Widgets {
         lockNotification(ctx, p.getBoolean("lock", true), coptic.label, text, ref, open)
     }
 
-    /** خلفية الويدجت: صورة الزجاج المرسومة بحزمة liquid_glass_widgets، وإلا خلفية احتياطية. */
+    /** خلفية الويدجت: «زجاج صافي» مرسوم vector، فبيتمدد على أي مقاس من غير تشويه. */
+    @Suppress("UNUSED_PARAMETER")
     private fun setGlass(ctx: Context, views: RemoteViews, kind: String) {
-        val file = WidgetStore.glassFile(ctx, kind)
-        val bitmap = if (file.exists()) BitmapFactory.decodeFile(file.path) else null
-        if (bitmap != null) views.setImageViewBitmap(R.id.glass, bitmap)
-        else views.setImageViewResource(R.id.glass, R.drawable.glass_widget_bg)
+        views.setImageViewResource(R.id.glass, R.drawable.widget_glass_clear)
     }
 
     private fun lockNotification(ctx: Context, enabled: Boolean, title: String, text: String, ref: String, open: PendingIntent) {

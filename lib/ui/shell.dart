@@ -9,7 +9,6 @@ import '../data/meditations.dart';
 import '../data/prayers.dart';
 import '../data/store.dart';
 import '../native/native_bridge.dart';
-import '../native/widget_glass.dart';
 import '../audio/radio_player.dart';
 import 'glass.dart';
 import 'icons.dart';
@@ -218,8 +217,6 @@ class _ShellState extends State<Shell> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(children: [
-          // سطح زجاج الويدجتس يُرسم هنا خلف الخلفية ثم يُلتقط صورةً
-          const Positioned(left: 0, top: 0, child: WidgetGlassCapture()),
           const Positioned.fill(child: Wallpaper()),
           Positioned.fill(
             // المحتوى بيبدأ تحت منطقة التلاشي، فالتغبيش يلمس بس اللي بيطلع لفوق وأنت بتعمل سكرول

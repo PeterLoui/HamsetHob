@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  «زجاج صافي»: لوح فاتح شفاف والخلفية باينة من وراه.
+  الويدجت مايقدرش يغبّش الخلفية، فالزجاج = طبقة رقّ شفافة + انعكاس مائل + لمعة من الركن + حافة.
+  كله أشكال vector، فبيتمدد على أي مقاس من غير ما الزوايا تتشوّه.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- الرقّ الشفاف: أتقل شوية فوق عشان النص يتقري -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#9EFAF6EE"
+                android:endColor="#7AFAF6EE" />
+        </shape>
+    </item>
+    <!-- انعكاس مائل على السطح -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:angle="315"
+                android:startColor="#00FFFFFF"
+                android:centerColor="#38FFFFFF"
+                android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+    <!-- لمعة من الركن العلوي -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:type="radial"
+                android:centerX="0.8"
+                android:centerY="0"
+                android:gradientRadius="180dp"
+                android:startColor="#8CFFFFFF"
+                android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+    <!-- حافة الزجاج -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <stroke android:width="1dp" android:color="#8CFFFFFF" />
+        </shape>
+    </item>
+    <!-- سُمك خفيف من جوه -->
+    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="23dp" />
+            <stroke android:width="1dp" android:color="#14211B14" />
+        </shape>
+    </item>
+</layer-list>
