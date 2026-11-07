@@ -14,6 +14,7 @@ import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
 import 'meditation.dart';
+import 'prayers.dart' show QuickTiles;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -25,6 +26,9 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenFavorites,
     required this.onOpenRadio,
     required this.onOpenMeditation,
+    required this.onOpenPrayers,
+    required this.onOpenStations,
+    required this.onOpenBooks,
     required this.onVerseLoaded,
   });
 
@@ -32,6 +36,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<VerseRef> onOpenChapter;
   final VoidCallback onOpenSynaxarium, onOpenReadings, onOpenFavorites, onOpenRadio;
   final ValueChanged<Meditation> onOpenMeditation;
+  final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks;
   final ValueChanged<DailyVerse> onVerseLoaded;
 
   @override
@@ -141,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         const SizedBox(height: 16),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        const SizedBox(height: 16),
         _RadioCard(onOpen: widget.onOpenRadio),
       ],
     );
@@ -244,14 +251,10 @@ class _HomeScreenState extends State<HomeScreen> {
             title: 'إنجيل القداس اليوم',
             subtitle: '${gospel.book} ${ar(gospel.ref)}',
             onTap: widget.onOpenReadings,
+            last: true,
           ),
-        _PageRow(
-          icon: AppIcon.calendar,
-          title: 'سنكسار اليوم',
-          subtitle: 'سير القديسين وتذكاراتهم',
-          onTap: widget.onOpenSynaxarium,
-          last: true,
-        ),
+        const SizedBox(height: 16),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],

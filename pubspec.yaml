@@ -27,3 +27,6 @@ dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/agpeya.json
+    - assets/agpeya_LICENSE.txt

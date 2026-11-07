@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- كل الاتصالات HTTPS، ما عدا سيرفر بث راديو نور العالم اللي شغال على http -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">45.80.149.67</domain>
+    </domain-config>
+</network-security-config>

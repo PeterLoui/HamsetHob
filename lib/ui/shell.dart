@@ -6,6 +6,7 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../core/coptic.dart';
 import '../data/bible.dart';
 import '../data/meditations.dart';
+import '../data/prayers.dart';
 import '../data/store.dart';
 import '../native/native_bridge.dart';
 import '../native/widget_glass.dart';
@@ -16,6 +17,8 @@ import 'screens/bible.dart';
 import 'screens/calendar.dart';
 import 'screens/home.dart';
 import 'screens/meditation.dart';
+import 'screens/prayers.dart';
+import 'screens/stations.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
 import 'screens/readings.dart';
@@ -46,6 +49,35 @@ class RadioOverlay extends SubScreen {
 class MeditationOverlay extends SubScreen {
   const MeditationOverlay(this.meditation);
   final Meditation meditation;
+}
+
+class PrayersOverlay extends SubScreen {
+  const PrayersOverlay();
+}
+
+class AgpeyaPrayerOverlay extends SubScreen {
+  const AgpeyaPrayerOverlay(this.prayer);
+  final Prayer prayer;
+}
+
+class LiturgyOverlay extends SubScreen {
+  const LiturgyOverlay(this.liturgy);
+  final Liturgy liturgy;
+}
+
+class LiturgyPartOverlay extends SubScreen {
+  const LiturgyPartOverlay(this.liturgy, this.parts, this.index);
+  final Liturgy liturgy;
+  final List<LiturgyPart> parts;
+  final int index;
+}
+
+class StationsOverlay extends SubScreen {
+  const StationsOverlay();
+}
+
+class BooksOverlay extends SubScreen {
+  const BooksOverlay();
 }
 
 class Shell extends StatefulWidget {
@@ -126,6 +158,9 @@ class _ShellState extends State<Shell> {
             onOpenFavorites: () => _open(const FavoritesOverlay()),
             onOpenRadio: () => _open(const RadioOverlay()),
             onOpenMeditation: (m) => _open(MeditationOverlay(m)),
+            onOpenPrayers: () => _open(const PrayersOverlay()),
+            onOpenStations: () => _open(const StationsOverlay()),
+            onOpenBooks: () => _open(const BooksOverlay()),
             onVerseLoaded: _syncWidgets,
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
@@ -146,6 +181,21 @@ class _ShellState extends State<Shell> {
         FavoritesOverlay() => FavoritesScreen(onOpenChapter: (r) => _open(ChapterOverlay(r)), onBack: _back),
         RadioOverlay() => RadioScreen(onBack: _back),
         MeditationOverlay(:final meditation) => MeditationScreen(meditation: meditation, onBack: _back),
+        PrayersOverlay() => PrayersScreen(
+            onBack: _back,
+            onOpenPrayer: (p) => _open(AgpeyaPrayerOverlay(p)),
+            onOpenLiturgy: (l) => _open(LiturgyOverlay(l)),
+          ),
+        AgpeyaPrayerOverlay(:final prayer) => AgpeyaPrayerScreen(prayer: prayer, onBack: _back),
+        LiturgyOverlay(:final liturgy) => LiturgyScreen(
+            liturgy: liturgy,
+            onBack: _back,
+            onOpenPart: (parts, i) => _open(LiturgyPartOverlay(liturgy, parts, i)),
+          ),
+        LiturgyPartOverlay(:final liturgy, :final parts, :final index) =>
+          LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
+        StationsOverlay() => StationsScreen(onBack: _back),
+        BooksOverlay() => BooksScreen(onBack: _back),
       };
 
   @override
@@ -202,6 +252,7 @@ class _ShellState extends State<Shell> {
               ),
             ),
           ),
+          const Positioned(left: 0, right: 0, top: 0, child: StatusBarFade()),
           if (top == null) ...[
             Positioned(
               left: 0,

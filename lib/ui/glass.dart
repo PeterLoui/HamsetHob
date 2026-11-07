@@ -62,6 +62,56 @@ class Wallpaper extends StatelessWidget {
   }
 }
 
+/// طبقة فوق المحتوى ورا شريط الحالة: المحتوى اللي بيطلع لفوق بيتغبّش ويختفي
+/// تدريجياً بدل ما يدخل تحت الساعة والأيقونات.
+class StatusBarFade extends StatelessWidget {
+  const StatusBarFade({super.key});
+
+  /// ارتفاع منطقة التلاشي تحت شريط الحالة.
+  static const fade = 28.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final top = MediaQuery.paddingOf(context).top;
+    if (top <= 0) return const SizedBox.shrink();
+    final bg = c.classic ? c.surface : c.wallpaper.first;
+    final h = top + fade;
+    // تغبيش متدرّج: قوي ورا شريط الحالة وبيخف في شريطين تحته
+    Widget band(double from, double to, double sigma) => Positioned(
+          top: from,
+          height: to - from,
+          left: 0,
+          right: 0,
+          child: ClipRect(
+            child: BackdropFilter(filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: const SizedBox.expand()),
+          ),
+        );
+    return IgnorePointer(
+      child: SizedBox(
+        height: h,
+        child: Stack(children: [
+          band(0, top, 12),
+          band(top, top + fade * .45, 6),
+          band(top + fade * .45, top + fade * .8, 2.5),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [bg.withValues(alpha: .92), bg.withValues(alpha: .78), bg.withValues(alpha: 0)],
+                  stops: [0, top / h, 1],
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 /// بطاقة: زجاج (GlassContainer) أو كارت ثابت بخط رفيع.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({

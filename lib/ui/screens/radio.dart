@@ -158,7 +158,7 @@ class _NowPlaying extends StatelessWidget {
               now == null ? 'عظات عشوائية متتالية من المكتبة' : (player.radioOn ? 'بث متواصل • ${now.category}' : now.category),
               style: TextStyle(fontSize: 12, color: c.textSoft),
             ),
-            if (now != null) ...[
+            if (now != null && !player.live) ...[
               const SizedBox(height: 10),
               AppSlider(
                 value: dur == 0 ? 0 : (player.position.inMilliseconds / dur).clamp(0, 1).toDouble(),

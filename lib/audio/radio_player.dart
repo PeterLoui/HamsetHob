@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import '../data/prayers.dart' show Station;
 import '../data/sermons.dart';
 
 class NowPlaying {
@@ -39,6 +40,10 @@ class RadioPlayer extends ChangeNotifier {
   int? loadingId;
   String? error;
   bool radioOn = false;
+
+  /// بث مباشر لمحطة إذاعة (من غير مدة ولا تقديم ورجوع).
+  bool live = false;
+  String? stationId;
   int radioCategory = 0;
   Duration position = Duration.zero;
   Duration duration = Duration.zero;
@@ -46,6 +51,28 @@ class RadioPlayer extends ChangeNotifier {
   bool get isPlaying => _player.playing;
   bool get isBuffering =>
       _player.processingState == ProcessingState.loading || _player.processingState == ProcessingState.buffering;
+
+  /// تشغيل محطة إذاعة مسيحية بث مباشر.
+  Future<void> playStation(Station st) async {
+    radioOn = false;
+    live = true;
+    stationId = st.id;
+    loadingId = -1;
+    error = null;
+    notifyListeners();
+    try {
+      await _player.setAudioSource(AudioSource.uri(
+        Uri.parse(st.url),
+        tag: MediaItem(id: 'station_${st.id}', title: st.name, artist: 'بث مباشر', album: 'إذاعات'),
+      ));
+      nowPlaying = NowPlaying(-1, st.name, 'بث مباشر');
+      unawaited(_player.play());
+    } catch (_) {
+      error = 'تعذّر تشغيل الإذاعة، تأكد من الاتصال بالإنترنت';
+    }
+    loadingId = null;
+    notifyListeners();
+  }
 
   Future<void> play(Sermon s) async {
     radioOn = false;
@@ -74,6 +101,8 @@ class RadioPlayer extends ChangeNotifier {
   }
 
   Future<void> _start(Sermon s) async {
+    live = false;
+    stationId = null;
     loadingId = s.id;
     error = null;
     notifyListeners();

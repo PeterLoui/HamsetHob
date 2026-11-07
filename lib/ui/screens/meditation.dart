@@ -106,8 +106,6 @@ class _MeditationScreenState extends State<MeditationScreen> {
                         )
                       : Text(b.text, style: TextStyle(fontSize: 16, height: 1.9, color: c.text)),
                 ),
-              const SizedBox(height: 8),
-              Text('المصدر: ${MeditationRepository.source}', style: TextStyle(fontSize: 11, color: c.textFaint)),
             ],
           ],
         );
