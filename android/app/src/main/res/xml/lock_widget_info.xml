@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- شاشة القفل: مستطيل بنسبة ٢:١ تقريباً زي ويدجتس iOS المستطيلة -->
+<!-- شاشة القفل: كبسولة صغيرة (حوالي ٢٫٤:١) زي الويدجتس اللي تحت الساعة -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/widget_lock"
     android:initialKeyguardLayout="@layout/widget_lock"
     android:description="@string/widget_lock_desc"
-    android:minWidth="220dp"
-    android:minHeight="110dp"
-    android:maxResizeHeight="140dp"
-    android:targetCellWidth="4"
-    android:targetCellHeight="2"
+    android:minWidth="140dp"
+    android:minHeight="56dp"
+    android:maxResizeHeight="72dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
     android:resizeMode="horizontal"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="keyguard|home_screen" />

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ألوان الويدجتس في الوضع الداكن: زجاج مدخّن (سهرانية) -->
+<resources>
+    <color name="widget_ink">#FFEFE7DA</color>
+    <color name="widget_soft">#FFADA495</color>
+    <color name="widget_accent">#FFE2A84B</color>
+    <color name="widget_hairline">#26EFE7DA</color>
+    <color name="widget_track">#2EEFE7DA</color>
+</resources>

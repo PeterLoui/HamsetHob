@@ -39,6 +39,9 @@ data class CopticDay(val year: Int, val month: Int, val day: Int) {
     val monthName get() = COPTIC_MONTHS[month - 1]
     val label get() = "${arabicDigits(day)} $monthName ${arabicDigits(year)} ش"
 
+    /** أيام الشهر: ٣٠، والنسيء ٥ أيام أو ٦ في السنة الكبيسة. */
+    val monthLength get() = if (month < 13) 30 else if (year % 4 == 3) 6 else 5
+
     companion object {
         private const val EPOCH = 1825030L
         private fun jdn(y: Int, m: Int, d: Int) = EPOCH - 1 + 365L * (y - 1) + y / 4 + 30L * (m - 1) + d
@@ -107,12 +110,13 @@ object Widgets {
         }
         manager.updateAppWidget(ComponentName(ctx, VerseWidgetProvider::class.java), home)
 
+        // شاشة القفل: كبسولة فيها الشهر القبطي ورقم اليوم وحلقة أيام الشهر
         val lock = RemoteViews(ctx.packageName, R.layout.widget_lock).apply {
             setGlass(ctx, this, "lock")
+            setTextViewText(R.id.coptic_month, "${coptic.monthName} ${arabicDigits(coptic.year)}")
             setTextViewText(R.id.coptic_day, arabicDigits(coptic.day))
-            setTextViewText(R.id.coptic_month, coptic.monthName)
-            setTextViewText(R.id.verse_text, text)
-            setTextViewText(R.id.verse_ref, ref)
+            setProgressBar(R.id.month_ring, coptic.monthLength, coptic.day, false)
+            setContentDescription(R.id.root, coptic.label)
             setOnClickPendingIntent(R.id.root, open)
         }
         manager.updateAppWidget(ComponentName(ctx, LockWidgetProvider::class.java), lock)
@@ -121,9 +125,10 @@ object Widgets {
     }
 
     /** خلفية الويدجت: «زجاج صافي» مرسوم vector، فبيتمدد على أي مقاس من غير تشويه. */
+    /** بيتغير لوحده مع الوضع: صافي بالنهار، ومدخّن بالليل من drawable-night. */
     @Suppress("UNUSED_PARAMETER")
     private fun setGlass(ctx: Context, views: RemoteViews, kind: String) {
-        views.setImageViewResource(R.id.glass, R.drawable.widget_glass_clear)
+        views.setImageViewResource(R.id.glass, if (kind == "lock") R.drawable.widget_pill else R.drawable.widget_glass_clear)
     }
 
     private fun lockNotification(ctx: Context, enabled: Boolean, title: String, text: String, ref: String, open: PendingIntent) {

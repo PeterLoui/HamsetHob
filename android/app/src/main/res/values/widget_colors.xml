@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ألوان الويدجتس في الوضع النهاري: «زجاج صافي» (مخطوطة) -->
+<resources>
+    <color name="widget_ink">#FF211B14</color>
+    <color name="widget_soft">#FF5C5347</color>
+    <color name="widget_accent">#FFA3271B</color>
+    <color name="widget_hairline">#26211B14</color>
+    <color name="widget_track">#24211B14</color>
+</resources>

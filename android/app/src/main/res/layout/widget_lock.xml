@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ويدجت شاشة القفل: «زجاج صافي» بنسبة ٢:١ تقريباً، التاريخ القبطي جنب الآية -->
+<!--
+  ويدجت شاشة القفل: كبسولة صغيرة زي الويدجتس اللي تحت الساعة.
+  الشهر القبطي وسنته فوق، ورقم اليوم كبير، وجنبهم حلقة بتتملي مع أيام الشهر وفي نصها صليب.
+  زجاج صافي بالنهار، ومدخّن بالليل (drawable-night و values-night).
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
@@ -12,53 +16,15 @@
         android:layout_height="match_parent"
         android:importantForAccessibility="no"
         android:scaleType="fitXY"
-        android:src="@drawable/widget_glass_clear" />
+        android:src="@drawable/widget_pill" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="12dp">
-
-        <LinearLayout
-            android:layout_width="64dp"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/coptic_day"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="serif"
-                android:includeFontPadding="false"
-                android:textColor="#FFA3271B"
-                android:textSize="32sp" />
-
-            <TextView
-                android:id="@+id/coptic_month"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:maxLines="1"
-                android:textColor="#FF5C5347"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <ImageView
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
-            android:importantForAccessibility="no"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_hairline" />
+        android:paddingStart="20dp"
+        android:paddingEnd="8dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -67,24 +33,44 @@
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/verse_text"
-                android:layout_width="match_parent"
+                android:id="@+id/coptic_month"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="serif"
-                android:lineSpacingExtra="2dp"
-                android:maxLines="3"
-                android:textColor="#FF211B14"
-                android:textSize="15sp" />
+                android:maxLines="1"
+                android:textColor="@color/widget_soft"
+                android:textSize="11sp" />
 
             <TextView
-                android:id="@+id/verse_ref"
-                android:layout_width="match_parent"
+                android:id="@+id/coptic_day"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
                 android:maxLines="1"
-                android:textColor="#FFA3271B"
-                android:textSize="11sp" />
+                android:textColor="@color/widget_ink"
+                android:textSize="26sp" />
         </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp">
+
+            <ProgressBar
+                android:id="@+id/month_ring"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:indeterminate="false"
+                android:max="30"
+                android:progress="12"
+                android:progressDrawable="@drawable/widget_ring" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_coptic_cross" />
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>
