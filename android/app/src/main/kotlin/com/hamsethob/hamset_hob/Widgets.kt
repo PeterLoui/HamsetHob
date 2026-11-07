@@ -110,12 +110,13 @@ object Widgets {
         }
         manager.updateAppWidget(ComponentName(ctx, VerseWidgetProvider::class.java), home)
 
-        // شاشة القفل: كبسولة فيها الشهر القبطي ورقم اليوم وحلقة أيام الشهر
+        // شاشة القفل: كبسولة فيها حلقة أيام الشهر ورقم اليوم، والشهر وآية اليوم في سطرين
         val lock = RemoteViews(ctx.packageName, R.layout.widget_lock).apply {
             setGlass(ctx, this, "lock")
             setTextViewText(R.id.coptic_month, "${coptic.monthName} ${arabicDigits(coptic.year)}")
             setTextViewText(R.id.coptic_day, arabicDigits(coptic.day))
             setProgressBar(R.id.month_ring, coptic.monthLength, coptic.day, false)
+            setTextViewText(R.id.verse_text, text)
             setContentDescription(R.id.root, coptic.label)
             setOnClickPendingIntent(R.id.root, open)
         }
