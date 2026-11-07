@@ -6,12 +6,14 @@ import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
 import '../../data/bible.dart';
 import '../../data/katameros.dart';
+import '../../data/meditations.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
 import '../../share/verse_image.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
+import 'meditation.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -22,12 +24,14 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenReadings,
     required this.onOpenFavorites,
     required this.onOpenRadio,
+    required this.onOpenMeditation,
     required this.onVerseLoaded,
   });
 
   final DateTime today;
   final ValueChanged<VerseRef> onOpenChapter;
   final VoidCallback onOpenSynaxarium, onOpenReadings, onOpenFavorites, onOpenRadio;
+  final ValueChanged<Meditation> onOpenMeditation;
   final ValueChanged<DailyVerse> onVerseLoaded;
 
   @override
@@ -117,6 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onRefresh: () => _loadVerse(forceNew: true),
           onOpenChapter: widget.onOpenChapter,
         ),
+        const SizedBox(height: 16),
+        MeditationCard(today: widget.today, onOpen: widget.onOpenMeditation),
         if (_readings?.liturgyGospel case final g?) ...[
           const SizedBox(height: 16),
           GlassPanel(
@@ -230,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
         else
           const SizedBox(height: 80, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
         const SizedBox(height: 20),
+        MeditationCard(today: today, onOpen: widget.onOpenMeditation),
+        const SizedBox(height: 16),
         if (gospel != null)
           _PageRow(
             icon: AppIcon.readings,

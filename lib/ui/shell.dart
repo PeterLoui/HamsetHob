@@ -5,6 +5,7 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../core/coptic.dart';
 import '../data/bible.dart';
+import '../data/meditations.dart';
 import '../data/store.dart';
 import '../native/native_bridge.dart';
 import '../native/widget_glass.dart';
@@ -14,6 +15,7 @@ import 'icons.dart';
 import 'screens/bible.dart';
 import 'screens/calendar.dart';
 import 'screens/home.dart';
+import 'screens/meditation.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
 import 'screens/readings.dart';
@@ -39,6 +41,11 @@ class FavoritesOverlay extends SubScreen {
 
 class RadioOverlay extends SubScreen {
   const RadioOverlay();
+}
+
+class MeditationOverlay extends SubScreen {
+  const MeditationOverlay(this.meditation);
+  final Meditation meditation;
 }
 
 class Shell extends StatefulWidget {
@@ -118,6 +125,7 @@ class _ShellState extends State<Shell> {
             onOpenReadings: () => setState(() => _tab = 2),
             onOpenFavorites: () => _open(const FavoritesOverlay()),
             onOpenRadio: () => _open(const RadioOverlay()),
+            onOpenMeditation: (m) => _open(MeditationOverlay(m)),
             onVerseLoaded: _syncWidgets,
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
@@ -137,6 +145,7 @@ class _ShellState extends State<Shell> {
         SynaxariumOverlay(:final date) => SynaxariumScreen(start: date, onBack: _back),
         FavoritesOverlay() => FavoritesScreen(onOpenChapter: (r) => _open(ChapterOverlay(r)), onBack: _back),
         RadioOverlay() => RadioScreen(onBack: _back),
+        MeditationOverlay(:final meditation) => MeditationScreen(meditation: meditation, onBack: _back),
       };
 
   @override
