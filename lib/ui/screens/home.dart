@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         stories.first.title,
         more > 0 ? 'و${ar(more)} ${more == 1 ? 'تذكار آخر' : 'تذكارات أخرى'} في سنكسار اليوم' : 'سنكسار اليوم',
         Kind.saint,
-        local.wiki,
+        null, // اسم قديس من السنكسار الكامل: مالوش صورة متراجعة، فمانعرضش صورة التذكار الشهري معاه
       );
     }
     return local;
@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onSermons: widget.onOpenRadio, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _RadioCard(onOpen: widget.onOpenRadio),
       ],
@@ -176,30 +176,36 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ]),
         const SizedBox(height: 12),
-        Text('${weekdayName(today)} ${ar(today.day)} ${gregorianMonths[today.month - 1]}', style: context.heading(size: 28)),
-        const SizedBox(height: 2),
-        Text('${ar(coptic.day)} ${coptic.monthName} ${ar(coptic.year)} للشهداء',
-            style: TextStyle(fontSize: 15, color: c.accent, fontFeatures: const [FontFeature.tabularFigures()])),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: widget.onOpenSynaxarium,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(children: [
-              CopticCross(size: 12, color: c.textFaint),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(com.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
-                  Text(com.detail, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textFaint)),
-                ]),
+        // صورة قديس اليوم أو العيد ورا التاريخ والتذكار: من الشمال، بشفافية ٣٠٪، وبتتلاشى لنص الصفحة
+        _SaintBackdrop(
+          wiki: com.wiki,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('${weekdayName(today)} ${ar(today.day)} ${gregorianMonths[today.month - 1]}', style: context.heading(size: 28)),
+              const SizedBox(height: 2),
+              Text('${ar(coptic.day)} ${coptic.monthName} ${ar(coptic.year)} للشهداء',
+                  style: TextStyle(fontSize: 15, color: c.accent, fontFeatures: const [FontFeature.tabularFigures()])),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: widget.onOpenSynaxarium,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(children: [
+                    CopticCross(size: 12, color: c.textFaint),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(com.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+                        Text(com.detail, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: c.textFaint)),
+                      ]),
+                    ),
+                    Icon(Icons.chevron_left, color: c.textFaint, size: 18),
+                  ]),
+                ),
               ),
-              Icon(Icons.chevron_left, color: c.textFaint, size: 18),
-            ]),
-          ),
+          ]),
         ),
         const _Ornament(),
         Text('رسالة اليوم', style: TextStyle(fontSize: 13, color: c.textFaint)),
@@ -254,10 +260,70 @@ class _HomeScreenState extends State<HomeScreen> {
             last: true,
           ),
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onSermons: widget.onOpenRadio, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],
+    );
+  }
+}
+
+/// صورة التذكار ورا رأس الصفحة: بتبدأ من شمال الشاشة بشفافية ٣٠٪ وبتتلاشى تدريجياً لحد نص الصفحة يمين،
+/// ومن تحت كمان، فمافيش حافة واضحة. الصور من جدول متراجع (SaintImages)، ولو مافيش صورة الرأس بيفضل زي ما هو.
+class _SaintBackdrop extends StatelessWidget {
+  const _SaintBackdrop({required this.wiki, required this.child});
+  final String? wiki;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: SaintImages.instance.imageUrl(wiki, ''),
+      builder: (context, snap) {
+        final url = snap.data;
+        if (url == null) return child;
+        return Stack(clipBehavior: Clip.none, children: [
+          Positioned(
+            top: -12,
+            bottom: -8,
+            left: -24, // لحد حافة الشاشة (هامش الصفحة ٢٤)
+            right: 0,
+            child: IgnorePointer(
+              child: ShaderMask(
+                // من الشمال لنص الصفحة يمين
+                shaderCallback: (r) => const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.black, Colors.black, Colors.transparent],
+                  stops: [0, .3, .78],
+                ).createShader(r),
+                blendMode: BlendMode.dstIn,
+                child: ShaderMask(
+                  // ومن تحت عشان مايبقاش فيه خط
+                  shaderCallback: (r) => const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black, Colors.black, Colors.transparent],
+                    stops: [0, .7, 1],
+                  ).createShader(r),
+                  blendMode: BlendMode.dstIn,
+                  child: Opacity(
+                    opacity: .3,
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(-.3, -.55),
+                      fadeInDuration: const Duration(milliseconds: 300),
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          child,
+        ]);
+      },
     );
   }
 }
@@ -397,8 +463,8 @@ class _NowPlayingCard extends StatelessWidget {
                 const PlayButton(size: 44),
               ])
             else ...[
-              Text('الإذاعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
-              Text('عظات قداسة البابا شنوده الثالث', style: TextStyle(fontSize: 12, color: c.textFaint)),
+              Text('عظات قداسة البابا شنوده الثالث', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
+              Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 12, color: c.textFaint)),
               const SizedBox(height: 12),
               Row(children: [
                 Pill('بث متواصل', filled: true, onTap: () => player.startRadio()),

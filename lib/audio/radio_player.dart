@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../data/prayers.dart' show Station;
+import '../native/native_bridge.dart';
 import '../data/sermons.dart';
 
 class NowPlaying {
@@ -20,6 +23,12 @@ class RadioPlayer extends ChangeNotifier {
   RadioPlayer._() {
     _player.playerStateStream.listen((s) {
       if (s.processingState == ProcessingState.completed && radioOn) _playRandom();
+      final active = s.playing && s.processingState != ProcessingState.idle && s.processingState != ProcessingState.completed;
+      if (active != _locked) {
+        _locked = active;
+        NativeBridge.setPlaybackLock(active);
+        if (active) _askBatteryOnce();
+      }
       notifyListeners();
     });
     _player.positionStream.listen((p) {
@@ -34,6 +43,15 @@ class RadioPlayer extends ChangeNotifier {
   static final instance = RadioPlayer._();
 
   final _player = AudioPlayer();
+  bool _locked = false;
+
+  /// أول مرة الصوت يشتغل: نطلب استثناء البطارية عشان النظام مايوقفش الصوت في الخلفية.
+  Future<void> _askBatteryOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('asked_battery') ?? false) return;
+    await prefs.setBool('asked_battery', true);
+    await NativeBridge.requestBatteryExemption();
+  }
   final _repo = SermonRepository.instance;
 
   NowPlaying? nowPlaying;

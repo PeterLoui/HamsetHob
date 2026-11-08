@@ -221,6 +221,4 @@ const stations = [
   Station('rakoty', 'راكوتي: مارجرجس سبورتنج', 'https://sc-e1.streamcyclone.com/rakoty_live/rakoty/playlist.m3u8'),
   Station('haya', 'قناة الحياة', 'http://s9.voscast.com:7042/;'),
   Station('orthodoxiya', 'الأرثوذكسية (روم أرثوذكس)', 'http://s5.viastreaming.net:7040/;'),
-  Station('af_music', 'الإيمان العتيق: موسيقى', 'https://ancientfaith.streamguys1.com/music'),
-  Station('af_talk', 'الإيمان العتيق: عظات', 'https://ancientfaith.streamguys1.com/talk'),
 ];

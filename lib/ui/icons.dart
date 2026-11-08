@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// أيقونات مرسومة خصيصاً (شبكة 24×24) — منها الكتاب الذي في وسطه صليب.
-enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books }
+enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna }
 
 class AppIconView extends StatelessWidget {
   const AppIconView(this.icon, {super.key, this.size = 24, this.color});
@@ -94,6 +94,16 @@ class _IconPainter extends CustomPainter {
         canvas.drawRRect(RRect.fromLTRBR(8, 3.5, 12, 20, const Radius.circular(1)), stroke);
         canvas.drawPath(line(const [Offset(13, 6.5), Offset(16.8, 5.5), Offset(20.4, 19), Offset(16.6, 20), Offset(13, 6.5)]), stroke);
         canvas.drawLine(const Offset(3, 20.5), const Offset(21, 20.5), stroke);
+      case AppIcon.antenna:
+        // برج إذاعة وموجتين
+        canvas.drawCircle(const Offset(12, 9), 1.6, fill);
+        canvas.drawPath(line(const [Offset(12, 11), Offset(8.5, 21)]), stroke);
+        canvas.drawPath(line(const [Offset(12, 11), Offset(15.5, 21)]), stroke);
+        canvas.drawLine(const Offset(9.6, 17.5), const Offset(14.4, 17.5), stroke);
+        canvas.drawArc(const Rect.fromLTRB(7, 4, 17, 14), 3.6, 1.3, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(7, 4, 17, 14), -0.8, 1.3, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(3.5, 0.5, 20.5, 17.5), 3.75, 1.0, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(3.5, 0.5, 20.5, 17.5), -0.75, 1.0, false, stroke);
       case AppIcon.radio:
         canvas.drawRRect(RRect.fromLTRBR(9, 3, 15, 14, const Radius.circular(3)), stroke);
         canvas.drawArc(const Rect.fromLTRB(6, 5, 18, 17), 0, 3.14159, false, stroke);

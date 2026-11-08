@@ -43,6 +43,14 @@ class MainActivity : AudioServiceActivity() {
                         MorningReceiver.schedule(ctx, call.argument<Boolean>("enabled") == true, call.argument<Int>("minutes") ?: 420)
                         result.success(null)
                     }
+                    "setPlaybackLock" -> {
+                        PlaybackLocks.set(ctx, call.argument<Boolean>("playing") == true)
+                        result.success(null)
+                    }
+                    "requestBatteryExemption" -> {
+                        PlaybackLocks.requestBatteryExemption(this)
+                        result.success(null)
+                    }
                     "takeLaunchRef" -> {
                         result.success(launchRef)
                         launchRef = null

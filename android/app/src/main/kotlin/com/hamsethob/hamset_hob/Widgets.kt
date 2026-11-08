@@ -177,6 +177,7 @@ object Widgets {
 class VerseWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         Widgets.render(context)
+        DailyReceiver.schedule(context)
         DailyReceiver.refreshIfStale(context)
     }
 }
@@ -184,19 +185,29 @@ class VerseWidgetProvider : AppWidgetProvider() {
 class LockWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         Widgets.render(context)
+        DailyReceiver.schedule(context)
         DailyReceiver.refreshIfStale(context)
     }
 }
 
 // ─── تحديث رسالة اليوم يومياً حتى دون فتح التطبيق ───
 
+/**
+ * بيغيّر آية الويدجت عند منتصف الليل من غير ما التطبيق يتفتح.
+ * - منبه عند 00:00:30 بيشتغل حتى والتليفون في وضع السكون (setAndAllowWhileIdle) وبيجدد نفسه كل ليلة.
+ * - آية بكرة بتتجاب مقدماً وقت ما النت متاح، فالتبديل بالليل مش محتاج نت.
+ * - منبه كل ٣ ساعات احتياطي، وتحديث الويدجت نفسه كل ٣٠ دقيقة.
+ */
 class DailyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_MIDNIGHT) scheduleMidnight(context)
         val pending = goAsync()
         refreshIfStale(context) { pending.finish() }
     }
 
     companion object {
+        private const val ACTION_MIDNIGHT = "com.hamsethob.hamset_hob.MIDNIGHT"
+
         private val CHAPTERS = intArrayOf(
             50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150, 31, 12, 8, 66, 52, 5, 48,
             12, 14, 3, 9, 1, 4, 7, 3, 3, 3, 2, 14, 4, 28, 16, 24, 21, 28, 16, 16, 13, 6, 6, 4, 4, 5, 3, 6, 4, 3,
@@ -221,44 +232,94 @@ class DailyReceiver : BroadcastReceiver() {
             )
             am.setInexactRepeating(AlarmManager.RTC, System.currentTimeMillis() + AlarmManager.INTERVAL_HOUR,
                 3 * AlarmManager.INTERVAL_HOUR, pi)
+            scheduleMidnight(ctx)
         }
 
-        /** إن كانت الرسالة المحفوظة ليوم سابق نختار آية جديدة ونحدّث الويدجتس. */
+        /** منبه بعد منتصف الليل بنص دقيقة، بيصحّي التليفون حتى في وضع السكون. */
+        fun scheduleMidnight(ctx: Context) {
+            val am = ctx.getSystemService(AlarmManager::class.java)
+            val at = LocalDate.now().plusDays(1).atTime(0, 0, 30)
+                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val pi = PendingIntent.getBroadcast(
+                ctx, 11, Intent(ctx, DailyReceiver::class.java).setAction(ACTION_MIDNIGHT),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        }
+
+        /** آية عشوائية من الكتاب المقدس (ترجمة فاندايك)، أو null لو مافيش نت. */
+        private fun fetchRandom(): Map<String, Any>? = try {
+            var n = Random.nextInt(CHAPTERS.sum())
+            var book = 1
+            for ((i, c) in CHAPTERS.withIndex()) {
+                if (n < c) { book = i + 1; break }
+                n -= c
+            }
+            val chapter = n + 1
+            val conn = URL("https://bolls.life/get-text/SVD/$book/$chapter/").openConnection() as HttpURLConnection
+            conn.connectTimeout = 4_000
+            conn.readTimeout = 5_000
+            val body = try { conn.inputStream.bufferedReader().use { it.readText() } } finally { conn.disconnect() }
+            val arr = JSONArray(body)
+            val o = arr.getJSONObject(Random.nextInt(arr.length()))
+            val verse = o.getInt("verse")
+            val text = o.getString("text").replace(Regex("<[^>]+>"), "").replace(Regex("\\s+"), " ").trim()
+            mapOf(
+                "text" to text,
+                "ref" to "${BOOK_NAMES[book - 1]} ${arabicDigits(chapter)} : ${arabicDigits(verse)}",
+                "book" to book, "chapter" to chapter, "verse" to verse,
+            )
+        } catch (_: Exception) {
+            null
+        }
+
+        private fun applyVerse(app: Context, v: Map<String, Any>) {
+            WidgetStore.save(app, v + ("lockNotification" to WidgetStore.prefs(app).getBoolean("lock", true)))
+            WidgetStore.writeFlutterVerse(app, v["book"] as Int, v["chapter"] as Int, v["verse"] as Int, v["text"] as String)
+        }
+
+        /** يجيب آية بكرة مقدماً لو مش متحفوظة. */
+        private fun ensureNext(app: Context) {
+            val tomorrow = LocalDate.now().plusDays(1).toString()
+            val p = WidgetStore.prefs(app)
+            if (p.getString("next_date", null) == tomorrow) return
+            val v = fetchRandom() ?: return
+            p.edit()
+                .putString("next_date", tomorrow)
+                .putString("next_text", v["text"] as String)
+                .putString("next_ref", v["ref"] as String)
+                .putInt("next_book", v["book"] as Int)
+                .putInt("next_chapter", v["chapter"] as Int)
+                .putInt("next_verse", v["verse"] as Int)
+                .apply()
+        }
+
+        /** لو الآية المحفوظة ليوم فات: نستخدم آية النهارده المتجابة مقدماً، وإلا نجيب واحدة. */
         fun refreshIfStale(ctx: Context, done: () -> Unit = {}) {
             val app = ctx.applicationContext
-            if (WidgetStore.prefs(app).getString("date", null) == LocalDate.now().toString()) {
+            val p = WidgetStore.prefs(app)
+            val today = LocalDate.now().toString()
+            if (p.getString("date", null) != today && p.getString("next_date", null) == today) {
+                applyVerse(app, mapOf(
+                    "text" to (p.getString("next_text", null) ?: ""),
+                    "ref" to (p.getString("next_ref", null) ?: ""),
+                    "book" to p.getInt("next_book", 1),
+                    "chapter" to p.getInt("next_chapter", 1),
+                    "verse" to p.getInt("next_verse", 1),
+                ))
+            }
+            if (p.getString("date", null) == today) {
                 Widgets.render(app)
-                done()
+                thread {
+                    ensureNext(app)
+                    done()
+                }
                 return
             }
             thread {
-                try {
-                    var n = Random.nextInt(CHAPTERS.sum())
-                    var book = 1
-                    for ((i, c) in CHAPTERS.withIndex()) {
-                        if (n < c) { book = i + 1; break }
-                        n -= c
-                    }
-                    val chapter = n + 1
-                    val conn = URL("https://bolls.life/get-text/SVD/$book/$chapter/").openConnection() as HttpURLConnection
-                    conn.connectTimeout = 10_000
-                    conn.readTimeout = 15_000
-                    val body = try { conn.inputStream.bufferedReader().use { it.readText() } } finally { conn.disconnect() }
-                    val arr = JSONArray(body)
-                    val o = arr.getJSONObject(Random.nextInt(arr.length()))
-                    val verse = o.getInt("verse")
-                    val text = o.getString("text").replace(Regex("<[^>]+>"), "").replace(Regex("\\s+"), " ").trim()
-                    val ref = "${BOOK_NAMES[book - 1]} ${arabicDigits(chapter)} : ${arabicDigits(verse)}"
-                    val p = WidgetStore.prefs(app)
-                    WidgetStore.save(app, mapOf(
-                        "text" to text, "ref" to ref, "book" to book, "chapter" to chapter, "verse" to verse,
-                        "lockNotification" to p.getBoolean("lock", true),
-                    ))
-                    WidgetStore.writeFlutterVerse(app, book, chapter, verse, text)
-                } catch (_: Exception) {
-                    // بدون إنترنت تبقى الرسالة السابقة
-                }
+                fetchRandom()?.let { applyVerse(app, it) }
                 Widgets.render(app)
+                ensureNext(app)
                 done()
             }
         }

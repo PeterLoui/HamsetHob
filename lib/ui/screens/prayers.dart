@@ -324,16 +324,17 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   }
 }
 
-/// مربعات الرئيسية: الصلوات، إذاعات، الكتب. بتتمرر يمين وشمال.
+/// مربعات الرئيسية: الصلوات، عظات البابا شنوده، إذاعات، الكتب. بتتمرر يمين وشمال.
 class QuickTiles extends StatelessWidget {
-  const QuickTiles({super.key, required this.onPrayers, required this.onStations, required this.onBooks});
-  final VoidCallback onPrayers, onStations, onBooks;
+  const QuickTiles({super.key, required this.onPrayers, required this.onSermons, required this.onStations, required this.onBooks});
+  final VoidCallback onPrayers, onSermons, onStations, onBooks;
 
   @override
   Widget build(BuildContext context) {
     final tiles = [
       (AppIcon.prayer, 'الصلوات', onPrayers),
-      (AppIcon.radio, 'إذاعات', onStations),
+      (AppIcon.radio, 'عظات البابا', onSermons),
+      (AppIcon.antenna, 'إذاعات', onStations),
       (AppIcon.books, 'الكتب', onBooks),
     ];
     return SizedBox(

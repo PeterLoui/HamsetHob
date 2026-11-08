@@ -30,6 +30,12 @@ class NativeBridge {
   static Future<void> setWidgetGlass(String kind, Uint8List png) =>
       _call('setWidgetGlass', {'kind': kind, 'png': png});
 
+  /// يمسك قفل الشبكة والمعالج طول ما الصوت شغال عشان البث مايقفش والشاشة مقفولة.
+  static Future<void> setPlaybackLock(bool playing) => _call('setPlaybackLock', {'playing': playing});
+
+  /// يطلب استثناء التطبيق من توفير البطارية (مرة واحدة).
+  static Future<void> requestBatteryExemption() => _call('requestBatteryExemption', {});
+
   static Future<void> scheduleMorning(bool enabled, int minutes) =>
       _call('scheduleMorning', {'enabled': enabled, 'minutes': minutes});
 
