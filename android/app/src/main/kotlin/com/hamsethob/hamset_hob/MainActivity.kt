@@ -48,7 +48,7 @@ class MainActivity : AudioServiceActivity() {
                         result.success(null)
                     }
                     "requestBatteryExemption" -> {
-                        PlaybackLocks.requestBatteryExemption(this)
+                        PlaybackLocks.requestBatteryExemption(this@MainActivity)
                         result.success(null)
                     }
                     "takeLaunchRef" -> {
