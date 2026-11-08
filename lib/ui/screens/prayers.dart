@@ -334,8 +334,7 @@ class QuickTiles extends StatelessWidget {
     // AppIcon.radio هنا معناها صورة البابا شنوده؛ مربعها أعرض عشان الاسم بياخد سطرين
     final tiles = [
       (AppIcon.prayer, 'الصلوات', onPrayers),
-      (AppIcon.radio, 'المكتبة السمعية
-البابا شنودة الثالث', onSermons),
+      (AppIcon.radio, 'المكتبة السمعية\nالبابا شنودة الثالث', onSermons),
       (AppIcon.antenna, 'إذاعات', onStations),
       (AppIcon.books, 'الكتب', onBooks),
     ];
