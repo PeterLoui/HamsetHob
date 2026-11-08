@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- شاشة القفل «سطر التاريخ»: التاريخ القبطي في سطر صغير وتحته آية اليوم بعرض الكبسولة -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/widget_lock_line"
+    android:initialKeyguardLayout="@layout/widget_lock_line"
+    android:description="@string/widget_lock_line_desc"
+    android:minWidth="250dp"
+    android:minHeight="64dp"
+    android:maxResizeHeight="80dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="keyguard|home_screen" />

@@ -282,39 +282,44 @@ class _SaintBackdrop extends StatelessWidget {
       builder: (context, snap) {
         final url = snap.data;
         if (url == null) return child;
-        return Stack(clipBehavior: Clip.none, children: [
+        return LayoutBuilder(builder: (context, box) {
+          // الصورة بتغطي من حافة الشاشة لحد ٦٢٪ من عرضها، والقص بيتوسّط على وش القديس (SaintImages.framing)
+          final w = (box.maxWidth + 24) * .62;
+          return Stack(clipBehavior: Clip.none, children: [
           Positioned(
             top: -12,
             bottom: -8,
             left: -24, // لحد حافة الشاشة (هامش الصفحة ٢٤)
-            right: 0,
+            width: w,
             child: IgnorePointer(
-              child: ShaderMask(
-                // من الشمال لنص الصفحة يمين
-                shaderCallback: (r) => const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Colors.black, Colors.black, Colors.transparent],
-                  stops: [0, .3, .78],
-                ).createShader(r),
-                blendMode: BlendMode.dstIn,
-                child: ShaderMask(
-                  // ومن تحت عشان مايبقاش فيه خط
+              child: LayoutBuilder(
+                builder: (context, img) => ShaderMask(
+                  // من الشمال، وبتتلاشى لحد نص الصفحة يمين
                   shaderCallback: (r) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                     colors: [Colors.black, Colors.black, Colors.transparent],
-                    stops: [0, .7, 1],
+                    stops: [0, .4, 1],
                   ).createShader(r),
                   blendMode: BlendMode.dstIn,
-                  child: Opacity(
-                    opacity: .3,
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      fit: BoxFit.cover,
-                      alignment: const Alignment(-.3, -.55),
-                      fadeInDuration: const Duration(milliseconds: 300),
-                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  child: ShaderMask(
+                    // ومن فوق وتحت عشان مايبقاش فيه خط
+                    shaderCallback: (r) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black, Colors.black, Colors.transparent],
+                      stops: [0, .08, .78, 1],
+                    ).createShader(r),
+                    blendMode: BlendMode.dstIn,
+                    child: Opacity(
+                      opacity: .3,
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                        alignment: SaintImages.focus(wiki, img.maxWidth, img.maxHeight),
+                        fadeInDuration: const Duration(milliseconds: 300),
+                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),
@@ -323,6 +328,7 @@ class _SaintBackdrop extends StatelessWidget {
           ),
           child,
         ]);
+        });
       },
     );
   }
@@ -463,7 +469,7 @@ class _NowPlayingCard extends StatelessWidget {
                 const PlayButton(size: 44),
               ])
             else ...[
-              Text('عظات قداسة البابا شنوده الثالث', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
+              Text('المكتبة السمعية البابا شنودة الثالث', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
               Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 12, color: c.textFaint)),
               const SizedBox(height: 12),
               Row(children: [
@@ -515,10 +521,13 @@ class _DateCard extends StatelessWidget {
             if (url == null) return const _CrossArt();
             return Opacity(
               opacity: c.isDark ? .42 : .3,
-              child: CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const _CrossArt(),
+              child: LayoutBuilder(
+                builder: (context, box) => CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  alignment: SaintImages.focus(commemoration.wiki, box.maxWidth, box.maxHeight),
+                  errorWidget: (_, __, ___) => const _CrossArt(),
+                ),
               ),
             );
           },
@@ -741,13 +750,13 @@ class _RadioCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: c.accent.withValues(alpha: .22)),
-                child: Center(child: AppIconView(AppIcon.radio, color: c.accent)),
+                child: Center(child: PopeIcon(size: 30, color: c.accent)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('الإذاعة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
-                  Text('عظات قداسة البابا شنوده الثالث', style: TextStyle(fontSize: 12, color: c.textSoft)),
+                  Text('المكتبة السمعية', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
+                  Text('البابا شنودة الثالث', style: TextStyle(fontSize: 12, color: c.textSoft)),
                 ]),
               ),
               Text('المكتبة  ‹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.accent)),

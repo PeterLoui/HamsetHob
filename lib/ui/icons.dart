@@ -3,6 +3,20 @@ import 'package:flutter/widgets.dart';
 /// أيقونات مرسومة خصيصاً (شبكة 24×24) — منها الكتاب الذي في وسطه صليب.
 enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna }
 
+/// صورة البابا شنوده الثالث من شعار مئوية ميلاده، مقصوصة للرأس والكتفين وبتتلوّن بلون الأيقونات.
+class PopeIcon extends StatelessWidget {
+  const PopeIcon({super.key, this.size = 24, this.color});
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? IconTheme.of(context).color ?? const Color(0xFFFFFFFF);
+    return Image.asset('assets/pope_shenouda.png',
+        width: size, height: size, color: c, colorBlendMode: BlendMode.srcIn, filterQuality: FilterQuality.medium);
+  }
+}
+
 class AppIconView extends StatelessWidget {
   const AppIconView(this.icon, {super.key, this.size = 24, this.color});
   final AppIcon icon;

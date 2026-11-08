@@ -77,6 +77,19 @@
                 android:resource="@xml/lock_widget_info" />
         </receiver>
 
+        <!-- ويدجت شاشة القفل التاني: سطر التاريخ وتحته الآية -->
+        <receiver
+            android:name=".LockLineWidgetProvider"
+            android:label="@string/widget_lock_line_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lock_line_widget_info" />
+        </receiver>
+
         <!-- تحديث يومي ورسالة الصباح وإعادة الجدولة بعد إعادة التشغيل -->
         <receiver android:name=".DailyReceiver" android:exported="false" />
         <receiver android:name=".MorningReceiver" android:exported="false" />

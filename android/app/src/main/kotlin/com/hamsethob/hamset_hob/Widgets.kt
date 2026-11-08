@@ -39,9 +39,6 @@ data class CopticDay(val year: Int, val month: Int, val day: Int) {
     val monthName get() = COPTIC_MONTHS[month - 1]
     val label get() = "${arabicDigits(day)} $monthName ${arabicDigits(year)} ش"
 
-    /** أيام الشهر: ٣٠، والنسيء ٥ أيام أو ٦ في السنة الكبيسة. */
-    val monthLength get() = if (month < 13) 30 else if (year % 4 == 3) 6 else 5
-
     companion object {
         private const val EPOCH = 1825030L
         private fun jdn(y: Int, m: Int, d: Int) = EPOCH - 1 + 365L * (y - 1) + y / 4 + 30L * (m - 1) + d
@@ -110,17 +107,26 @@ object Widgets {
         }
         manager.updateAppWidget(ComponentName(ctx, VerseWidgetProvider::class.java), home)
 
-        // شاشة القفل: كبسولة فيها حلقة أيام الشهر ورقم اليوم، والشهر وآية اليوم في سطرين
+        // شاشة القفل «رقم كبير»: رقم اليوم كبير وتحته الشهر، وجنبه آية اليوم في سطرين
         val lock = RemoteViews(ctx.packageName, R.layout.widget_lock).apply {
             setGlass(ctx, this, "lock")
-            setTextViewText(R.id.coptic_month, "${coptic.monthName} ${arabicDigits(coptic.year)}")
             setTextViewText(R.id.coptic_day, arabicDigits(coptic.day))
-            setProgressBar(R.id.month_ring, coptic.monthLength, coptic.day, false)
+            setTextViewText(R.id.coptic_month, coptic.monthName)
             setTextViewText(R.id.verse_text, text)
-            setContentDescription(R.id.root, coptic.label)
+            setContentDescription(R.id.root, "${coptic.label}، $text")
             setOnClickPendingIntent(R.id.root, open)
         }
         manager.updateAppWidget(ComponentName(ctx, LockWidgetProvider::class.java), lock)
+
+        // شاشة القفل «سطر التاريخ»: التاريخ القبطي في سطر وتحته الآية بعرض الكبسولة
+        val line = RemoteViews(ctx.packageName, R.layout.widget_lock_line).apply {
+            setGlass(ctx, this, "lock")
+            setTextViewText(R.id.coptic_date, "${arabicDigits(coptic.day)} ${coptic.monthName} ${arabicDigits(coptic.year)}")
+            setTextViewText(R.id.verse_text, text)
+            setContentDescription(R.id.root, "${coptic.label}، $text")
+            setOnClickPendingIntent(R.id.root, open)
+        }
+        manager.updateAppWidget(ComponentName(ctx, LockLineWidgetProvider::class.java), line)
 
         lockNotification(ctx, p.getBoolean("lock", true), coptic.label, text, ref, open)
     }
@@ -183,6 +189,14 @@ class VerseWidgetProvider : AppWidgetProvider() {
 }
 
 class LockWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        Widgets.render(context)
+        DailyReceiver.schedule(context)
+        DailyReceiver.refreshIfStale(context)
+    }
+}
+
+class LockLineWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         Widgets.render(context)
         DailyReceiver.schedule(context)

@@ -324,16 +324,18 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   }
 }
 
-/// مربعات الرئيسية: الصلوات، عظات البابا شنوده، إذاعات، الكتب. بتتمرر يمين وشمال.
+/// مربعات الرئيسية: الصلوات، المكتبة السمعية للبابا شنودة، إذاعات، الكتب. بتتمرر يمين وشمال.
 class QuickTiles extends StatelessWidget {
   const QuickTiles({super.key, required this.onPrayers, required this.onSermons, required this.onStations, required this.onBooks});
   final VoidCallback onPrayers, onSermons, onStations, onBooks;
 
   @override
   Widget build(BuildContext context) {
+    // AppIcon.radio هنا معناها صورة البابا شنوده؛ مربعها أعرض عشان الاسم بياخد سطرين
     final tiles = [
       (AppIcon.prayer, 'الصلوات', onPrayers),
-      (AppIcon.radio, 'عظات البابا', onSermons),
+      (AppIcon.radio, 'المكتبة السمعية
+البابا شنودة الثالث', onSermons),
       (AppIcon.antenna, 'إذاعات', onStations),
       (AppIcon.books, 'الكتب', onBooks),
     ];
@@ -347,16 +349,22 @@ class QuickTiles extends StatelessWidget {
         itemBuilder: (context, i) {
           final (icon, label, onTap) = tiles[i];
           final c = context.colors;
+          final pope = icon == AppIcon.radio;
           return SizedBox(
-            width: 120,
+            width: pope ? 176 : 120,
             child: GlassPanel(
               radius: 14,
               padding: const EdgeInsets.all(14),
               onTap: onTap,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                AppIconView(icon, size: 26, color: c.text),
+                if (pope)
+                  PopeIcon(size: 34, color: c.text)
+                else
+                  AppIconView(icon, size: 26, color: c.text),
                 const Spacer(),
-                Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+                Text(label,
+                    maxLines: 2,
+                    style: TextStyle(fontSize: pope ? 13.5 : 15, height: 1.25, fontWeight: FontWeight.w500, color: c.text)),
               ]),
             ),
           );

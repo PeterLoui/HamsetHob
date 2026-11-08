@@ -83,7 +83,7 @@ class _RadioScreenState extends State<RadioScreen> {
       controller: _scroll,
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top, 16, MediaQuery.paddingOf(context).bottom + 32),
       children: [
-        ScreenHeader('عظات البابا شنوده', subtitle: 'مكتبة عظات قداسة البابا شنوده الثالث', onBack: widget.onBack),
+        ScreenHeader('المكتبة السمعية', subtitle: 'البابا شنودة الثالث', onBack: widget.onBack),
         _NowPlaying(onStartRadio: () => player.startRadio(_category)),
         const SizedBox(height: 14),
         SizedBox(

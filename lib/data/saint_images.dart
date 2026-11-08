@@ -1,3 +1,5 @@
+import 'package:flutter/painting.dart';
+
 /// صور التذكارات والأعياد: جدول ثابت اتراجع واحدة واحدة (نوفمبر ٢٠٢٦).
 /// كل صورة من ويكيميديا كومنز (Wikimedia Commons)، والأولوية للأيقونات القبطية والشرقية.
 /// مافيش بحث تلقائي: لو التذكار مالوش صورة متراجعة مايظهرش صورة، أحسن من صورة غلط.
@@ -108,4 +110,71 @@ class SaintImages {
   // صوم الرسل · Synaxis of the Twelve Apostles by Constantinople master (early 14th c., Pushkin museum).jpg
   'Twelve_Apostles': 'https://upload.wikimedia.org/wikipedia/commons/8/81/Synaxis_of_the_Twelve_Apostles_by_Constantinople_master_%28early_14th_c.%2C_Pushkin_museum%29.jpg',
   };
+
+  /// لكل صورة: نسبة الارتفاع للعرض، ومكان وش القديس الأساسي من فوق (كسر من ارتفاع الصورة).
+  /// اتقاست بالعين على كل صورة، عشان القص يتوسّط على الوش بدل ما يقطعه.
+  static const framing = <String, (double, double)>{
+    'Nayrouz': (1.448, 0.23),
+    'John_the_Baptist': (1.090, 0.2),
+    'True_Cross': (0.779, 0.15),
+    'Matthew_the_Apostle': (1.333, 0.25),
+    'John_the_Dwarf': (1.606, 0.25),
+    'Luke_the_Evangelist': (1.169, 0.25),
+    'First_Council_of_Nicaea': (1.276, 0.3),
+    'Michael_(archangel)': (1.451, 0.15),
+    'Saint_Menas': (1.541, 0.15),
+    'Nativity_of_Jesus': (1.327, 0.4),
+    'John_Chrysostom': (2.334, 0.25),
+    'Saints_Cosmas_and_Damian': (1.250, 0.12),
+    'Mercurius': (1.278, 0.25),
+    'Presentation_of_Mary': (1.304, 0.35),
+    'Gabriel': (1.427, 0.3),
+    'Massacre_of_the_Innocents': (0.648, 0.4),
+    'John_the_Apostle': (1.371, 0.2),
+    'Circumcision_of_Jesus': (0.498, 0.4),
+    'Baptism_of_Jesus': (1.444, 0.42),
+    'Dormition_of_the_Mother_of_God': (1.421, 0.12),
+    'Anthony_the_Great': (1.412, 0.2),
+    'Presentation_of_Jesus': (1.061, 0.35),
+    'Pope_Cyril_VI_of_Alexandria': (1.598, 0.3),
+    'Pope_Shenouda_III_of_Alexandria': (1.500, 0.35),
+    'Macarius_of_Egypt': (1.210, 0.3),
+    'Annunciation': (1.302, 0.38),
+    'Saint_George_and_the_Dragon': (1.307, 0.27),
+    'Mark_the_Evangelist': (1.255, 0.25),
+    'Athanasius_of_Alexandria': (1.392, 0.3),
+    'Flight_into_Egypt': (1.353, 0.18),
+    'Moses_the_Black': (1.849, 0.1),
+    'Nativity_of_St_John_the_Baptist': (1.381, 0.35),
+    'Cyril_of_Alexandria': (1.334, 0.2),
+    'Saints_Peter_and_Paul': (1.538, 0.12),
+    'Shenoute': (1.624, 0.2),
+    'Monastery_of_Saint_Pishoy': (1.124, 0.32),
+    'Theotokos': (1.108, 0.25),
+    'Transfiguration_of_Jesus': (1.388, 0.2),
+    'Assumption_of_Mary': (1.988, 0.1),
+    'Raphael_(archangel)': (0.853, 0.25),
+    'Jonah': (1.245, 0.25),
+    'Temptation_of_Christ': (1.203, 0.45),
+    'Triumphal_entry_into_Jerusalem': (1.347, 0.3),
+    'Last_Supper': (1.375, 0.3),
+    'Crucifixion_of_Jesus': (1.279, 0.2),
+    'Resurrection_of_Jesus': (1.249, 0.42),
+    'Ascension_of_Jesus': (1.276, 0.2),
+    'Pentecost': (1.214, 0.25),
+    'Twelve_Apostles': (1.160, 0.3),
+  };
+
+  /// المحاذاة اللي بتخلي الوش ظاهر جوه صندوق بالمقاس ده مع BoxFit.cover.
+  /// [faceAt] مكان الوش المطلوب من فوق الصندوق (٠٫٤ يعني فوق النص شوية).
+  static Alignment focus(String? wikiTitle, double boxW, double boxH, {double faceAt = .4}) {
+    final f = wikiTitle == null ? null : framing[wikiTitle];
+    if (f == null || boxW <= 0 || boxH <= 0) return const Alignment(0, -.6);
+    final (aspect, faceY) = f;
+    final shownH = boxW * aspect; // الصورة بعرض الصندوق
+    if (shownH <= boxH) return Alignment.center; // صورة عريضة: بتتقص من الجناب مش من فوق وتحت
+    final overflow = shownH - boxH;
+    final top = (faceY * shownH - faceAt * boxH).clamp(0.0, overflow);
+    return Alignment(0, top / overflow * 2 - 1);
+  }
 }

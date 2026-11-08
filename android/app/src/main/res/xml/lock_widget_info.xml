@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- شاشة القفل: كبسولة تحت الساعة فيها التاريخ القبطي وآية اليوم في سطرين -->
+<!-- شاشة القفل «رقم كبير»: رقم اليوم القبطي كبير وجنبه آية اليوم في سطرين -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/widget_lock"
     android:initialKeyguardLayout="@layout/widget_lock"
