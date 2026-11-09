@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onSermons: widget.onOpenRadio, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _RadioCard(onOpen: widget.onOpenRadio),
       ],
@@ -260,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
             last: true,
           ),
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onSermons: widget.onOpenRadio, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],
@@ -281,7 +281,8 @@ class _SaintBackdrop extends StatelessWidget {
       future: SaintImages.instance.imageUrl(wiki, ''),
       builder: (context, snap) {
         final url = snap.data;
-        if (url == null) return child;
+        // لو التذكار مالوش صورة متراجعة (أو الصورة مافتحتش) بيظهر الصليب القبطي مكانها
+        if (snap.connectionState != ConnectionState.done) return child;
         return LayoutBuilder(builder: (context, box) {
           // الصورة بتغطي من حافة الشاشة لحد ٦٢٪ من عرضها، والقص بيتوسّط على وش القديس (SaintImages.framing)
           final w = (box.maxWidth + 24) * .62;
@@ -312,14 +313,16 @@ class _SaintBackdrop extends StatelessWidget {
                     ).createShader(r),
                     blendMode: BlendMode.dstIn,
                     child: Opacity(
-                      opacity: .3,
-                      child: CachedNetworkImage(
-                        imageUrl: url,
-                        fit: BoxFit.cover,
-                        alignment: SaintImages.focus(wiki, img.maxWidth, img.maxHeight),
-                        fadeInDuration: const Duration(milliseconds: 300),
-                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                      ),
+                      opacity: url == null ? .28 : .3,
+                      child: url == null
+                          ? const _CrossBackdrop()
+                          : CachedNetworkImage(
+                              imageUrl: url,
+                              fit: BoxFit.cover,
+                              alignment: SaintImages.focus(wiki, img.maxWidth, img.maxHeight),
+                              fadeInDuration: const Duration(milliseconds: 300),
+                              errorWidget: (_, __, ___) => const _CrossBackdrop(),
+                            ),
                     ),
                   ),
                 ),
@@ -332,6 +335,17 @@ class _SaintBackdrop extends StatelessWidget {
       },
     );
   }
+}
+
+/// الصليب القبطي ورا التاريخ في الأيام اللي مالهاش صورة متراجعة: كامل من غير قص، لازق في الشمال.
+class _CrossBackdrop extends StatelessWidget {
+  const _CrossBackdrop();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 0, 4),
+        child: Image.asset('assets/coptic_cross.png', fit: BoxFit.contain, alignment: Alignment.centerLeft),
+      );
 }
 
 /// صليب قبطي صغير: كل ذراع ينتهي بثلاث كرات.
@@ -443,6 +457,21 @@ class _NowPlayingCard extends StatelessWidget {
         builder: (context, _) {
           final now = player.nowPlaying;
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // تبويب لوحده تحت مربعات الصلوات والإذاعات: صورة البابا واسم المكتبة
+            Row(children: [
+              PopeIcon(size: 40, color: c.text),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('المكتبة السمعية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
+                  Text('البابا شنودة الثالث', style: TextStyle(fontSize: 13, color: c.textSoft)),
+                ]),
+              ),
+              Icon(Icons.chevron_left, color: c.textFaint, size: 20),
+            ]),
+            const SizedBox(height: 12),
+            Container(height: 1, color: c.hairline),
+            const SizedBox(height: 12),
             if (now != null)
               Row(children: [
                 Expanded(
@@ -469,8 +498,7 @@ class _NowPlayingCard extends StatelessWidget {
                 const PlayButton(size: 44),
               ])
             else ...[
-              Text('المكتبة السمعية البابا شنودة الثالث', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
-              Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 12, color: c.textFaint)),
+              Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 13, color: c.textFaint)),
               const SizedBox(height: 12),
               Row(children: [
                 Pill('بث متواصل', filled: true, onTap: () => player.startRadio()),

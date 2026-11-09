@@ -324,17 +324,16 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   }
 }
 
-/// مربعات الرئيسية: الصلوات، المكتبة السمعية للبابا شنودة، إذاعات، الكتب. بتتمرر يمين وشمال.
+/// مربعات الرئيسية: الصلوات، إذاعات، الكتب. بتتمرر يمين وشمال.
+/// المكتبة السمعية للبابا شنودة ليها تبويب لوحده تحتهم (_NowPlayingCard في home.dart).
 class QuickTiles extends StatelessWidget {
-  const QuickTiles({super.key, required this.onPrayers, required this.onSermons, required this.onStations, required this.onBooks});
-  final VoidCallback onPrayers, onSermons, onStations, onBooks;
+  const QuickTiles({super.key, required this.onPrayers, required this.onStations, required this.onBooks});
+  final VoidCallback onPrayers, onStations, onBooks;
 
   @override
   Widget build(BuildContext context) {
-    // AppIcon.radio هنا معناها صورة البابا شنوده؛ مربعها أعرض عشان الاسم بياخد سطرين
     final tiles = [
       (AppIcon.prayer, 'الصلوات', onPrayers),
-      (AppIcon.radio, 'المكتبة السمعية\nالبابا شنودة الثالث', onSermons),
       (AppIcon.antenna, 'إذاعات', onStations),
       (AppIcon.books, 'الكتب', onBooks),
     ];
@@ -348,22 +347,16 @@ class QuickTiles extends StatelessWidget {
         itemBuilder: (context, i) {
           final (icon, label, onTap) = tiles[i];
           final c = context.colors;
-          final pope = icon == AppIcon.radio;
           return SizedBox(
-            width: pope ? 176 : 120,
+            width: 120,
             child: GlassPanel(
               radius: 14,
               padding: const EdgeInsets.all(14),
               onTap: onTap,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (pope)
-                  PopeIcon(size: 34, color: c.text)
-                else
-                  AppIconView(icon, size: 26, color: c.text),
+                AppIconView(icon, size: 26, color: c.text),
                 const Spacer(),
-                Text(label,
-                    maxLines: 2,
-                    style: TextStyle(fontSize: pope ? 13.5 : 15, height: 1.25, fontWeight: FontWeight.w500, color: c.text)),
+                Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
               ]),
             ),
           );
