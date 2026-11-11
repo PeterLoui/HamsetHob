@@ -7,6 +7,7 @@ import '../../core/coptic.dart';
 import '../../data/sermons.dart';
 import '../glass.dart';
 import '../icons.dart';
+import '../sound_line.dart';
 import '../theme.dart';
 import 'home.dart' show PlayButton;
 
@@ -158,8 +159,12 @@ class _NowPlaying extends StatelessWidget {
               now == null ? 'عظات عشوائية متتالية من المكتبة' : (player.radioOn ? 'بث متواصل • ${now.category}' : now.category),
               style: TextStyle(fontSize: 12, color: c.textSoft),
             ),
+            if (now != null) ...[
+              const SizedBox(height: 6),
+              const SoundLine(height: 40),
+            ],
             if (now != null && !player.live) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 2),
               AppSlider(
                 value: dur == 0 ? 0 : (player.position.inMilliseconds / dur).clamp(0, 1).toDouble(),
                 onChanged: (v) => player.seekTo(Duration(milliseconds: (v * dur).round())),
@@ -262,7 +267,10 @@ class MiniPlayer extends StatelessWidget {
             height: 58,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             onTap: onOpen,
-            child: Row(children: [
+            child: Stack(children: [
+              // الخط المتوهج على الحافة السفلية للمشغّل، تحت الاسم
+              const Positioned(left: 54, right: 40, bottom: 0, child: IgnorePointer(child: SoundLine(height: 18))),
+              Positioned.fill(child: Row(children: [
               const PlayButton(size: 42),
               const SizedBox(width: 10),
               Expanded(
@@ -274,6 +282,7 @@ class MiniPlayer extends StatelessWidget {
                 ]),
               ),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.classic ? c.textFaint : c.accent)),
+            ])),
             ]),
           ),
         );

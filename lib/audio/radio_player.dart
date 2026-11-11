@@ -35,6 +35,7 @@ class RadioPlayer extends ChangeNotifier {
       position = p;
       notifyListeners();
     });
+    _player.androidAudioSessionIdStream.listen((_) => notifyListeners());
     _player.durationStream.listen((d) {
       duration = d ?? Duration.zero;
       notifyListeners();
@@ -67,6 +68,9 @@ class RadioPlayer extends ChangeNotifier {
   Duration duration = Duration.zero;
 
   bool get isPlaying => _player.playing;
+
+  /// جلسة الصوت على أندرويد، عشان الخط المتوهج يقرا مستوى الصوت منها.
+  int? get audioSessionId => _player.androidAudioSessionId;
   bool get isBuffering =>
       _player.processingState == ProcessingState.loading || _player.processingState == ProcessingState.buffering;
 

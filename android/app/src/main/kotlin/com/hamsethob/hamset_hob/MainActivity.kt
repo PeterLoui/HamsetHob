@@ -2,10 +2,12 @@ package com.hamsethob.hamset_hob
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 /** النشاط الرئيسي: يدعم التشغيل في الخلفية (AudioServiceActivity) وقناة الويدجتس. */
@@ -23,6 +25,7 @@ class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         launchRef = refFrom(intent)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/levels").setStreamHandler(SoundLevels)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/native").apply {
             setMethodCallHandler { call, result ->
                 val ctx = applicationContext
@@ -51,6 +54,25 @@ class MainActivity : AudioServiceActivity() {
                         PlaybackLocks.requestBatteryExemption(this@MainActivity)
                         result.success(null)
                     }
+                    "startLevels" -> {
+                        val id = call.argument<Int>("session") ?: -1
+                        if (id < 0) {
+                            result.success(false)
+                        } else if (SoundLevels.allowed(ctx)) {
+                            result.success(SoundLevels.start(ctx, id))
+                        } else {
+                            if (call.argument<Boolean>("ask") == true) {
+                                SoundLevels.pending = id
+                                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_LEVELS)
+                            }
+                            result.success(false)
+                        }
+                    }
+                    "stopLevels" -> {
+                        SoundLevels.pending = -1
+                        SoundLevels.stop()
+                        result.success(null)
+                    }
                     "takeLaunchRef" -> {
                         result.success(launchRef)
                         launchRef = null
@@ -59,6 +81,19 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_LEVELS) return
+        val id = SoundLevels.pending
+        SoundLevels.pending = -1
+        if (id >= 0 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) SoundLevels.start(applicationContext, id)
+    }
+
+    override fun onDestroy() {
+        SoundLevels.stop()
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -77,6 +112,7 @@ class MainActivity : AudioServiceActivity() {
     }
 
     companion object {
+        private const val REQUEST_LEVELS = 2
         const val EXTRA_BOOK = "book"
         const val EXTRA_CHAPTER = "chapter"
         const val EXTRA_VERSE = "verse"

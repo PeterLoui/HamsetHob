@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../audio/radio_player.dart';
+import '../sound_line.dart';
 import '../../data/prayers.dart';
 import '../glass.dart';
 import '../icons.dart';
@@ -81,6 +82,10 @@ class _StationCard extends StatelessWidget {
                 : AppIconView(playing ? AppIcon.pause : AppIcon.play, size: 20, color: current ? c.onLive : c.text),
           ),
         ]),
+        if (current) ...[
+          const SizedBox(height: 6),
+          const SoundLine(height: 24),
+        ],
         if (current && player.error != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),

@@ -14,6 +14,7 @@ import '../../data/store.dart';
 import '../../share/verse_image.dart';
 import '../glass.dart';
 import '../icons.dart';
+import '../sound_line.dart';
 import '../theme.dart';
 import 'meditation.dart';
 import 'prayers.dart' show QuickTiles;
@@ -505,7 +506,7 @@ class _NowPlayingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Container(height: 1, color: c.hairline),
             const SizedBox(height: 12),
-            if (now != null)
+            if (now != null) ...[
               Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -529,8 +530,10 @@ class _NowPlayingCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const PlayButton(size: 44),
-              ])
-            else ...[
+              ]),
+              const SizedBox(height: 6),
+              const SoundLine(height: 26),
+            ] else ...[
               Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 13, color: c.textFaint)),
               const SizedBox(height: 12),
               Row(children: [
@@ -824,7 +827,7 @@ class _RadioCard extends StatelessWidget {
               Text('المكتبة  ‹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.accent)),
             ]),
             const SizedBox(height: 14),
-            if (now != null)
+            if (now != null) ...[
               Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -836,8 +839,10 @@ class _RadioCard extends StatelessWidget {
                   ]),
                 ),
                 PlayButton(size: 44),
-              ])
-            else
+              ]),
+              const SizedBox(height: 6),
+              const SoundLine(height: 26),
+            ] else
               Row(children: [
                 Pill(c.classic ? 'بث متواصل' : '▶  بث متواصل', onTap: () => player.startRadio()),
                 const SizedBox(width: 10),
