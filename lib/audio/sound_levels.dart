@@ -107,6 +107,6 @@ class SoundLevels with WidgetsBindingObserver {
     final syllable = math.pow((math.sin(t * 13.2 + math.sin(t * 2.7) * 1.8) + 1) / 2, 1.6);
     final own = .5 + .5 * math.sin(t * (5.1 + i * .83) + i * 1.7);
     final tilt = 1 - i / bands * .55;
-    return (phrase * (.25 + .75 * syllable) * (.45 + .55 * own) * tilt).clamp(0.0, 1.0);
+    return (1.5 * phrase * (.3 + .7 * syllable) * (.5 + .5 * own) * tilt).clamp(0.0, 1.0);
   }
 }

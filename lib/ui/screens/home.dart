@@ -532,7 +532,7 @@ class _NowPlayingCard extends StatelessWidget {
                 const PlayButton(size: 44),
               ]),
               const SizedBox(height: 6),
-              const SoundLine(height: 26),
+              const SoundLine(height: 38),
             ] else ...[
               Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 13, color: c.textFaint)),
               const SizedBox(height: 12),
@@ -841,7 +841,7 @@ class _RadioCard extends StatelessWidget {
                 PlayButton(size: 44),
               ]),
               const SizedBox(height: 6),
-              const SoundLine(height: 26),
+              const SoundLine(height: 38),
             ] else
               Row(children: [
                 Pill(c.classic ? 'بث متواصل' : '▶  بث متواصل', onTap: () => player.startRadio()),

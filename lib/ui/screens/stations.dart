@@ -84,7 +84,7 @@ class _StationCard extends StatelessWidget {
         ]),
         if (current) ...[
           const SizedBox(height: 6),
-          const SoundLine(height: 24),
+          const SoundLine(height: 34),
         ],
         if (current && player.error != null)
           Padding(

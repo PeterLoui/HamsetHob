@@ -161,7 +161,7 @@ class _NowPlaying extends StatelessWidget {
             ),
             if (now != null) ...[
               const SizedBox(height: 6),
-              const SoundLine(height: 40),
+              const SoundLine(height: 60),
             ],
             if (now != null && !player.live) ...[
               const SizedBox(height: 2),
@@ -269,7 +269,7 @@ class MiniPlayer extends StatelessWidget {
             onTap: onOpen,
             child: Stack(children: [
               // الخط المتوهج على الحافة السفلية للمشغّل، تحت الاسم
-              const Positioned(left: 54, right: 40, bottom: 0, child: IgnorePointer(child: SoundLine(height: 18))),
+              const Positioned(left: 54, right: 40, bottom: 0, child: IgnorePointer(child: SoundLine(height: 24))),
               Positioned.fill(child: Row(children: [
               const PlayButton(size: 42),
               const SizedBox(width: 10),
