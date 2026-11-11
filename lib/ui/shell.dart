@@ -87,11 +87,11 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _tab = 0;
   final _overlays = <SubScreen>[];
   DateTime _today = DateTime.now();
-  Timer? _midnight;
+  Timer? _dayTicker;
   DailyVerse? _lastVerse;
 
   static const _tabs = [
@@ -105,7 +105,10 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
-    _scheduleMidnight();
+    WidgetsBinding.instance.addObserver(this);
+    // مؤقّت واحد لنص الليل مابيشتغلش والتطبيق في الخلفية أو الموبايل نايم، فاليوم كان بيفضل زي ما هو.
+    // بنقارن التاريخ كل شوية، وكمان أول ما التطبيق يرجع للواجهة.
+    _dayTicker = Timer.periodic(const Duration(seconds: 20), (_) => _checkDay());
     NativeBridge.onLaunchRef((ref) => _open(ChapterOverlay(ref)));
     NativeBridge.takeLaunchRef().then((ref) {
       if (ref != null) _open(ChapterOverlay(ref));
@@ -114,19 +117,22 @@ class _ShellState extends State<Shell> {
     NativeBridge.scheduleMorning(s.morningEnabled, s.morningMinutes);
   }
 
-  void _scheduleMidnight() {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkDay();
+  }
+
+  void _checkDay() {
     final now = DateTime.now();
-    final next = DateTime(now.year, now.month, now.day + 1, 0, 0, 1);
-    _midnight = Timer(next.difference(now), () {
-      setState(() => _today = DateTime.now());
-      widget.onThemeChanged(); // الموسم قد يتغير
-      _scheduleMidnight();
-    });
+    if (!mounted || dateOnly(now) == dateOnly(_today)) return;
+    setState(() => _today = now);
+    widget.onThemeChanged(); // الموسم قد يتغير
   }
 
   @override
   void dispose() {
-    _midnight?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _dayTicker?.cancel();
     super.dispose();
   }
 

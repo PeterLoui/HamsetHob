@@ -57,6 +57,13 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   late Future<DayReadings> _future = KatamerosRepository.instance.day(_date);
   final _open = <String>{};
 
+  @override
+  void didUpdateWidget(ReadingsScreen old) {
+    super.didUpdateWidget(old);
+    // اليوم اتغيّر وهو واقف على «النهارده»: ننقله لليوم الجديد
+    if (dateOnly(old.today) != dateOnly(widget.today) && dateOnly(_date) == dateOnly(old.today)) _setDate(widget.today);
+  }
+
   void _setDate(DateTime d) => setState(() {
         _date = d;
         _future = KatamerosRepository.instance.day(d);

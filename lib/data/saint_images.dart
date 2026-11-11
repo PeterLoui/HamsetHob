@@ -1,14 +1,211 @@
-import 'package:flutter/painting.dart';
+import 'dart:convert';
 
-/// صور التذكارات والأعياد: جدول ثابت اتراجع واحدة واحدة (نوفمبر ٢٠٢٦).
-/// كل صورة من ويكيميديا كومنز (Wikimedia Commons)، والأولوية للأيقونات القبطية والشرقية.
-/// مافيش بحث تلقائي: لو التذكار مالوش صورة متراجعة مايظهرش صورة، أحسن من صورة غلط.
+import 'package:flutter/painting.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/coptic.dart';
+import 'net.dart';
+
+/// صورة تذكار اليوم، بالترتيب:
+/// ١. الجدول المتراجع [verified] للأعياد والقديسين المشهورين (ويكيميديا كومنز)، بمفتاح اليوم أو بكلمة في العنوان.
+/// ٢. صور صفحة سنكسار اليوم نفسه على موقع الأنبا تكلا (st-takla.org)، بشرط إن وصف الصورة فيه اسم صاحب التذكار.
+/// ٣. بحث ويكيبيديا العربية باسم القديس، ومابتتقبلش نتيجة إلا لو عنوانها فيه أول كلمتين من الاسم.
+/// لو مافيش صورة في أي مصدر الواجهة بتعرض الصليب القبطي.
 class SaintImages {
   SaintImages._();
   static final instance = SaintImages._();
 
-  /// الصورة حسب عنوان صفحة ويكيبيديا المكتوب في synaxarium.dart.
-  Future<String?> imageUrl(String? wikiTitle, String name) async => wikiTitle == null ? null : verified[wikiTitle];
+  static const _taklaMonths = [
+    'Toot', 'Babah', 'Hatoor', 'Keyahk', 'Topah', 'Amsheer', 'Baramhat',
+    'Bermodah', 'Bashans', 'Bawoonah', 'Abeeb', 'Mesraa', 'Nasea',
+  ];
+  static const _taklaBase = 'https://st-takla.org/Full-Free-Coptic-Books/Synaxarium-or-Synaxarion';
+
+  /// كلمات مش جزء من اسم القديس.
+  static const _titles = {
+    'نياحه', 'استشهاد', 'تذكار', 'عيد', 'القديس', 'القديسه', 'القديسين', 'القديسان', 'البابا', 'الانبا', 'انبا',
+    'مار', 'ماري', 'العظيم', 'الجليل', 'الشهيد', 'الشهيده', 'الشهداء', 'رئيس', 'الملائكه', 'الملاك', 'السيده', 'ابي', 'ابو', 'ابينا', 'البطريرك',
+    'الكبير', 'الرسول', 'الرسولين', 'الانجيلي', 'بطاركه', 'الكرازه', 'المرقسيه', 'اسقف', 'الاسقف', 'اسقفي',
+    'التذكار', 'الشهري', 'سنكسار', 'اليوم', 'دخول', 'بدايه', 'صوم', 'المجيد', 'ظهور', 'نقل', 'جسد', 'راس',
+    'تكريس', 'كنيسه', 'الاب', 'الراهب', 'القمص', 'القس', 'الامير', 'الي', 'من', 'في', 'علي', 'اهل', 'بلده',
+    'والده', 'اخته', 'اخيه', 'امه', 'بجبل', 'مدينه',
+  };
+
+  static const _missTtl = Duration(days: 7);
+  static const _retryAfterFailure = Duration(minutes: 1);
+
+  final _memo = <String, Future<String?>>{};
+  final _taklaMemo = <int, Future<List<(String, String)>>>{};
+
+  /// نفس الطلب بيرجّع نفس الـ Future، فالصورة ماتتحمّلش من جديد مع كل إعادة رسم.
+  /// [wikiTitle] مفتاح الجدول المتراجع، [name] عنوان التذكار، [date] اليوم الميلادي.
+  Future<String?> imageUrl(String? wikiTitle, String name, DateTime date) {
+    final fixed = wikiTitle == null ? null : verified[wikiTitle];
+    if (fixed != null) return _memo.putIfAbsent('v|$wikiTitle', () => Future.value(fixed));
+    final c = CopticDate.fromGregorian(date);
+    final key = '${c.month}-${c.day}|${normalizeArabic(name)}';
+    return _memo.putIfAbsent(key, () => _lookup(key, c, name));
+  }
+
+  Future<String?> _lookup(String key, CopticDate c, String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'saint_img2_$key';
+    final cached = prefs.getString(cacheKey);
+    if (cached != null) {
+      if (cached.startsWith('http')) return cached;
+      // «مافيش صورة» بتتجرّب تاني بعد أسبوع، يمكن اتضافت
+      final at = DateTime.fromMillisecondsSinceEpoch(int.tryParse(cached) ?? 0);
+      if (DateTime.now().difference(at) < _missTtl) return null;
+    }
+    var failed = false;
+    String? url = _alias(name);
+    if (url != null) return url;
+    try {
+      url = _pickTakla(await _taklaMemo.putIfAbsent(c.month * 100 + c.day, () => _stTaklaDay(c)), name);
+    } catch (_) {
+      failed = true;
+      _taklaMemo.remove(c.month * 100 + c.day);
+    }
+    if (url == null) {
+      try {
+        url = await _wikipedia(name);
+      } catch (_) {
+        failed = true;
+      }
+    }
+    if (url != null) {
+      await prefs.setString(cacheKey, url);
+    } else if (!failed) {
+      await prefs.setString(cacheKey, '${DateTime.now().millisecondsSinceEpoch}');
+    } else {
+      // الشبكة وقعت: مانحفظش «مافيش صورة»، ونجرّب تاني بعد شوية
+      Future.delayed(_retryAfterFailure, () => _memo.remove(key));
+    }
+    return url;
+  }
+
+  /// صور معرض الموقع جوه صفحة سنكسار اليوم ده، كل صورة ومعاها وصفها العربي.
+  Future<List<(String, String)>> _stTaklaDay(CopticDate c) async {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final month = _taklaMonths[c.month - 1];
+    final page = '$_taklaBase/${two(c.month)}-$month/${two(c.day)}-$month.html';
+    final r = await getRaw(page);
+    if (r.statusCode == 404) return const [];
+    if (r.statusCode >= 400) throw HttpStatusError(r.statusCode);
+    final html = _decode(r.bodyBytes);
+    final out = <(String, String)>[];
+    for (final m in RegExp('<img[^>]+>', caseSensitive: false).allMatches(html)) {
+      final tag = m[0]!;
+      final src = RegExp('src="([^"]*Gallery/var/(?:resizes|albums)/[^"]+)"', caseSensitive: false).firstMatch(tag)?[1];
+      if (src == null || src.contains('/Words/')) continue; // صور أسماء مكتوبة مش أيقونات
+      final alt = RegExp('alt="([^"]*)"', caseSensitive: false, dotAll: true).firstMatch(tag)?[1] ?? '';
+      out.add((Uri.parse(page).resolve(src).toString(), alt));
+    }
+    return out;
+  }
+
+  /// صفحات الموقع بترميز windows-1256. بنجرّب UTF-8 الأول لو اتغيّر في يوم.
+  static String _decode(List<int> bytes) {
+    try {
+      return utf8.decode(bytes);
+    } on FormatException {
+      final b = StringBuffer();
+      for (final x in bytes) {
+        b.writeCharCode(switch (x) {
+          < 0x80 => x,
+          >= 0xC1 && <= 0xD6 => 0x0621 + x - 0xC1,
+          >= 0xD8 && <= 0xDB => 0x0637 + x - 0xD8,
+          >= 0xDD && <= 0xDF => 0x0641 + x - 0xDD,
+          0xE1 => 0x0644,
+          >= 0xE3 && <= 0xE6 => 0x0645 + x - 0xE3,
+          0xEC || 0xED => 0x0649 + x - 0xEC,
+          _ => 0x20,
+        });
+      }
+      return b.toString();
+    }
+  }
+
+  /// هيكل الكلمة من غير حروف المد والهمزات، عشان «لنجينوس» تطابق «لونجينوس» و«تيموثاوس» تطابق «تيموثاؤس».
+  static String _skeleton(String w) => normalizeArabic(w).replaceAll(RegExp('[اويءؤئ]'), '');
+
+  /// الصورة اللي وصفها فيه اسم صاحب التذكار المعروض. صفحة اليوم فيها كذا تذكار،
+  /// فمانعرضش صورة قديس تاني من نفس اليوم تحت اسم ده.
+  static String? _pickTakla(List<(String, String)> images, String name) {
+    final keys = nameKeys(name);
+    if (keys.isEmpty) return null;
+    final want = _skeleton(keys.first);
+    if (want.length < 3) return null;
+    for (final (url, alt) in images) {
+      final words = normalizeArabic(alt).split(RegExp(r'[^ء-ي]+')).map(_skeleton);
+      if (words.any((w) => w == want)) return url;
+    }
+    return null;
+  }
+
+  /// قديسين وأعياد مشهورين ليهم صورة متراجعة في [verified]، بيتعرفوا من كلمة في عنوان التذكار
+  /// (تكريس كنيسة، نقل جسد، تذكار شهري…). الترتيب مهم: الأكثر تحديداً الأول.
+  static const _aliases = <(List<String>, String)>[
+    (['مينا', 'العجايبي'], 'Saint_Menas'),
+    (['جرجس', 'الروماني'], 'Saint_George_and_the_Dragon'),
+    (['ابي', 'سيفين'], 'Mercurius'),
+    (['مرقوريوس'], 'Mercurius'),
+    (['يوحنا', 'المعمدان'], 'John_the_Baptist'),
+    (['يوحنا', 'ذهبي'], 'John_Chrysostom'),
+    (['مرقس', 'الرسول'], 'Mark_the_Evangelist'),
+    (['انطونيوس', 'اب'], 'Anthony_the_Great'),
+    (['اثناسيوس', 'الرسولي'], 'Athanasius_of_Alexandria'),
+    (['كيرلس', 'السادس'], 'Pope_Cyril_VI_of_Alexandria'),
+    (['شنوده', 'الثالث'], 'Pope_Shenouda_III_of_Alexandria'),
+    (['موسي', 'الاسود'], 'Moses_the_Black'),
+    (['قزمان', 'دميان'], 'Saints_Cosmas_and_Damian'),
+    (['بطرس', 'بولس'], 'Saints_Peter_and_Paul'),
+    (['الملائكه', 'ميخائيل'], 'Michael_(archangel)'),
+    (['الملاك', 'ميخائيل'], 'Michael_(archangel)'),
+    (['جبرائيل'], 'Gabriel'),
+    (['غبريال', 'الملاك'], 'Gabriel'),
+    (['غبريال', 'الملائكه'], 'Gabriel'),
+    (['روفائيل'], 'Raphael_(archangel)'),
+    (['الاعياد', 'السيديه'], 'Annunciation'),
+    (['رافائيل'], 'Raphael_(archangel)'),
+  ];
+
+  static String? _alias(String name) {
+    final words = normalizeArabic(name).split(RegExp(r'[^ء-ي]+')).toSet();
+    for (final (need, wiki) in _aliases) {
+      if (need.every(words.contains)) return verified[wiki];
+    }
+    // كنايس ومعجزات السيدة العذراء، بس مش تذكار والديها (حنة ويواقيم)
+    if (words.contains('العذراء') && !words.contains('حنه') && !words.contains('يواقيم') && !words.contains('العذاري')) {
+      return verified['Theotokos'];
+    }
+    return null;
+  }
+
+  /// كلمات الاسم بعد شيل الألقاب («نياحة القديس…»).
+  static List<String> nameKeys(String name) => normalizeArabic(name)
+      .split(RegExp(r'[\s،,()\-–]+'))
+      .map((w) => w.startsWith('و') && w.length > 4 ? w.substring(1) : w)
+      .where((w) => w.length >= 3 && !_titles.contains(w))
+      .toList();
+
+  Future<String?> _wikipedia(String name) async {
+    final keys = nameKeys(name).take(3).toList();
+    // اسم من كلمة واحدة («تيموثاوس») ممكن يطلع شخص تاني خالص، فمابندوّرش بيه
+    if (keys.length < 2) return null;
+    final j = await getJson('https://ar.wikipedia.org/w/api.php?action=query&generator=search'
+        '&gsrsearch=${Uri.encodeQueryComponent(keys.join(' '))}&gsrlimit=6'
+        '&prop=pageimages&piprop=thumbnail&pithumbsize=800&format=json') as Map;
+    final pages = ((j['query'] as Map?)?['pages'] as Map?)?.values.cast<Map>().toList() ?? [];
+    pages.sort((a, b) => (a['index'] as int? ?? 0).compareTo(b['index'] as int? ?? 0));
+    final must = keys.take(2);
+    for (final p in pages) {
+      final title = normalizeArabic(p['title'] as String? ?? '');
+      final thumb = p['thumbnail'] as Map?;
+      if (thumb != null && must.every(title.contains)) return thumb['source'] as String?;
+    }
+    return null;
+  }
 
   static const verified = <String, String>{
   // عيد النيروز · Nayrouz icon.jpg
