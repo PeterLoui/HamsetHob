@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// أيقونات مرسومة خصيصاً (شبكة 24×24) — منها الكتاب الذي في وسطه صليب.
-enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna }
+enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna, tasbeha }
 
 /// صورة البابا شنوده الثالث من شعار مئوية ميلاده، مقصوصة للرأس والكتفين وبتتلوّن بلون الأيقونات.
 class PopeIcon extends StatelessWidget {
@@ -108,6 +108,17 @@ class _IconPainter extends CustomPainter {
         canvas.drawRRect(RRect.fromLTRBR(8, 3.5, 12, 20, const Radius.circular(1)), stroke);
         canvas.drawPath(line(const [Offset(13, 6.5), Offset(16.8, 5.5), Offset(20.4, 19), Offset(16.6, 20), Offset(13, 6.5)]), stroke);
         canvas.drawLine(const Offset(3, 20.5), const Offset(21, 20.5), stroke);
+      case AppIcon.tasbeha:
+        // شورية (مجمرة) بسلاسلها: التسبحة بخور نصف الليل
+        canvas.drawLine(const Offset(12, 2.5), const Offset(12, 4.5), stroke);
+        canvas.drawLine(const Offset(10.5, 3.5), const Offset(13.5, 3.5), stroke);
+        canvas.drawPath(line(const [Offset(12, 5), Offset(6.5, 12)]), stroke);
+        canvas.drawPath(line(const [Offset(12, 5), Offset(17.5, 12)]), stroke);
+        canvas.drawLine(const Offset(12, 5), const Offset(12, 10.5), stroke);
+        canvas.drawLine(const Offset(5.5, 12), const Offset(18.5, 12), stroke);
+        canvas.drawArc(const Rect.fromLTRB(5.5, 6.5, 18.5, 19.5), 0, 3.14159, false, stroke);
+        canvas.drawLine(const Offset(10, 19.2), const Offset(9, 21.5), stroke);
+        canvas.drawLine(const Offset(14, 19.2), const Offset(15, 21.5), stroke);
       case AppIcon.antenna:
         // برج إذاعة وموجتين
         canvas.drawCircle(const Offset(12, 9), 1.6, fill);

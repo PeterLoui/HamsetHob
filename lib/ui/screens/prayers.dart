@@ -324,16 +324,17 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   }
 }
 
-/// مربعات الرئيسية: الصلوات، إذاعات، الكتب. بتتمرر يمين وشمال.
+/// مربعات الرئيسية: الصلوات، تسبحة، إذاعات، الكتب. بتتمرر يمين وشمال.
 /// المكتبة السمعية للبابا شنودة ليها تبويب لوحده تحتهم (_NowPlayingCard في home.dart).
 class QuickTiles extends StatelessWidget {
-  const QuickTiles({super.key, required this.onPrayers, required this.onStations, required this.onBooks});
-  final VoidCallback onPrayers, onStations, onBooks;
+  const QuickTiles({super.key, required this.onPrayers, required this.onTasbeha, required this.onStations, required this.onBooks});
+  final VoidCallback onPrayers, onTasbeha, onStations, onBooks;
 
   @override
   Widget build(BuildContext context) {
     final tiles = [
       (AppIcon.prayer, 'الصلوات', onPrayers),
+      (AppIcon.tasbeha, 'تسبحة', onTasbeha),
       (AppIcon.antenna, 'إذاعات', onStations),
       (AppIcon.books, 'الكتب', onBooks),
     ];

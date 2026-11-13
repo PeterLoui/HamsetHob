@@ -8,6 +8,7 @@ import '../data/bible.dart';
 import '../data/meditations.dart';
 import '../data/prayers.dart';
 import '../data/store.dart';
+import '../data/tasbeha.dart';
 import '../native/native_bridge.dart';
 import '../audio/radio_player.dart';
 import 'glass.dart';
@@ -21,6 +22,7 @@ import 'screens/stations.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
 import 'screens/readings.dart';
+import 'screens/tasbeha.dart';
 
 /// شاشات فرعية تُفتح فوق التبويبات.
 sealed class SubScreen {
@@ -77,6 +79,21 @@ class StationsOverlay extends SubScreen {
 
 class BooksOverlay extends SubScreen {
   const BooksOverlay();
+}
+
+class TasbehaOverlay extends SubScreen {
+  const TasbehaOverlay();
+}
+
+class TasbehaDayOverlay extends SubScreen {
+  const TasbehaDayOverlay(this.day);
+  final TasbehaDay day;
+}
+
+class TasbehaReaderOverlay extends SubScreen {
+  const TasbehaReaderOverlay(this.day, this.index);
+  final TasbehaDay day;
+  final int index;
 }
 
 class Shell extends StatefulWidget {
@@ -160,6 +177,7 @@ class _ShellState extends State<Shell> {
             onOpenPrayers: () => _open(const PrayersOverlay()),
             onOpenStations: () => _open(const StationsOverlay()),
             onOpenBooks: () => _open(const BooksOverlay()),
+            onOpenTasbeha: () => _open(const TasbehaOverlay()),
             onVerseLoaded: _syncWidgets,
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
@@ -195,6 +213,10 @@ class _ShellState extends State<Shell> {
           LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
         StationsOverlay() => StationsScreen(onBack: _back),
         BooksOverlay() => BooksScreen(onBack: _back),
+        TasbehaOverlay() => TasbehaScreen(onBack: _back, onOpenDay: (d) => _open(TasbehaDayOverlay(d))),
+        TasbehaDayOverlay(:final day) =>
+          TasbehaDayScreen(day: day, onBack: _back, onOpenPiece: (i) => _open(TasbehaReaderOverlay(day, i))),
+        TasbehaReaderOverlay(:final day, :final index) => TasbehaReaderScreen(day: day, index: index, onBack: _back),
       };
 
   @override

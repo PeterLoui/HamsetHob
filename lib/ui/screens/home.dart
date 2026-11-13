@@ -29,6 +29,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenPrayers,
     required this.onOpenStations,
     required this.onOpenBooks,
+    required this.onOpenTasbeha,
     required this.onVerseLoaded,
   });
 
@@ -36,7 +37,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<VerseRef> onOpenChapter;
   final VoidCallback onOpenSynaxarium, onOpenReadings, onOpenFavorites, onOpenRadio;
   final ValueChanged<Meditation> onOpenMeditation;
-  final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks;
+  final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
 
   @override
@@ -146,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onTasbeha: widget.onOpenTasbeha, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _RadioCard(onOpen: widget.onOpenRadio),
       ],
@@ -260,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
             last: true,
           ),
         const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
+        QuickTiles(onPrayers: widget.onOpenPrayers, onTasbeha: widget.onOpenTasbeha, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
         const SizedBox(height: 16),
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],
