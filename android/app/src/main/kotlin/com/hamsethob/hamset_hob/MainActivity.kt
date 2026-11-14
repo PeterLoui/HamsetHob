@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -38,6 +39,15 @@ class MainActivity : AudioServiceActivity() {
                     }
                     "setPlaybackLock" -> {
                         PlaybackLocks.set(ctx, call.argument<Boolean>("playing") == true)
+                        result.success(null)
+                    }
+                    "keepScreenOn" -> {
+                        // الشاشة ماتطفيش طول ما التسبحة مفتوحة
+                        if (call.argument<Boolean>("on") == true) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
                         result.success(null)
                     }
                     "requestBatteryExemption" -> {

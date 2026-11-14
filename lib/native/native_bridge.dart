@@ -6,7 +6,7 @@ import '../data/bible.dart';
 class NativeBridge {
   static const _channel = MethodChannel('hamset/native');
 
-  /// يحدّث الويدجتس وإشعار القفل. glassPng: صورة سطح الزجاج المرسومة بالحزمة.
+  /// يحدّث الويدجتس وإشعار القفل.
   static Future<void> updateWidgets({
     required String copticLabel,
     required String copticDay,
@@ -31,6 +31,9 @@ class NativeBridge {
 
   /// يطلب استثناء التطبيق من توفير البطارية (مرة واحدة).
   static Future<void> requestBatteryExemption() => _call('requestBatteryExemption', {});
+
+  /// الشاشة تفضل منورة (أثناء قراءة التسبحة مثلاً).
+  static Future<void> keepScreenOn(bool on) => _call('keepScreenOn', {'on': on});
 
   static Future<void> scheduleMorning(bool enabled, int minutes) =>
       _call('scheduleMorning', {'enabled': enabled, 'minutes': minutes});

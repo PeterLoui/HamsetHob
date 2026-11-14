@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/coptic.dart' show ar;
 import '../../data/tasbeha.dart';
+import '../../native/native_bridge.dart';
 import '../glass.dart';
 import '../theme.dart';
 
@@ -200,7 +203,8 @@ class TasbehaDayScreen extends StatelessWidget {
 }
 
 /// قراءة التسبحة قطعة قطعة: السحب أو الزرارين أو الشريط، والقبطي المعرّب تحت كل ربع لو مفعّل.
-/// زرار الفهرس بيفتح لوح من الجنب فيه كل الأيام والألحان للتنقل السريع.
+/// زرار الفهرس (أو السحب من حافة الشاشة) بيفتح لوح من الجنب فيه كل الأيام والألحان.
+/// الشاشة ماتطفيش طول ما القارئ مفتوح، وحجم الخط بيتحفظ.
 class TasbehaReaderScreen extends StatefulWidget {
   const TasbehaReaderScreen({super.key, required this.book, required this.day, required this.index, required this.onBack});
   final TasbehaBook book;
@@ -214,7 +218,12 @@ class TasbehaReaderScreen extends StatefulWidget {
 
 class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   static const _copticKey = 'tasbeha_show_coptic';
+  static const _scaleKey = 'tasbeha_scale';
   static bool? _showCoptic;
+  static double _scale = 1;
+  String? _scrub; // اسم اللحن اللي هتوصله وأنت بتسحب الشريط
+  Timer? _scrubTimer;
+  double _edgeDrag = 0;
   late TasbehaBook _book = widget.book;
   late TasbehaDay _day = widget.day;
   late List<TasbehaPiece> _pieces = _day.pieces;
@@ -225,11 +234,92 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   void initState() {
     super.initState();
     TasbehaRepository.instance.saveLast(_book, _day, _i);
+    NativeBridge.keepScreenOn(true);
     if (_showCoptic == null) {
       SharedPreferences.getInstance().then((p) {
-        if (mounted) setState(() => _showCoptic = p.getBool(_copticKey) ?? true);
+        if (mounted) {
+          setState(() {
+            _showCoptic = p.getBool(_copticKey) ?? true;
+            _scale = p.getDouble(_scaleKey) ?? 1;
+          });
+        }
       });
     }
+  }
+
+  void _setScale(double v) {
+    final next = (v * 20).round() / 20; // خطوات ٥٪
+    setState(() => _scale = next.clamp(.85, 1.6));
+    SharedPreferences.getInstance().then((p) => p.setDouble(_scaleKey, _scale));
+  }
+
+  void _scrubTo(double v) {
+    final count = _pieces.length;
+    final i = (v * (count - 1)).round();
+    _pages.jumpToPage(i);
+    _scrubTimer?.cancel();
+    setState(() => _scrub = '${_day.sectionOf(i)} · ${_pieces[i].title}');
+    _scrubTimer = Timer(const Duration(milliseconds: 1100), () {
+      if (mounted) setState(() => _scrub = null);
+    });
+  }
+
+  /// خيارات القراءة: حجم الخط والقبطي المعرّب.
+  void _openOptions() {
+    final c = context.colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) {
+          void change(VoidCallback f) {
+            f();
+            setSheet(() {});
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text('خيارات القراءة', style: context.heading(size: 20)),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(child: Text('حجم الخط', style: TextStyle(fontSize: 15, color: c.text))),
+                  AppIconButton(
+                    icon: Text('أ-', style: TextStyle(fontSize: 15, color: c.text)),
+                    label: 'تصغير الخط',
+                    onTap: () => change(() => _setScale(_scale - .1)),
+                  ),
+                  SizedBox(
+                    width: 64,
+                    child: Text('${ar((_scale * 100).round())}٪',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: c.textSoft)),
+                  ),
+                  AppIconButton(
+                    icon: Text('أ+', style: TextStyle(fontSize: 19, color: c.text)),
+                    label: 'تكبير الخط',
+                    onTap: () => change(() => _setScale(_scale + .1)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                Text('السلام لك يا مريم الحمامة الحسنة', style: context.scripture(size: 19 * _scale)),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('القبطي المعرّب', style: TextStyle(fontSize: 15, color: c.text)),
+                      Text('تحت كل ربع بخط أصغر', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                    ]),
+                  ),
+                  AppSwitch(value: _showCoptic ?? true, label: 'القبطي المعرّب', onChanged: (_) => change(_toggleCoptic)),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _toggleCoptic() {
@@ -270,6 +360,8 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
 
   @override
   void dispose() {
+    NativeBridge.keepScreenOn(false);
+    _scrubTimer?.cancel();
     _pages.dispose();
     super.dispose();
   }
@@ -280,7 +372,9 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     final pad = MediaQuery.paddingOf(context);
     final count = _pieces.length;
     final coptic = _showCoptic ?? true;
-    return Padding(
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return Stack(fit: StackFit.expand, children: [
+      Padding(
       padding: EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 8),
       child: Column(children: [
         ScreenHeader(
@@ -288,8 +382,11 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
           subtitle: '${_day.name} · ${ar(_i + 1)} من ${ar(count)}',
           onBack: widget.onBack,
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            AppChip(label: 'القبطي', selected: coptic, onTap: _toggleCoptic),
-            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(Icons.text_fields, color: c.text),
+              tooltip: 'خيارات القراءة',
+              onPressed: _openOptions,
+            ),
             IconButton(
               icon: Icon(Icons.format_list_bulleted, color: c.text),
               tooltip: 'كل الألحان',
@@ -311,18 +408,18 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
               return ListView(
                 padding: const EdgeInsets.only(bottom: 16),
                 children: [
-                  Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(p.title, style: context.heading(size: 21))),
+                  Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(p.title, style: context.heading(size: 21 * _scale))),
                   for (final l in p.lines)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: l.rubric
-                          ? Text(l.arabic, style: TextStyle(fontSize: 13, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
+                          ? Text(l.arabic, style: TextStyle(fontSize: 13 * _scale, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
                           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(l.arabic, style: context.scripture(size: 19)),
+                              Text(l.arabic, style: context.scripture(size: 19 * _scale)),
                               if (coptic && l.coptic != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: Text(l.coptic!, style: TextStyle(fontSize: 14, height: 1.7, color: c.textFaint)),
+                                  child: Text(l.coptic!, style: TextStyle(fontSize: 14 * _scale, height: 1.7, color: c.textFaint)),
                                 ),
                             ]),
                     ),
@@ -332,7 +429,19 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
             },
           ),
         ),
-        const SizedBox(height: 8),
+        // وأنت بتسحب الشريط: اسم اللحن اللي هتوصله
+        AnimatedOpacity(
+          opacity: _scrub == null ? 0 : 1,
+          duration: const Duration(milliseconds: 150),
+          child: Container(
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: c.text, borderRadius: BorderRadius.circular(8)),
+            child: Text(_scrub ?? ' ',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.surface)),
+          ),
+        ),
+        const SizedBox(height: 6),
         Row(children: [
           AppIconButton(icon: Icon(Icons.chevron_right, color: _i > 0 ? c.text : c.textFaint), label: 'السابق', onTap: () => _go(-1)),
           Expanded(
@@ -340,14 +449,30 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: AppSlider(
                 value: count > 1 ? _i / (count - 1) : 0,
-                onChanged: (v) => _pages.jumpToPage((v * (count - 1)).round()),
+                onChanged: count > 1 ? _scrubTo : (_) {},
               ),
             ),
           ),
           AppIconButton(icon: Icon(Icons.chevron_left, color: _i < count - 1 ? c.text : c.textFaint), label: 'التالي', onTap: () => _go(1)),
         ]),
       ]),
-    );
+      ),
+      // السحب من حافة الشاشة (ناحية البداية) لجوه بيفتح الفهرس الجانبي
+      PositionedDirectional(
+        start: 0,
+        top: pad.top + 80,
+        bottom: 120,
+        width: 22,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: (_) => _edgeDrag = 0,
+          onHorizontalDragUpdate: (d) => _edgeDrag += rtl ? -d.delta.dx : d.delta.dx,
+          onHorizontalDragEnd: (_) {
+            if (_edgeDrag > 36) _openIndex();
+          },
+        ),
+      ),
+    ]);
   }
 }
 
