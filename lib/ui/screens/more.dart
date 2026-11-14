@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
 import '../../data/store.dart';
@@ -84,6 +85,17 @@ class _MoreScreenState extends State<MoreScreen> {
             },
           ),
           const SizedBox(height: 10),
+          _toggle('ضوء متزامن مع الإيقاع', 'الضوء اللي بيظهر والصوت شغال يتحرك مع الصوت نفسه. أندرويد بيطلب إذن الميكروفون، والتطبيق مابيسجّلش حاجة', settings.syncLight, (v) async {
+            if (!v) {
+              settings.syncLight = false;
+              return;
+            }
+            final ok = await AudioLevels.enableSync();
+            if (!ok && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('من غير الإذن الضوء هيفضل يتنفس بإيقاع هادي لوحده')));
+            }
+          }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {

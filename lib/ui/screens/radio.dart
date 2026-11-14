@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
 import '../../data/sermons.dart';
+import '../fluid_light.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
@@ -142,11 +143,15 @@ class _NowPlaying extends StatelessWidget {
           final now = player.nowPlaying;
           final dur = player.duration.inMilliseconds;
           return Column(children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: c.live.withValues(alpha: .08)),
-              child: Center(child: AppIconView(AppIcon.radio, size: 34, color: c.live)),
+            FluidLight(
+              spread: 34,
+              strength: 1.3,
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: c.live.withValues(alpha: .08)),
+                child: Center(child: AppIconView(AppIcon.radio, size: 34, color: c.live)),
+              ),
             ),
             const SizedBox(height: 12),
             Text(now?.title ?? 'اختر عظة أو ابدأ البث المتواصل',
@@ -256,7 +261,11 @@ class MiniPlayer extends StatelessWidget {
         if (now == null) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GlassPanel(
+          // ضوء سائل حوالين المشغّل الصغير طول ما الصوت شغال
+          child: FluidLight(
+            spread: 22,
+            strength: 1.4,
+            child: GlassPanel(
             radius: 29,
             height: 58,
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -274,6 +283,7 @@ class MiniPlayer extends StatelessWidget {
               ),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.textFaint)),
             ]),
+          ),
           ),
         );
       },

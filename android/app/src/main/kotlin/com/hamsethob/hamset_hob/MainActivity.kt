@@ -2,11 +2,13 @@ package com.hamsethob.hamset_hob
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 /** النشاط الرئيسي: يدعم التشغيل في الخلفية (AudioServiceActivity) وقناة الويدجتس. */
@@ -14,6 +16,8 @@ class MainActivity : AudioServiceActivity() {
 
     private var channel: MethodChannel? = null
     private var launchRef: Map<String, Int>? = null
+    private var levels: AudioLevels? = null
+    private var micResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +28,8 @@ class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         launchRef = refFrom(intent)
+        val lv = AudioLevels(applicationContext).also { levels = it }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/levels").setStreamHandler(lv)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/native").apply {
             setMethodCallHandler { call, result ->
                 val ctx = applicationContext
@@ -40,6 +46,21 @@ class MainActivity : AudioServiceActivity() {
                     "setPlaybackLock" -> {
                         PlaybackLocks.set(ctx, call.argument<Boolean>("playing") == true)
                         result.success(null)
+                    }
+                    "startLevels" -> result.success(lv.start(call.argument<Int>("session") ?: 0))
+                    "stopLevels" -> {
+                        lv.stop()
+                        result.success(null)
+                    }
+                    "requestMic" -> {
+                        // إذن الميكروفون للـ Visualizer بس (الضوء المتزامن مع الإيقاع)، التطبيق مابيسجّلش حاجة
+                        if (lv.hasPermission()) {
+                            result.success(true)
+                        } else {
+                            micResult?.success(false)
+                            micResult = result
+                            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MIC_REQUEST)
+                        }
                     }
                     "keepScreenOn" -> {
                         // الشاشة ماتطفيش طول ما التسبحة مفتوحة
@@ -64,6 +85,19 @@ class MainActivity : AudioServiceActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == MIC_REQUEST) {
+            micResult?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            micResult = null
+        }
+    }
+
+    override fun onDestroy() {
+        levels?.stop()
+        super.onDestroy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         refFrom(intent)?.let { channel?.invokeMethod("openRef", it) }
@@ -83,5 +117,6 @@ class MainActivity : AudioServiceActivity() {
         const val EXTRA_BOOK = "book"
         const val EXTRA_CHAPTER = "chapter"
         const val EXTRA_VERSE = "verse"
+        private const val MIC_REQUEST = 7
     }
 }

@@ -10,6 +10,7 @@ import '../../data/meditations.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
 import '../../share/verse_image.dart';
+import '../fluid_light.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
@@ -440,7 +441,7 @@ class _NowPlayingCard extends StatelessWidget {
                   ]),
                 ),
                 const SizedBox(width: 12),
-                const PlayButton(size: 44),
+                const FluidLight(spread: 18, child: PlayButton(size: 44)),
               ])
             else ...[
               Text('بث متواصل أو اختار عظة من المكتبة', style: TextStyle(fontSize: 13, color: c.textFaint)),

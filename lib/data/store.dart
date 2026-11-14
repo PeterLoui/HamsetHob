@@ -34,6 +34,10 @@ class AppSettings extends ChangeNotifier {
   bool get morningEnabled => _prefs.getBool('morning') ?? false;
   set morningEnabled(bool v) => _set(() => _prefs.setBool('morning', v));
 
+  /// الضوء اللي بيتحرك مع الصوت يتزامن مع الإيقاع الحقيقي (محتاج إذن الميكروفون).
+  bool get syncLight => _prefs.getBool('sync_light') ?? false;
+  set syncLight(bool v) => _set(() => _prefs.setBool('sync_light', v));
+
   int get morningMinutes => _prefs.getInt('morning_at') ?? 7 * 60;
   set morningMinutes(int v) => _set(() => _prefs.setInt('morning_at', v));
 

@@ -67,6 +67,9 @@ class RadioPlayer extends ChangeNotifier {
   Duration duration = Duration.zero;
 
   bool get isPlaying => _player.playing;
+
+  /// جلسة الصوت في أندرويد، للضوء المتزامن مع الإيقاع.
+  int? get audioSessionId => _player.androidAudioSessionId;
   bool get isBuffering =>
       _player.processingState == ProcessingState.loading || _player.processingState == ProcessingState.buffering;
 

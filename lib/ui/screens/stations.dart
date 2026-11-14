@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../audio/radio_player.dart';
 import '../../data/prayers.dart';
+import '../fluid_light.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
@@ -71,7 +72,10 @@ class _StationCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           // زرار التشغيل السريع: على الشمال (آخر الصف في الاتجاه العربي)
-          RoundAction(
+          FluidLight(
+            spread: 16,
+            when: () => current,
+            child: RoundAction(
             size: 44,
             color: playing || current ? c.live : c.chip,
             tooltip: playing ? 'إيقاف ${station.name}' : 'تشغيل ${station.name}',
@@ -79,6 +83,7 @@ class _StationCard extends StatelessWidget {
             icon: loading
                 ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: current ? c.onLive : c.text))
                 : AppIconView(playing ? AppIcon.pause : AppIcon.play, size: 20, color: current ? c.onLive : c.text),
+          ),
           ),
         ]),
         if (current && player.error != null)

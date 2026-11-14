@@ -5,6 +5,7 @@ import '../data/bible.dart';
 /// قناة الاتصال بكود أندرويد الأصلي: الويدجتس وإشعار شاشة القفل وإشعار الصباح.
 class NativeBridge {
   static const _channel = MethodChannel('hamset/native');
+  static const _levels = EventChannel('hamset/levels');
 
   /// يحدّث الويدجتس وإشعار القفل.
   static Future<void> updateWidgets({
@@ -52,6 +53,28 @@ class NativeBridge {
         handler(VerseRef(m['book']!, m['chapter'] ?? 1, m['verse'] ?? 1));
       }
     });
+  }
+
+  /// مستويات الصوت الشغال [باص، وسط، حاد] من ٠ لـ ١، للضوء المتزامن مع الإيقاع.
+  static Stream<List<double>> get levels =>
+      _levels.receiveBroadcastStream().map((e) => [for (final v in e as List) (v as num).toDouble()]);
+
+  /// يبدأ قراءة مستويات الصوت من جلسة المشغّل. false لو مافيش إذن أو الجلسة مش متاحة.
+  static Future<bool> startLevels(int session) => _ask('startLevels', {'session': session});
+
+  static Future<void> stopLevels() => _call('stopLevels', {});
+
+  /// يطلب إذن الميكروفون (أندرويد بيطلبه للـ Visualizer، والتطبيق مابيسجّلش حاجة).
+  static Future<bool> requestMic() => _ask('requestMic', {});
+
+  static Future<bool> _ask(String method, Map<String, Object?> args) async {
+    try {
+      return await _channel.invokeMethod<bool>(method, args) ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
   }
 
   static Future<void> _call(String method, Map<String, Object?> args) async {
