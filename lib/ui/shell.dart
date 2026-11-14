@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../core/coptic.dart';
 import '../data/bible.dart';
@@ -112,11 +111,11 @@ class _ShellState extends State<Shell> {
   DailyVerse? _lastVerse;
 
   static const _tabs = [
-    LiquidGlassTab(label: 'الرئيسية', icon: AppIconView(AppIcon.home)),
-    LiquidGlassTab(label: 'الكتاب', icon: AppIconView(AppIcon.bible)),
-    LiquidGlassTab(label: 'القراءات', icon: AppIconView(AppIcon.readings)),
-    LiquidGlassTab(label: 'النتيجة', icon: AppIconView(AppIcon.calendar)),
-    LiquidGlassTab(label: 'المزيد', icon: AppIconView(AppIcon.more)),
+    NavTab(label: 'الرئيسية', icon: AppIconView(AppIcon.home)),
+    NavTab(label: 'الكتاب', icon: AppIconView(AppIcon.bible)),
+    NavTab(label: 'القراءات', icon: AppIconView(AppIcon.readings)),
+    NavTab(label: 'النتيجة', icon: AppIconView(AppIcon.calendar)),
+    NavTab(label: 'المزيد', icon: AppIconView(AppIcon.more)),
   ];
 
   @override
@@ -136,7 +135,6 @@ class _ShellState extends State<Shell> {
     final next = DateTime(now.year, now.month, now.day + 1, 0, 0, 1);
     _midnight = Timer(next.difference(now), () {
       setState(() => _today = DateTime.now());
-      widget.onThemeChanged(); // الموسم قد يتغير
       _scheduleMidnight();
     });
   }
@@ -246,8 +244,6 @@ class _ShellState extends State<Shell> {
               data: MediaQuery.of(context).copyWith(
                 padding: MediaQuery.paddingOf(context).copyWith(top: MediaQuery.paddingOf(context).top + StatusBarFade.fade),
               ),
-              child: AdaptiveLiquidGlassLayer(
-              settings: glassSettings,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 child: top != null
@@ -275,7 +271,6 @@ class _ShellState extends State<Shell> {
                       ),
               ),
             ),
-            ),
           ),
           const Positioned(left: 0, right: 0, top: 0, child: StatusBarFade()),
           if (top == null) ...[
@@ -289,7 +284,7 @@ class _ShellState extends State<Shell> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: LiquidGlassBottomNavBar(
+              child: BottomNavBar(
                 selectedIndex: _tab,
                 tabs: _tabs,
                 onTabSelected: (i) => setState(() => _tab = i),

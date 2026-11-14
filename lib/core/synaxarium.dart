@@ -129,21 +129,3 @@ class Synaxarium {
     return _c('سنكسار ${ar(c.day)} ${c.monthName}', 'بركة صلوات القديسين تكون معنا', Kind.saint, null, true);
   }
 }
-
-enum Season { ordinary, fast, feast }
-
-Season seasonOf(DateTime date) {
-  final offset = daysBetween(copticEaster(date.year), date);
-  final c = CopticDate.fromGregorian(date);
-  final md = c.month * 100 + c.day;
-  if (Synaxarium.feastOrFast(date)?.kind == Kind.feast) return Season.feast;
-  if (offset >= 0 && offset <= 49) return Season.feast; // الخماسين
-  bool inRange(int v, int a, int b) => v >= a && v <= b;
-  final fasting = inRange(offset, -69, -67) || // يونان
-      inRange(offset, -55, -1) || // الصوم الكبير
-      (offset >= 50 && inRange(md, 901, 1104)) || // الرسل حتى ٤ أبيب
-      inRange(md, 316, 330) ||
-      inRange(md, 401, 428) || // الميلاد ١٦ هاتور – ٢٨ كيهك
-      inRange(md, 1201, 1215); // العذراء
-  return fasting ? Season.fast : Season.ordinary;
-}

@@ -16,7 +16,6 @@ import android.os.Build
 import android.widget.RemoteViews
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
@@ -69,10 +68,6 @@ object WidgetStore {
     }
 
     fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
-    fun glassFile(ctx: Context, kind: String) = File(ctx.filesDir, "widget_glass_$kind.png")
-
-    fun saveGlass(ctx: Context, kind: String, png: ByteArray) = glassFile(ctx, kind).writeBytes(png)
 
     /** رسالة اليوم بصيغة Flutter (shared_preferences: المفتاح flutter.daily_verse). */
     fun writeFlutterVerse(ctx: Context, book: Int, chapter: Int, verse: Int, text: String) {

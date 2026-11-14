@@ -8,8 +8,7 @@ import '../theme.dart';
 
 EdgeInsets _pagePadding(BuildContext context) {
   final pad = MediaQuery.paddingOf(context);
-  final side = context.colors.classic ? 24.0 : 16.0;
-  return EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 32);
+  return EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 32);
 }
 
 class _Row extends StatelessWidget {
@@ -196,7 +195,7 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    final side = c.classic ? 24.0 : 16.0;
+    const side = 24.0;
     final count = _pieces.length;
     final coptic = _showCoptic ?? true;
     return Padding(

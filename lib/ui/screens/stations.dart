@@ -15,7 +15,7 @@ class StationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    final side = c.classic ? 24.0 : 16.0;
+    const side = 24.0;
     return ListenableBuilder(
       listenable: RadioPlayer.instance,
       builder: (context, _) => ListView.separated(
@@ -100,7 +100,7 @@ class BooksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    final side = c.classic ? 24.0 : 16.0;
+    const side = 24.0;
     return Padding(
       padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 32),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

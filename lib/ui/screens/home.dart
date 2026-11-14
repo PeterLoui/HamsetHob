@@ -96,63 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    if (c.classic) return _bookPage(context);
-    final greeting = DateTime.now().hour < 12 ? 'صباح الخير' : 'مساء الخير';
-    return ListView(
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 8, 16, 24),
-      children: [
-        Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(c.classic ? weekdayName(widget.today) : '$greeting  •  ${weekdayName(widget.today)}',
-                  style: TextStyle(fontSize: 14, color: c.textFaint)),
-              Text('همسة حب', style: c.classic ? context.heading(size: 26) : TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: c.text)),
-            ]),
-          ),
-          RoundAction(
-            icon: Icon(c.classic ? Icons.favorite_border : Icons.favorite, color: c.classic ? c.textSoft : c.saint, size: 22),
-            onTap: widget.onOpenFavorites,
-            tooltip: 'المفضلة',
-            size: 46,
-          ),
-        ]),
-        const SizedBox(height: 16),
-        _DateCard(today: widget.today, commemoration: _commemoration, onTap: widget.onOpenSynaxarium),
-        const SizedBox(height: 16),
-        _MessageCard(
-          verse: _verse,
-          failed: _verseFailed,
-          onRefresh: () => _loadVerse(forceNew: true),
-          onOpenChapter: widget.onOpenChapter,
-        ),
-        const SizedBox(height: 16),
-        MeditationCard(today: widget.today, onOpen: widget.onOpenMeditation),
-        if (_readings?.liturgyGospel case final g?) ...[
-          const SizedBox(height: 16),
-          GlassPanel(
-            radius: 24,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            onTap: widget.onOpenReadings,
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('إنجيل القداس اليوم', style: TextStyle(fontSize: 12, color: c.textFaint)),
-                  Text('${g.book} ${ar(g.ref)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
-                ]),
-              ),
-              Text('القراءات  ‹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.accent)),
-            ]),
-          ),
-        ],
-        const SizedBox(height: 16),
-        QuickTiles(onPrayers: widget.onOpenPrayers, onTasbeha: widget.onOpenTasbeha, onStations: widget.onOpenStations, onBooks: widget.onOpenBooks),
-        const SizedBox(height: 16),
-        _RadioCard(onOpen: widget.onOpenRadio),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => _bookPage(context);
 
   /// مخطوطة/سهرانية: الرئيسية صفحة كتاب. من غير كروت إلا كارت «يُذاع الآن»،
   /// والأحمر (أو العسلي) للتاريخ القبطي وأرقام الآيات بس.
@@ -519,206 +463,6 @@ class _NowPlayingCard extends StatelessWidget {
   }
 }
 
-class _DateCard extends StatelessWidget {
-  const _DateCard({required this.today, required this.commemoration, required this.onTap});
-  final DateTime today;
-  final Commemoration commemoration;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final coptic = CopticDate.fromGregorian(today);
-    final shadow = c.classic ? const <Shadow>[] : [Shadow(color: c.isDark ? const Color(0x66000000) : const Color(0x55FFFFFF), blurRadius: 8)];
-    // مخطوطة/سهرانية: التاريخ القبطي بلون التصميم المميز (أحمر الروبريك أو العسلي)
-    TextStyle big({bool coptic = false}) => c.classic
-        ? context.heading(size: 40, color: coptic ? c.accent : c.text).copyWith(height: 1.1)
-        : TextStyle(fontSize: 40, height: 1.1, fontWeight: FontWeight.w700, color: c.text, shadows: shadow);
-    TextStyle small() => TextStyle(fontSize: 15, color: c.textSoft, shadows: shadow);
-
-    return GlassPanel(
-      height: 212,
-      radius: 32,
-      padding: EdgeInsets.zero,
-      onTap: onTap,
-      child: Stack(fit: StackFit.expand, children: [
-        // صورة التذكار بشفافية قليلة خلف المحتوى، والصليب إن لم توجد صورة
-        FutureBuilder<String?>(
-          future: SaintImages.instance.imageUrl(commemoration.wiki, commemoration.title),
-          builder: (context, snap) {
-            final url = snap.data;
-            if (url == null) return const _CrossArt();
-            return Opacity(
-              opacity: c.isDark ? .42 : .3,
-              child: LayoutBuilder(
-                builder: (context, box) => CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.cover,
-                  alignment: SaintImages.focus(commemoration.wiki, box.maxWidth, box.maxHeight),
-                  errorWidget: (_, __, ___) => const _CrossArt(),
-                ),
-              ),
-            );
-          },
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: c.classic
-                  ? [c.card.withValues(alpha: .7), c.card.withValues(alpha: .45), c.card.withValues(alpha: .9)]
-                  : c.isDark
-                      ? const [Color(0x33140B26), Color(0x11140B26), Color(0x77140B26)]
-                      : const [Color(0x66FFFFFF), Color(0x33FFFFFF), Color(0x99FFFFFF)],
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Stack(children: [
-            // يمين: اليوم والشهر والسنة القبطية
-            Align(
-              alignment: AlignmentDirectional.topStart,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(ar(coptic.day), style: big(coptic: true)),
-                Text('${coptic.monthName} ${ar(coptic.year)} ش', style: small()),
-              ]),
-            ),
-            // يسار: اليوم والشهر والسنة الميلادية
-            Align(
-              alignment: AlignmentDirectional.topEnd,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
-                Text(ar(today.day), style: big()),
-                Text('${gregorianMonths[today.month - 1]} ${ar(today.year)} م', style: small()),
-              ]),
-            ),
-            // في المنتصف أسفل قليلاً: التذكار أو العيد
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 26),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                    decoration: BoxDecoration(color: c.chip, borderRadius: BorderRadius.circular(c.classic ? 6 : 99)),
-                    child: Text(commemoration.kind.label,
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: c.classic ? FontWeight.w500 : FontWeight.w700,
-                            color: c.kindColor(commemoration.kind))),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(commemoration.title,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: c.classic
-                          ? context.heading(size: 20)
-                          : TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.text, shadows: shadow)),
-                  Text(commemoration.detail,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.textSoft, shadows: shadow)),
-                ]),
-              ),
-            ),
-            Align(
-              alignment: AlignmentDirectional.bottomEnd,
-              child: Icon(Icons.chevron_left, color: c.textSoft, size: 22),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
-class _CrossArt extends StatelessWidget {
-  const _CrossArt();
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    // مخطوطة/سهرانية: صليب خفيف من غير توهج ذهبي وراه
-    return CustomPaint(painter: _CrossPainter(c.text.withValues(alpha: c.classic ? .12 : .33), glow: !c.classic));
-  }
-}
-
-class _CrossPainter extends CustomPainter {
-  _CrossPainter(this.color, {this.glow = true});
-  final Color color;
-  final bool glow;
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * .42);
-    final arm = size.height * .22;
-    final w = arm * .34;
-    if (glow) {
-      canvas.drawCircle(
-        center,
-        arm * 2.2,
-        Paint()..shader = RadialGradient(colors: const [Color(0x55F3C77A), Color(0x00F3C77A)]).createShader(Rect.fromCircle(center: center, radius: arm * 2.2)),
-      );
-    }
-    final s = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: center, width: w, height: arm * 2), const Radius.circular(3)), s);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: center, width: arm * 2, height: w), const Radius.circular(3)), s);
-    canvas.drawCircle(center, arm * .62, s);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CrossPainter old) => old.color != color || old.glow != glow;
-}
-
-class _MessageCard extends StatelessWidget {
-  const _MessageCard({required this.verse, required this.failed, required this.onRefresh, required this.onOpenChapter});
-  final DailyVerse? verse;
-  final bool failed;
-  final VoidCallback onRefresh;
-  final ValueChanged<VerseRef> onOpenChapter;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final v = verse;
-    return GlassPanel(
-      settings: frostedSettings,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          if (!c.classic) ...[
-            Text('✦', style: TextStyle(color: c.accent, fontSize: 16)),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-              child: Text('رسالة اليوم',
-                  style: c.classic
-                      ? TextStyle(fontSize: 13, color: c.textFaint)
-                      : TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text))),
-          if (v != null) VerseActions(ref: v.ref, text: v.text),
-          const SizedBox(width: 8),
-          RoundAction(icon: Icon(Icons.refresh, color: c.text, size: 20), onTap: onRefresh, tooltip: 'رسالة أخرى'),
-        ]),
-        const SizedBox(height: 12),
-        if (v != null) ...[
-          Text('«${v.text}»', style: context.scripture()),
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: Text(v.ref.label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.accent))),
-            Pill('النص كاملاً  ‹', onTap: () => onOpenChapter(v.ref)),
-          ]),
-        ] else if (failed)
-          Text('تعذّر تحميل الرسالة، تأكد من الاتصال بالإنترنت ثم اضغط زر التحديث', style: TextStyle(color: c.textSoft))
-        else
-          const SizedBox(height: 60, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-      ]),
-    );
-  }
-}
-
 /// أزرار الآية: حفظ في المفضلة ومشاركة كصورة.
 class VerseActions extends StatelessWidget {
   const VerseActions({super.key, required this.ref, required this.text, this.showCopy = false});
@@ -735,13 +479,13 @@ class VerseActions extends StatelessWidget {
         final saved = Favorites.instance.contains(ref);
         return Row(mainAxisSize: MainAxisSize.min, children: [
           RoundAction(
-            icon: Icon(saved ? Icons.favorite : Icons.favorite_border, color: saved ? c.saint : (c.classic ? c.textFaint : c.text), size: 19),
+            icon: Icon(saved ? Icons.favorite : Icons.favorite_border, color: saved ? c.saint : c.textFaint, size: 19),
             onTap: () => Favorites.instance.toggle(ref, text),
             tooltip: 'حفظ في المفضلة',
           ),
           const SizedBox(width: 8),
           RoundAction(
-            icon: Icon(Icons.ios_share, color: c.classic ? c.textFaint : c.text, size: 18),
+            icon: Icon(Icons.ios_share, color: c.textFaint, size: 18),
             onTap: () => VerseImage.share(context, ref, text),
             tooltip: 'مشاركة كصورة',
           ),
@@ -755,69 +499,6 @@ class VerseActions extends StatelessWidget {
           ],
         ]);
       },
-    );
-  }
-}
-
-class _RadioCard extends StatelessWidget {
-  const _RadioCard({required this.onOpen});
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final player = RadioPlayer.instance;
-    return GlassPanel(
-      onTap: onOpen,
-      child: ListenableBuilder(
-        listenable: player,
-        builder: (context, _) {
-          final now = player.nowPlaying;
-          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: c.accent.withValues(alpha: .22)),
-                child: Center(child: PopeIcon(size: 30, color: c.accent)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('المكتبة السمعية', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
-                  Text('البابا شنودة الثالث', style: TextStyle(fontSize: 12, color: c.textSoft)),
-                ]),
-              ),
-              Text('المكتبة  ‹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.accent)),
-            ]),
-            const SizedBox(height: 14),
-            if (now != null)
-              Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(player.isPlaying ? 'يُذاع الآن' : 'متوقف مؤقتاً', style: TextStyle(fontSize: 11, color: c.textFaint)),
-                    Text(now.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
-                  ]),
-                ),
-                PlayButton(size: 44),
-              ])
-            else
-              Row(children: [
-                Pill(c.classic ? 'بث متواصل' : '▶  بث متواصل', onTap: () => player.startRadio()),
-                const SizedBox(width: 10),
-                Pill('تصفح العظات', onTap: onOpen),
-              ]),
-            if (player.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(player.error!, style: TextStyle(fontSize: 12, color: c.saint)),
-              ),
-          ]);
-        },
-      ),
     );
   }
 }

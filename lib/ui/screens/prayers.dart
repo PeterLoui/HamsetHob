@@ -8,8 +8,7 @@ import '../theme.dart';
 
 EdgeInsets _pagePadding(BuildContext context) {
   final pad = MediaQuery.paddingOf(context);
-  final side = context.colors.classic ? 24.0 : 16.0;
-  return EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 32);
+  return EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 32);
 }
 
 /// صف في قائمة: عنوان ووصف وسهم، وفوقه خط رفيع.
@@ -130,7 +129,7 @@ class _AgpeyaPrayerScreenState extends State<AgpeyaPrayerScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    final side = c.classic ? 24.0 : 16.0;
+    const side = 24.0;
     final p = widget.prayer;
     final many = _count > 1;
     return Padding(
@@ -276,7 +275,7 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    final side = c.classic ? 24.0 : 16.0;
+    const side = 24.0;
     return Padding(
       padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 8),
       child: Column(children: [

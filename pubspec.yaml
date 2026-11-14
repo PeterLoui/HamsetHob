@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  liquid_glass_widgets: ^1.15.1
   http: ^1.2.2
   shared_preferences: ^2.3.2
   google_fonts: ^6.2.1

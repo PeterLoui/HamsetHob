@@ -26,10 +26,6 @@ class NativeBridge {
         'lockNotification': lockNotification,
       });
 
-  /// يحفظ صورة سطح الزجاج للويدجت (PNG) ليستخدمها الويدجت خلفيةً.
-  static Future<void> setWidgetGlass(String kind, Uint8List png) =>
-      _call('setWidgetGlass', {'kind': kind, 'png': png});
-
   /// يمسك قفل الشبكة والمعالج طول ما الصوت شغال عشان البث مايقفش والشاشة مقفولة.
   static Future<void> setPlaybackLock(bool playing) => _call('setPlaybackLock', {'playing': playing});
 

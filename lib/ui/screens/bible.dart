@@ -69,7 +69,7 @@ class _BibleScreenState extends State<BibleScreen> {
         sliver: SliverList.list(children: [
           const ScreenHeader('الكتاب المقدس', subtitle: 'ترجمة فاندايك'),
           AppSearchBar(
-            placeholder: c.classic ? 'ابحث في الكتاب المقدس' : 'ابحث في الكتاب المقدس… (مثال: المحبة)',
+            placeholder: 'ابحث في الكتاب المقدس',
             onChanged: _onQuery,
           ),
           const SizedBox(height: 14),
@@ -144,9 +144,9 @@ class _BibleScreenState extends State<BibleScreen> {
                         for (var ch = 1; ch <= b.chapters; ch++)
                           Material(
                             color: c.chip,
-                            borderRadius: BorderRadius.circular(c.classic ? 8 : 14),
+                            borderRadius: BorderRadius.circular(8),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(c.classic ? 8 : 14),
+                              borderRadius: BorderRadius.circular(8),
                               onTap: () => widget.onOpenChapter(VerseRef(b.number, ch, 0)),
                               child: SizedBox(width: 44, height: 44, child: Center(child: Text(ar(ch), style: TextStyle(color: c.text)))),
                             ),
@@ -253,7 +253,7 @@ class _ChapterScreenState extends State<ChapterScreen> {
                           color: v.number == _selected
                               ? c.chip
                               : v.number == _highlight
-                                  ? (c.classic ? c.chip : c.accent.withValues(alpha: .2))
+                                  ? c.chip
                                   : Colors.transparent,
                         ),
                         child: InkWell(

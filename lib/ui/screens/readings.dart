@@ -88,7 +88,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
               for (final s in r.sections) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-                  child: Text(s.title, style: c.classic ? context.heading(size: 20) : TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.accent)),
+                  child: Text(s.title, style: context.heading(size: 20)),
                 ),
                 for (final g in s.groups) ...[
                   if (g.isSynaxarium) _synaxariumLink(g) else _groupCard('${s.title}/${g.title}', g),
@@ -109,7 +109,6 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
     return GlassPanel(
       radius: 24,
       padding: EdgeInsets.zero,
-      settings: frostedSettings,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         InkWell(
           onTap: () => setState(() => open ? _open.remove(id) : _open.add(id)),
@@ -213,9 +212,8 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
               for (final s in stories) ...[
                 GlassPanel(
                   radius: 26,
-                  settings: frostedSettings,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s.title, style: c.classic ? context.heading(size: 18) : TextStyle(fontSize: 18, height: 1.5, fontWeight: FontWeight.w700, color: c.accent)),
+                    Text(s.title, style: context.heading(size: 18)),
                     const SizedBox(height: 10),
                     Text(s.text, style: context.scripture(size: 17)),
                   ]),

@@ -1,64 +1,18 @@
-import 'dart:ui' show ImageFilter, TileMode;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'theme.dart';
 
-// كل مكوّن هنا بيرسم زجاج في التصميم القديم، وسطح ثابت بخط رفيع
-// في تصميم مخطوطة/سهرانية (context.colors.classic).
+// مكوّنات الواجهة: أسطح ثابتة بخطوط رفيعة (مخطوطة في الفاتح، سهرانية في الداكن).
 
-/// إعدادات الزجاج السائل المشتركة في التطبيق كله (مستوحاة من Magic OS 11).
-const glassSettings = LiquidGlassSettings(
-  thickness: 26,
-  blur: 9,
-  glassColor: Color(0x24FFFFFF),
-  lightIntensity: .65,
-  saturation: 1.6,
-  refractiveIndex: 1.25,
-  chromaticAberration: .012,
-);
-
-/// نسخة أكثر ضبابية للبطاقات التي تحمل نصوصاً طويلة.
-const frostedSettings = LiquidGlassSettings(
-  thickness: 22,
-  blur: 16,
-  glassColor: Color(0x30FFFFFF),
-  lightIntensity: .55,
-  saturation: 1.4,
-  refractiveIndex: 1.2,
-);
-
-/// خلفية الشاشات: لون ثابت في مخطوطة/سهرانية، وتدرج بفقاعات لونية في الزجاج.
+/// خلفية الشاشات: لون ثابت.
 class Wallpaper extends StatelessWidget {
   const Wallpaper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    if (c.classic) return ColoredBox(color: c.surface, child: const SizedBox.expand());
-    Widget blob(Alignment a, double size, Color color) => Align(
-          alignment: a,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-        );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: c.wallpaper),
-      ),
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 70, sigmaY: 70, tileMode: TileMode.decal),
-        child: Stack(children: [
-          blob(const Alignment(1.1, -0.9), 340, c.blobs[0]),
-          blob(const Alignment(-1.2, -0.3), 380, c.blobs[1]),
-          blob(const Alignment(0.8, 0.35), 320, c.blobs[2]),
-          blob(const Alignment(-0.8, 1.1), 400, c.blobs[3]),
-        ]),
-      ),
-    );
+    return ColoredBox(color: context.colors.surface, child: const SizedBox.expand());
   }
 }
 
@@ -75,7 +29,7 @@ class StatusBarFade extends StatelessWidget {
     final c = context.colors;
     final top = MediaQuery.paddingOf(context).top;
     if (top <= 0) return const SizedBox.shrink();
-    final bg = c.classic ? c.surface : c.wallpaper.first;
+    final bg = c.surface;
     final h = top + fade;
     // تغبيش متدرّج: قوي ورا شريط الحالة وبيخف في شريطين تحته
     Widget band(double from, double to, double sigma) => Positioned(
@@ -112,7 +66,7 @@ class StatusBarFade extends StatelessWidget {
   }
 }
 
-/// بطاقة: زجاج (GlassContainer) أو كارت ثابت بخط رفيع.
+/// بطاقة: كارت ثابت بخط رفيع.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
@@ -121,8 +75,6 @@ class GlassPanel extends StatelessWidget {
     this.padding = const EdgeInsets.all(20),
     this.onTap,
     this.height,
-    this.ownLayer = false,
-    this.settings,
   });
 
   final Widget child;
@@ -130,42 +82,24 @@ class GlassPanel extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final double? height;
-  final bool ownLayer;
-  final LiquidGlassSettings? settings;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (c.classic) {
-      // كروت 12 إلى 16 بدل 22 إلى 32
-      final r = BorderRadius.circular(radius.clamp(8, 16).toDouble());
-      return Material(
-        color: c.card,
-        shape: RoundedRectangleBorder(borderRadius: r, side: BorderSide(color: c.hairline)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(height: height, child: Padding(padding: padding, child: child)),
-        ),
-      );
-    }
-    Widget panel = GlassContainer(
-      useOwnLayer: ownLayer,
-      settings: settings ?? (ownLayer ? glassSettings : null),
-      shape: LiquidRoundedSuperellipse(borderRadius: radius),
+    final r = BorderRadius.circular(radius.clamp(8, 16).toDouble());
+    return Material(
+      color: c.card,
+      shape: RoundedRectangleBorder(borderRadius: r, side: BorderSide(color: c.hairline)),
       clipBehavior: Clip.antiAlias,
-      height: height,
-      padding: padding,
-      child: child,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(height: height, child: Padding(padding: padding, child: child)),
+      ),
     );
-    if (onTap != null) {
-      panel = GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: panel);
-    }
-    return panel;
   }
 }
 
-/// زر دائري صغير داخل البطاقات (ليس زجاجاً، لأن الحزمة تمنع الزجاج داخل الزجاج).
+/// زر دائري صغير داخل البطاقات.
 class RoundAction extends StatelessWidget {
   const RoundAction({super.key, required this.icon, required this.onTap, required this.tooltip, this.color, this.size = 40});
   final Widget icon;
@@ -176,13 +110,12 @@ class RoundAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return Semantics(
       button: true,
       label: tooltip,
       child: Material(
-        // في مخطوطة/سهرانية الأيقونة لوحدها من غير دايرة، إلا لو الزرار له لون (زي التشغيل)
-        color: color ?? (c.classic ? Colors.transparent : c.chip),
+        // الأيقونة لوحدها من غير دايرة، إلا لو الزرار له لون (زي التشغيل)
+        color: color ?? Colors.transparent,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -204,7 +137,7 @@ class Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final r = BorderRadius.circular(c.classic ? 8 : 99);
+    final r = BorderRadius.circular(8);
     return Material(
       color: filled ? c.live : c.chip,
       borderRadius: r,
@@ -216,7 +149,7 @@ class Pill extends StatelessWidget {
           child: Text(text,
               style: TextStyle(
                   fontSize: 13,
-                  fontWeight: c.classic ? FontWeight.w500 : FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: filled ? c.onLive : c.text)),
         ),
       ),
@@ -239,17 +172,11 @@ class ScreenHeader extends StatelessWidget {
       padding: const EdgeInsets.only(top: 12, bottom: 16),
       child: Row(children: [
         if (onBack != null) ...[
-          c.classic
-              ? IconButton(
-                  icon: Icon(Icons.arrow_back, color: c.text),
-                  onPressed: onBack,
-                  tooltip: 'رجوع',
-                )
-              : GlassIconButton(
-                  icon: Icon(Icons.arrow_back, color: c.text),
-                  onPressed: onBack!,
-                  semanticLabel: 'رجوع',
-                ),
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: c.text),
+            onPressed: onBack,
+            tooltip: 'رجوع',
+          ),
           const SizedBox(width: 12),
         ],
         Expanded(
@@ -265,91 +192,73 @@ class ScreenHeader extends StatelessWidget {
 }
 
 /// تبويب في الشريط السفلي.
-class LiquidGlassTab {
+class NavTab {
   final String label;
   final Widget icon;
-  const LiquidGlassTab({required this.label, required this.icon});
+  const NavTab({required this.label, required this.icon});
 }
 
 /// ارتفاع الشريط السفلي بدون مساحة النظام.
-double bottomBarHeight(BuildContext context) => context.colors.classic ? 64.0 : 92.0;
+double bottomBarHeight(BuildContext context) => 64.0;
 
-/// الشريط السفلي: زجاج سائل عائم، أو شريط ثابت بخط رفيع فوقه.
-class LiquidGlassBottomNavBar extends StatelessWidget {
+/// الشريط السفلي: شريط ثابت بخط رفيع فوقه.
+class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
-  final List<LiquidGlassTab> tabs;
+  final List<NavTab> tabs;
   final ValueChanged<int> onTabSelected;
-  final double opacity;
 
-  const LiquidGlassBottomNavBar({
+  const BottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.tabs,
     required this.onTabSelected,
-    this.opacity = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (c.classic) {
-      final safe = MediaQuery.paddingOf(context).bottom;
-      // التبويب المفتوح بالحبر (الأحمر للتاريخ القبطي وأرقام الآيات بس)، وفي سهرانية نقطة عسلية تحته.
-      final on = c.text;
-      return Container(
-        height: 64 + safe,
-        padding: EdgeInsets.only(bottom: safe),
-        decoration: BoxDecoration(color: c.navBar, border: Border(top: BorderSide(color: c.hairline))),
-        child: Row(children: [
-          for (var i = 0; i < tabs.length; i++)
-            Expanded(
-              child: Semantics(
-                selected: i == selectedIndex,
-                button: true,
-                child: InkResponse(
-                  onTap: () => onTabSelected(i),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    IconTheme(
-                      data: IconThemeData(color: i == selectedIndex ? on : c.textFaint, size: 22),
-                      child: tabs[i].icon,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(tabs[i].label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: i == selectedIndex ? FontWeight.w500 : FontWeight.w400,
-                          color: i == selectedIndex ? on : c.textFaint,
-                        )),
-                    if (c.isDark)
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(top: 2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i == selectedIndex ? c.accent : Colors.transparent,
-                        ),
+    final safe = MediaQuery.paddingOf(context).bottom;
+    // التبويب المفتوح بالحبر (الأحمر للتاريخ القبطي وأرقام الآيات بس)، وفي سهرانية نقطة عسلية تحته.
+    final on = c.text;
+    return Container(
+      height: 64 + safe,
+      padding: EdgeInsets.only(bottom: safe),
+      decoration: BoxDecoration(color: c.navBar, border: Border(top: BorderSide(color: c.hairline))),
+      child: Row(children: [
+        for (var i = 0; i < tabs.length; i++)
+          Expanded(
+            child: Semantics(
+              selected: i == selectedIndex,
+              button: true,
+              child: InkResponse(
+                onTap: () => onTabSelected(i),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  IconTheme(
+                    data: IconThemeData(color: i == selectedIndex ? on : c.textFaint, size: 22),
+                    child: tabs[i].icon,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(tabs[i].label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: i == selectedIndex ? FontWeight.w500 : FontWeight.w400,
+                        color: i == selectedIndex ? on : c.textFaint,
+                      )),
+                  if (c.isDark)
+                    Container(
+                      width: 4,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == selectedIndex ? c.accent : Colors.transparent,
                       ),
-                  ]),
-                ),
+                    ),
+                ]),
               ),
             ),
-        ]),
-      );
-    }
-    return Opacity(
-      opacity: opacity,
-      child: GlassTabBar.bottom(
-        selectedIndex: selectedIndex,
-        selectedIconColor: Theme.of(context).colorScheme.primary,
-        unselectedIconColor: Theme.of(context).colorScheme.onSurface,
-        selectedLabelColor: c.text,
-        unselectedLabelColor: c.textSoft,
-        settings: glassSettings,
-        indicatorColor: Colors.white.withValues(alpha: 0.1),
-        onTabSelected: onTabSelected,
-        tabs: tabs.map((t) => GlassTab(label: t.label, icon: t.icon)).toList(),
-      ),
+          ),
+      ]),
     );
   }
 }
@@ -364,13 +273,6 @@ class AppSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) {
-      return GlassSegmentedControl(
-        segments: [for (final l in labels) GlassSegment(label: l)],
-        selectedIndex: selectedIndex,
-        onSegmentSelected: onSelected,
-      );
-    }
     return Container(
       height: 40,
       padding: const EdgeInsets.all(3),
@@ -415,15 +317,6 @@ class AppSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) {
-      return GlassSearchBar(
-        placeholder: placeholder,
-        onChanged: onChanged,
-        height: 48,
-        textStyle: TextStyle(color: c.text, fontSize: 15),
-        placeholderStyle: TextStyle(color: c.textFaint, fontSize: 15),
-      );
-    }
     final border = OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.hairline));
     return SizedBox(
       height: 48,
@@ -457,9 +350,6 @@ class AppChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) {
-      return GlassChip(label: label, selected: selected, selectedColor: c.accent, onTap: onTap);
-    }
     final r = BorderRadius.circular(8);
     return Material(
       color: selected ? c.text : c.card,
@@ -485,7 +375,6 @@ class AppSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) return GlassSlider(value: value, onChanged: onChanged, activeColor: c.accent);
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
         trackHeight: 3,
@@ -510,7 +399,6 @@ class AppSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) return GlassSwitch(value: value, onChanged: onChanged, activeColor: c.accent, semanticLabel: label);
     return Semantics(
       label: label,
       child: Switch(
@@ -534,18 +422,6 @@ class AppIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (!c.classic) {
-      return GlassButton(
-        icon: icon,
-        label: label,
-        onTap: onTap,
-        width: 64,
-        height: 48,
-        shape: const LiquidRoundedSuperellipse(borderRadius: 24),
-        useOwnLayer: true,
-        settings: glassSettings,
-      );
-    }
     final r = BorderRadius.circular(10);
     return Semantics(
       button: true,

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
-import 'core/synaxarium.dart';
 import 'data/store.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
@@ -16,11 +14,10 @@ Future<void> main() async {
     androidNotificationChannelName: 'الإذاعة',
     androidNotificationOngoing: true,
   );
-  await LiquidGlassWidgets.initialize();
   await AppSettings.load();
   await Favorites.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(LiquidGlassWidgets.wrap(child: const HamsetApp()));
+  runApp(const HamsetApp());
 }
 
 class HamsetApp extends StatefulWidget {
@@ -54,8 +51,7 @@ class _HamsetAppState extends State<HamsetApp> with WidgetsBindingObserver {
       ThemeChoice.dark => true,
       ThemeChoice.system => WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark,
     };
-    final season = settings.seasonalColors ? seasonOf(DateTime.now()) : Season.ordinary;
-    final colors = AppColors.of(dark, season, classic: settings.classicDesign);
+    final colors = AppColors.of(dark);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(

@@ -107,7 +107,7 @@ class _RadioScreenState extends State<RadioScreen> {
         ),
         const SizedBox(height: 12),
         AppSearchBar(
-          placeholder: c.classic ? 'ابحث في العظات' : 'ابحث في العظات… (مثال: التوبة)',
+          placeholder: 'ابحث في العظات',
           onChanged: (q) {
             _debounce?.cancel();
             _debounce = Timer(const Duration(milliseconds: 450), () {
@@ -145,7 +145,7 @@ class _NowPlaying extends StatelessWidget {
             Container(
               width: 64,
               height: 64,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: c.live.withValues(alpha: c.classic ? .08 : .22)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: c.live.withValues(alpha: .08)),
               child: Center(child: AppIconView(AppIcon.radio, size: 34, color: c.live)),
             ),
             const SizedBox(height: 12),
@@ -183,7 +183,7 @@ class _NowPlaying extends StatelessWidget {
               ]),
             ],
             const SizedBox(height: 12),
-            Pill(player.radioOn ? 'إيقاف البث المتواصل' : (c.classic ? 'بث متواصل عشوائي' : '▶  بث متواصل عشوائي'),
+            Pill(player.radioOn ? 'إيقاف البث المتواصل' : 'بث متواصل عشوائي',
                 onTap: player.radioOn ? player.stopRadio : onStartRadio),
             if (player.error != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(player.error!, style: TextStyle(fontSize: 12, color: c.saint))),
@@ -227,7 +227,7 @@ class _SermonRow extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(sermon.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
-                Text(categoryName(sermon.categoryId), style: TextStyle(fontSize: 11, color: c.classic ? c.textFaint : c.accent)),
+                Text(categoryName(sermon.categoryId), style: TextStyle(fontSize: 11, color: c.textFaint)),
                 if (sermon.summary.isNotEmpty)
                   Text(sermon.summary,
                       maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, height: 1.5, color: c.textSoft)),
@@ -257,7 +257,6 @@ class MiniPlayer extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GlassPanel(
-            ownLayer: true,
             radius: 29,
             height: 58,
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -273,7 +272,7 @@ class MiniPlayer extends StatelessWidget {
                       maxLines: 1, style: TextStyle(fontSize: 11, color: c.textSoft)),
                 ]),
               ),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.classic ? c.textFaint : c.accent)),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.textFaint)),
             ]),
           ),
         );

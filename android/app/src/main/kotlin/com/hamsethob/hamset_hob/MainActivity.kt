@@ -32,13 +32,6 @@ class MainActivity : AudioServiceActivity() {
                         Widgets.render(ctx)
                         result.success(null)
                     }
-                    "setWidgetGlass" -> {
-                        val kind = call.argument<String>("kind") ?: "verse"
-                        val png = call.argument<ByteArray>("png")
-                        if (png != null) WidgetStore.saveGlass(ctx, kind, png)
-                        Widgets.render(ctx)
-                        result.success(null)
-                    }
                     "scheduleMorning" -> {
                         MorningReceiver.schedule(ctx, call.argument<Boolean>("enabled") == true, call.argument<Int>("minutes") ?: 420)
                         result.success(null)

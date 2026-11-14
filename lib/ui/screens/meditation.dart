@@ -83,7 +83,7 @@ class _MeditationScreenState extends State<MeditationScreen> {
       builder: (context, snap) {
         final a = snap.data;
         return ListView(
-          padding: EdgeInsets.fromLTRB(c.classic ? 24 : 16, pad.top, c.classic ? 24 : 16, pad.bottom + 32),
+          padding: EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 32),
           children: [
             ScreenHeader(a?.title ?? widget.meditation.title, subtitle: 'تأمل اليوم', onBack: widget.onBack),
             if (snap.hasError) ...[

@@ -72,14 +72,9 @@ class _MoreScreenState extends State<MoreScreen> {
         children: [
           const ScreenHeader('المزيد'),
           _group(null, [
-            _item(c.classic ? 'المفضلة' : '♡  المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
+            _item('المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
           ]),
           _label('المظهر'),
-          _toggle('تصميم مخطوطة وسهرانية', 'مخطوطة في الوضع النهاري، سهرانية في الوضع الليلي', settings.classicDesign, (v) {
-            settings.classicDesign = v;
-            widget.onSettingsChanged();
-          }),
-          const SizedBox(height: 6),
           AppSegmented(
             labels: [for (final t in ThemeChoice.values) t.label],
             selectedIndex: settings.theme.index,
@@ -89,12 +84,6 @@ class _MoreScreenState extends State<MoreScreen> {
             },
           ),
           const SizedBox(height: 10),
-          // ألوان المواسم بتغيّر خلفية الزجاج، فمالهاش لازمة في مخطوطة/سهرانية
-          if (!settings.classicDesign)
-            _toggle('ألوان المواسم الكنسية', 'بنفسجي في الأصوام وذهبي في الأعياد', settings.seasonalColors, (v) {
-              settings.seasonalColors = v;
-              widget.onSettingsChanged();
-            }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {
@@ -137,7 +126,7 @@ class _MoreScreenState extends State<MoreScreen> {
 
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
-        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: context.colors.classic ? FontWeight.w400 : FontWeight.w700, color: context.colors.classic ? context.colors.textFaint : context.colors.accent)),
+        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: context.colors.textFaint)),
       );
 
   Widget _group(String? title, List<Widget> children) => GlassPanel(
