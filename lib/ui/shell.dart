@@ -84,13 +84,20 @@ class TasbehaOverlay extends SubScreen {
   const TasbehaOverlay();
 }
 
+class TasbehaBookOverlay extends SubScreen {
+  const TasbehaBookOverlay(this.book);
+  final TasbehaBook book;
+}
+
 class TasbehaDayOverlay extends SubScreen {
-  const TasbehaDayOverlay(this.day);
+  const TasbehaDayOverlay(this.book, this.day);
+  final TasbehaBook book;
   final TasbehaDay day;
 }
 
 class TasbehaReaderOverlay extends SubScreen {
-  const TasbehaReaderOverlay(this.day, this.index);
+  const TasbehaReaderOverlay(this.book, this.day, this.index);
+  final TasbehaBook book;
   final TasbehaDay day;
   final int index;
 }
@@ -211,10 +218,17 @@ class _ShellState extends State<Shell> {
           LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
         StationsOverlay() => StationsScreen(onBack: _back),
         BooksOverlay() => BooksScreen(onBack: _back),
-        TasbehaOverlay() => TasbehaScreen(onBack: _back, onOpenDay: (d) => _open(TasbehaDayOverlay(d))),
-        TasbehaDayOverlay(:final day) =>
-          TasbehaDayScreen(day: day, onBack: _back, onOpenPiece: (i) => _open(TasbehaReaderOverlay(day, i))),
-        TasbehaReaderOverlay(:final day, :final index) => TasbehaReaderScreen(day: day, index: index, onBack: _back),
+        TasbehaOverlay() => TasbehaScreen(
+            onBack: _back,
+            onOpenBook: (b) => _open(TasbehaBookOverlay(b)),
+            onRead: (b, d, i) => _open(TasbehaReaderOverlay(b, d, i)),
+          ),
+        TasbehaBookOverlay(:final book) =>
+          TasbehaBookScreen(book: book, onBack: _back, onOpenDay: (d) => _open(TasbehaDayOverlay(book, d))),
+        TasbehaDayOverlay(:final book, :final day) => TasbehaDayScreen(
+            book: book, day: day, onBack: _back, onOpenPiece: (i) => _open(TasbehaReaderOverlay(book, day, i))),
+        TasbehaReaderOverlay(:final book, :final day, :final index) =>
+          TasbehaReaderScreen(book: book, day: day, index: index, onBack: _back),
       };
 
   @override

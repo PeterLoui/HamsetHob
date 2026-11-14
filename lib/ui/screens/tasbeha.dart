@@ -52,42 +52,78 @@ Widget _groupLabel(BuildContext context, String text) => Padding(
       child: Text(text, style: TextStyle(fontSize: 13, color: context.colors.textFaint)),
     );
 
-/// تبويب «تسبحة»: جواه تسبحة كيهك متقسمة على أيام الأسبوع، وبرمون الميلاد.
-class TasbehaScreen extends StatelessWidget {
-  const TasbehaScreen({super.key, required this.onBack, required this.onOpenDay});
+Widget _loading() => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()));
+
+/// تبويب «تسبحة»: اختصار لتسبحة الليلة ولآخر مكان، وتحتهم التسبحة السنوية والكيهكية.
+class TasbehaScreen extends StatefulWidget {
+  const TasbehaScreen({super.key, required this.onBack, required this.onOpenBook, required this.onRead});
   final VoidCallback onBack;
-  final ValueChanged<TasbehaDay> onOpenDay;
+  final ValueChanged<TasbehaBook> onOpenBook;
+  final void Function(TasbehaBook book, TasbehaDay day, int index) onRead;
+
+  @override
+  State<TasbehaScreen> createState() => _TasbehaScreenState();
+}
+
+class _TasbehaScreenState extends State<TasbehaScreen> {
+  final _library = TasbehaRepository.instance.load();
+  final _last = TasbehaRepository.instance.last();
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final today = DateTime.now().weekday % 7; // الأحد = ٠
-    return FutureBuilder<TasbehaBook>(
-      future: TasbehaRepository.instance.kiahk(),
+    return FutureBuilder<TasbehaLibrary>(
+      future: _library,
       builder: (context, snap) {
-        final book = snap.data;
+        final lib = snap.data;
         return ListView(
           padding: _pagePadding(context),
           children: [
-            ScreenHeader('تسبحة', subtitle: 'تسبحة نصف الليل', onBack: onBack),
-            if (book == null)
-              const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+            ScreenHeader('تسبحة', subtitle: 'تسبحة نصف الليل', onBack: widget.onBack),
+            if (lib == null)
+              _loading()
             else ...[
-              _groupLabel(context, book.title),
-              Text(
-                'لكل يوم إبصاليته وثيئوطوكيته، وقبلهم قوموا يا بني النور والهوسات والمجمع وذكصولوجيات كيهك. بتتقري من غير نت',
-                style: TextStyle(fontSize: 13, height: 1.6, color: c.textSoft),
+              Builder(builder: (context) {
+                final (book, day) = lib.tonight(DateTime.now());
+                return GlassPanel(
+                  radius: 14,
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  onTap: () => widget.onRead(book, day, 0),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('تسبحة الليلة', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                        const SizedBox(height: 2),
+                        Text(day.name, style: context.heading(size: 20)),
+                        Text('${book.title} · ${day.subtitle}', style: TextStyle(fontSize: 12, color: c.textSoft)),
+                      ]),
+                    ),
+                    Text('ابدأ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: c.text)),
+                    Icon(Icons.chevron_left, color: c.text, size: 20),
+                  ]),
+                );
+              }),
+              FutureBuilder<TasbehaPosition?>(
+                future: _last,
+                builder: (context, s) {
+                  final p = s.data;
+                  if (p == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _Row(
+                      title: 'كمّل من حيث وقفت',
+                      subtitle: '${p.day.name} · ${p.day.pieces[p.index].title}',
+                      onTap: () => widget.onRead(p.book, p.day, p.index),
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: 12),
-              for (var i = 0; i < book.days.length; i++)
-                _Row(
-                  title: book.days[i].name,
-                  subtitle: book.days[i].subtitle,
-                  badge: i == today ? 'اليوم' : null,
-                  onTap: () => onOpenDay(book.days[i]),
-                ),
+              for (final b in lib.books) ...[
+                _groupLabel(context, b.title),
+                _Row(title: b.title, subtitle: b.subtitle, onTap: () => widget.onOpenBook(b)),
+              ],
               const SizedBox(height: 16),
-              Text(book.source, style: TextStyle(fontSize: 11, color: c.textFaint)),
+              Text(lib.source, style: TextStyle(fontSize: 11, color: c.textFaint)),
             ],
           ],
         );
@@ -96,9 +132,36 @@ class TasbehaScreen extends StatelessWidget {
   }
 }
 
+/// أيام التسبحة (السنوية أو الكيهكية)، ويوم النهارده عليه علامة.
+class TasbehaBookScreen extends StatelessWidget {
+  const TasbehaBookScreen({super.key, required this.book, required this.onBack, required this.onOpenDay});
+  final TasbehaBook book;
+  final VoidCallback onBack;
+  final ValueChanged<TasbehaDay> onOpenDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now().weekday % 7; // الأحد = ٠
+    return ListView(
+      padding: _pagePadding(context),
+      children: [
+        ScreenHeader(book.title, subtitle: book.subtitle, onBack: onBack),
+        for (var i = 0; i < book.days.length; i++)
+          _Row(
+            title: book.days[i].name,
+            subtitle: book.days[i].subtitle,
+            badge: i == today ? 'اليوم' : null,
+            onTap: () => onOpenDay(book.days[i]),
+          ),
+      ],
+    );
+  }
+}
+
 /// فهرس اليوم: الأجزاء بالترتيب، وكل قطعة بتفتح في القارئ.
 class TasbehaDayScreen extends StatelessWidget {
-  const TasbehaDayScreen({super.key, required this.day, required this.onBack, required this.onOpenPiece});
+  const TasbehaDayScreen({super.key, required this.book, required this.day, required this.onBack, required this.onOpenPiece});
+  final TasbehaBook book;
   final TasbehaDay day;
   final VoidCallback onBack;
   final ValueChanged<int> onOpenPiece;
@@ -125,7 +188,7 @@ class TasbehaDayScreen extends StatelessWidget {
     return ListView(
       padding: _pagePadding(context),
       children: [
-        ScreenHeader(day.name, subtitle: 'تسبحة كيهك · ${day.subtitle}', onBack: onBack),
+        ScreenHeader(day.name, subtitle: '${book.title} · ${day.subtitle}', onBack: onBack),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: AppChip(label: 'ابدأ من الأول', onTap: () => onOpenPiece(0)),
@@ -137,8 +200,10 @@ class TasbehaDayScreen extends StatelessWidget {
 }
 
 /// قراءة التسبحة قطعة قطعة: السحب أو الزرارين أو الشريط، والقبطي المعرّب تحت كل ربع لو مفعّل.
+/// زرار الفهرس بيفتح لوح من الجنب فيه كل الأيام والألحان للتنقل السريع.
 class TasbehaReaderScreen extends StatefulWidget {
-  const TasbehaReaderScreen({super.key, required this.day, required this.index, required this.onBack});
+  const TasbehaReaderScreen({super.key, required this.book, required this.day, required this.index, required this.onBack});
+  final TasbehaBook book;
   final TasbehaDay day;
   final int index;
   final VoidCallback onBack;
@@ -150,13 +215,16 @@ class TasbehaReaderScreen extends StatefulWidget {
 class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   static const _copticKey = 'tasbeha_show_coptic';
   static bool? _showCoptic;
-  late final List<TasbehaPiece> _pieces = widget.day.pieces;
-  late final _pages = PageController(initialPage: widget.index);
+  late TasbehaBook _book = widget.book;
+  late TasbehaDay _day = widget.day;
+  late List<TasbehaPiece> _pieces = _day.pieces;
+  late PageController _pages = PageController(initialPage: widget.index);
   late int _i = widget.index;
 
   @override
   void initState() {
     super.initState();
+    TasbehaRepository.instance.saveLast(_book, _day, _i);
     if (_showCoptic == null) {
       SharedPreferences.getInstance().then((p) {
         if (mounted) setState(() => _showCoptic = p.getBool(_copticKey) ?? true);
@@ -176,13 +244,28 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     _pages.animateToPage(next, duration: const Duration(milliseconds: 320), curve: const Cubic(0.22, 1, 0.36, 1));
   }
 
-  String _sectionOf(int i) {
-    var n = 0;
-    for (final s in widget.day.sections) {
-      n += s.pieces.length;
-      if (i < n) return s.title;
+  /// قفزة من الفهرس الجانبي: لنفس اليوم بيقلب للصفحة، وليوم تاني بيبدّل اليوم كله.
+  void _jump(TasbehaBook book, TasbehaDay day, int index) {
+    if (identical(day, _day)) {
+      _pages.jumpToPage(index);
+      return;
     }
-    return '';
+    final old = _pages;
+    setState(() {
+      _book = book;
+      _day = day;
+      _pieces = day.pieces;
+      _i = index;
+      _pages = PageController(initialPage: index);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    TasbehaRepository.instance.saveLast(book, day, index);
+  }
+
+  Future<void> _openIndex() async {
+    final lib = await TasbehaRepository.instance.load();
+    if (!mounted) return;
+    await showTasbehaIndex(context, library: lib, book: _book, day: _day, index: _i, onPick: _jump);
   }
 
   @override
@@ -195,23 +278,34 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
-    const side = 24.0;
     final count = _pieces.length;
     final coptic = _showCoptic ?? true;
     return Padding(
-      padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 8),
+      padding: EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 8),
       child: Column(children: [
         ScreenHeader(
-          _sectionOf(_i),
-          subtitle: '${widget.day.name} · ${ar(_i + 1)} من ${ar(count)}',
+          _day.sectionOf(_i),
+          subtitle: '${_day.name} · ${ar(_i + 1)} من ${ar(count)}',
           onBack: widget.onBack,
-          trailing: AppChip(label: 'القبطي', selected: coptic, onTap: _toggleCoptic),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            AppChip(label: 'القبطي', selected: coptic, onTap: _toggleCoptic),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(Icons.format_list_bulleted, color: c.text),
+              tooltip: 'كل الألحان',
+              onPressed: _openIndex,
+            ),
+          ]),
         ),
         Expanded(
           child: PageView.builder(
+            key: ValueKey('${_book.id}/${_day.id}'),
             controller: _pages,
             itemCount: count,
-            onPageChanged: (i) => setState(() => _i = i),
+            onPageChanged: (i) {
+              setState(() => _i = i);
+              TasbehaRepository.instance.saveLast(_book, _day, i);
+            },
             itemBuilder: (context, i) {
               final p = _pieces[i];
               return ListView(
@@ -254,5 +348,154 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
         ]),
       ]),
     );
+  }
+}
+
+/// الفهرس الجانبي: لوح بيطلع من الجنب فيه السنوية والكيهكية وكل الأيام والألحان.
+/// اليوم المفتوح متفرد ومكانك عليه علامة، وأي لحن بلمسة واحدة.
+Future<void> showTasbehaIndex(
+  BuildContext context, {
+  required TasbehaLibrary library,
+  required TasbehaBook book,
+  required TasbehaDay day,
+  required int index,
+  required void Function(TasbehaBook book, TasbehaDay day, int index) onPick,
+}) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'إغلاق الفهرس',
+    barrierColor: Colors.black.withValues(alpha: .35),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (context, _, __) => Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: _TasbehaIndex(library: library, book: book, day: day, index: index, onPick: onPick),
+    ),
+    transitionBuilder: (context, anim, _, child) {
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      return SlideTransition(
+        position: Tween(begin: Offset(rtl ? 1 : -1, 0), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: const Cubic(0.22, 1, 0.36, 1))),
+        child: child,
+      );
+    },
+  );
+}
+
+class _TasbehaIndex extends StatefulWidget {
+  const _TasbehaIndex({required this.library, required this.book, required this.day, required this.index, required this.onPick});
+  final TasbehaLibrary library;
+  final TasbehaBook book;
+  final TasbehaDay day;
+  final int index;
+  final void Function(TasbehaBook book, TasbehaDay day, int index) onPick;
+
+  @override
+  State<_TasbehaIndex> createState() => _TasbehaIndexState();
+}
+
+class _TasbehaIndexState extends State<_TasbehaIndex> {
+  late TasbehaBook _book = widget.book;
+  late String? _open = widget.day.id;
+  final _current = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _current.currentContext;
+      if (ctx != null) Scrollable.ensureVisible(ctx, alignment: .3);
+    });
+  }
+
+  void _pick(TasbehaDay day, int i) {
+    Navigator.of(context).pop();
+    widget.onPick(_book, day, i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final pad = MediaQuery.paddingOf(context);
+    final width = (MediaQuery.sizeOf(context).width * .86).clamp(0.0, 380.0);
+    return Material(
+      color: c.surface,
+      child: SizedBox(
+        width: width,
+        height: double.infinity,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, pad.top + 12, 16, 0),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('كل الألحان', style: context.heading(size: 22)),
+            const SizedBox(height: 12),
+            AppSegmented(
+              labels: [for (final b in widget.library.books) b.title.replaceFirst('التسبحة ', '')],
+              selectedIndex: widget.library.books.indexOf(_book),
+              onSelected: (i) => setState(() {
+                _book = widget.library.books[i];
+                _open = null;
+              }),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.only(bottom: pad.bottom + 24),
+                children: [
+                  for (final d in _book.days) ..._dayGroup(context, c, d),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _dayGroup(BuildContext context, AppColors c, TasbehaDay d) {
+    final open = _open == d.id;
+    final here = identical(_book, widget.book) && identical(d, widget.day);
+    final out = <Widget>[
+      InkWell(
+        onTap: () => setState(() => _open = open ? null : d.id),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
+          child: Row(children: [
+            Expanded(
+              child: Text(d.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+            ),
+            if (here) Text('أنت هنا', style: TextStyle(fontSize: 12, color: c.accent)),
+            const SizedBox(width: 6),
+            Icon(open ? Icons.expand_less : Icons.expand_more, color: c.textFaint, size: 20),
+          ]),
+        ),
+      ),
+    ];
+    if (!open) return out;
+    var n = 0;
+    for (final s in d.sections) {
+      out.add(Padding(
+        padding: const EdgeInsetsDirectional.only(start: 8, top: 10, bottom: 2),
+        child: Text(s.title, style: TextStyle(fontSize: 12, color: c.textFaint)),
+      ));
+      for (final p in s.pieces) {
+        final i = n++;
+        final current = here && i == widget.index;
+        out.add(InkWell(
+          key: current ? _current : null,
+          onTap: () => _pick(d, i),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 8, 8),
+            decoration: current ? BoxDecoration(color: c.chip, borderRadius: BorderRadius.circular(8)) : null,
+            child: Text(p.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 14, height: 1.5, color: current ? c.text : c.textSoft, fontWeight: current ? FontWeight.w500 : FontWeight.w400)),
+          ),
+        ));
+      }
+    }
+    return out;
   }
 }
