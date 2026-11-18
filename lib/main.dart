@@ -9,6 +9,13 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // لو جزء من الشاشة فشل في الرسم: سطر هادي بدل الشاشة الرمادي أو الأحمر، وباقي التطبيق يكمل
+  ErrorWidget.builder = (details) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('تعذّر عرض الجزء ده', textDirection: TextDirection.rtl, style: TextStyle(fontSize: 13, color: Color(0xFF8C8477))),
+        ),
+      );
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.hamsethob.radio',
     androidNotificationChannelName: 'الإذاعة',

@@ -33,6 +33,9 @@ class NativeBridge {
   /// يطلب استثناء التطبيق من توفير البطارية (مرة واحدة).
   static Future<void> requestBatteryExemption() => _call('requestBatteryExemption', {});
 
+  /// يفتح إعدادات التشغيل في الخلفية: 'autostart' (التشغيل التلقائي في شاومي) أو 'battery'.
+  static Future<bool> openBackgroundSettings(String kind) => _ask('openBackgroundSettings', {'kind': kind});
+
   /// الشاشة تفضل منورة (أثناء قراءة التسبحة مثلاً).
   static Future<void> keepScreenOn(bool on) => _call('keepScreenOn', {'on': on});
 

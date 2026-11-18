@@ -37,6 +37,11 @@ jobs:
 
       - run: flutter pub get
 
+      # فحص الكود: بيطبع التحذيرات في السجل من غير ما يوقف البناء
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        continue-on-error: true
+
       - name: Build release APK
         run: flutter build apk --release
 

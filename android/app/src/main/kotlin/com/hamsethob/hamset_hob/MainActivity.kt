@@ -62,6 +62,8 @@ class MainActivity : AudioServiceActivity() {
                             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MIC_REQUEST)
                         }
                     }
+                    "openBackgroundSettings" ->
+                        result.success(PlaybackLocks.openBackgroundSettings(this@MainActivity, call.argument<String>("kind") ?: "battery"))
                     "keepScreenOn" -> {
                         // الشاشة ماتطفيش طول ما التسبحة مفتوحة
                         if (call.argument<Boolean>("on") == true) {

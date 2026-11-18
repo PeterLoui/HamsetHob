@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -19,17 +20,43 @@ class NowPlaying {
 
 /// مشغّل الإذاعة: عظة واحدة أو بث متواصل لعظات عشوائية، يعمل في الخلفية
 /// مع أزرار التحكم في الإشعار وشاشة القفل.
+///
+/// لو البث انقطع (النت فصل، الشاشة اتقفلت والشبكة نامت، المحطة وقعت) المشغّل بيرجّع الصوت لوحده:
+/// محاولات بانتظار بيزيد (٢، ٤، ٨… لحد ٣٠ ثانية)، والعظة بترجع من نفس المكان.
+/// ولو البث فضل «بيحمّل» أكتر من ٢٥ ثانية بيتعاد الاتصال.
 class RadioPlayer extends ChangeNotifier {
   RadioPlayer._() {
+    _player.playbackEventStream.listen((_) {}, onError: (Object e, StackTrace _) => _recover());
     _player.playerStateStream.listen((s) {
       if (s.processingState == ProcessingState.completed && radioOn) _playRandom();
       final active = s.playing && s.processingState != ProcessingState.idle && s.processingState != ProcessingState.completed;
-      if (active != _locked) {
-        _locked = active;
-        NativeBridge.setPlaybackLock(active);
-        if (active) _askBatteryOnce();
+      if (active && s.processingState == ProcessingState.ready) {
+        // رجع يشتغل: نصفّر المحاولات
+        if (_attempts > 0 || error != null) {
+          _attempts = 0;
+          error = null;
+        }
+        _bufferingSince = null;
       }
+      // المستخدم وقّف من الإشعار أو سماعة البلوتوث (كان شغال ووقف وهو جاهز): مانرجّعش الصوت لوحدنا.
+      // التحميل نفسه بيعدّي على «جاهز ومش شغال» قبل التشغيل، فده مش إيقاف.
+      if (_wasPlaying && !s.playing && s.processingState == ProcessingState.ready) _intent = false;
+      _wasPlaying = s.playing;
+      if (s.processingState == ProcessingState.buffering) {
+        _bufferingSince ??= DateTime.now();
+      } else {
+        _bufferingSince = null;
+      }
+      _updateLock(active);
       notifyListeners();
+    });
+    // مراقب: بث واقف على التحميل كتير = اتصال ميت، نعيده
+    Timer.periodic(const Duration(seconds: 5), (_) {
+      final since = _bufferingSince;
+      if (_intent && since != null && DateTime.now().difference(since) > const Duration(seconds: 25)) {
+        _bufferingSince = null;
+        _recover(immediate: true);
+      }
     });
     _player.positionStream.listen((p) {
       position = p;
@@ -42,8 +69,76 @@ class RadioPlayer extends ChangeNotifier {
   }
   static final instance = RadioPlayer._();
 
-  final _player = AudioPlayer();
+  // بافر أكبر من الافتراضي عشان البث يعدّي انقطاعات النت القصيرة والشاشة مقفولة
+  final _player = AudioPlayer(
+    audioLoadConfiguration: AudioLoadConfiguration(
+      androidLoadControl: AndroidLoadControl(
+        minBufferDuration: Duration(seconds: 30),
+        maxBufferDuration: Duration(seconds: 120),
+        bufferForPlaybackDuration: Duration(seconds: 3),
+        bufferForPlaybackAfterRebufferDuration: Duration(seconds: 6),
+        prioritizeTimeOverSizeThresholds: true,
+      ),
+    ),
+  );
   bool _locked = false;
+
+  /// المستخدم عايز الصوت شغال (بدأه ومش وقّفه)، فلو وقف من غير ما يطلب نرجّعه.
+  bool _intent = false;
+  bool _wasPlaying = false;
+  AudioSource? _source;
+  int _attempts = 0;
+  bool _retrying = false;
+  DateTime? _bufferingSince;
+
+  /// قفل المعالج والواي فاي: طول ما فيه صوت، وكمان وإحنا بنحاول نرجّعه.
+  void _updateLock(bool active) {
+    final want = active || _retrying;
+    if (want == _locked) return;
+    _locked = want;
+    NativeBridge.setPlaybackLock(want);
+    if (active) _askBatteryOnce();
+  }
+
+  Future<void> _load(AudioSource source, {Duration? at}) async {
+    _source = source;
+    await _player.setAudioSource(source, initialPosition: at);
+    _intent = true;
+    unawaited(_player.play());
+  }
+
+  /// يرجّع الصوت بعد انقطاع: انتظار بيزيد مع كل محاولة، ومن نفس المكان للعظات.
+  Future<void> _recover({bool immediate = false}) async {
+    final src = _source;
+    if (!_intent || src == null || _retrying) return;
+    if (_attempts >= 12) {
+      _intent = false;
+      error = 'الاتصال مقطوع، شغّل تاني لما النت يرجع';
+      _updateLock(false);
+      notifyListeners();
+      return;
+    }
+    _retrying = true;
+    _updateLock(false);
+    final at = live ? null : position;
+    final wait = immediate ? Duration.zero : Duration(seconds: math.min(30, 2 << _attempts));
+    _attempts++;
+    error = 'انقطع الاتصال، بنرجّع الصوت…';
+    notifyListeners();
+    await Future<void>.delayed(wait);
+    _retrying = false;
+    if (!_intent || !identical(src, _source)) {
+      _updateLock(false);
+      return;
+    }
+    try {
+      await _player.setAudioSource(src, initialPosition: at);
+      _intent = true;
+      unawaited(_player.play());
+    } catch (_) {
+      unawaited(_recover());
+    }
+  }
 
   /// أول مرة الصوت يشتغل: نطلب استثناء البطارية عشان النظام مايوقفش الصوت في الخلفية.
   Future<void> _askBatteryOnce() async {
@@ -81,14 +176,15 @@ class RadioPlayer extends ChangeNotifier {
     loadingId = -1;
     error = null;
     notifyListeners();
+    _attempts = 0;
     try {
-      await _player.setAudioSource(AudioSource.uri(
+      await _load(AudioSource.uri(
         Uri.parse(st.url),
         tag: MediaItem(id: 'station_${st.id}', title: st.name, artist: 'بث مباشر', album: 'إذاعات'),
       ));
       nowPlaying = NowPlaying(-1, st.name, 'بث مباشر');
-      unawaited(_player.play());
     } catch (_) {
+      _intent = false;
       error = 'تعذّر تشغيل الإذاعة، تأكد من الاتصال بالإنترنت';
     }
     loadingId = null;
@@ -127,9 +223,10 @@ class RadioPlayer extends ChangeNotifier {
     loadingId = s.id;
     error = null;
     notifyListeners();
+    _attempts = 0;
     try {
       final url = await _repo.audioUrl(s);
-      await _player.setAudioSource(AudioSource.uri(
+      await _load(AudioSource.uri(
         Uri.parse(url),
         tag: MediaItem(
           id: '${s.id}',
@@ -140,15 +237,29 @@ class RadioPlayer extends ChangeNotifier {
         ),
       ));
       nowPlaying = NowPlaying(s.id, s.title, categoryName(s.categoryId));
-      unawaited(_player.play());
     } catch (e) {
+      _intent = false;
       error = e is StateError ? e.message : 'تعذّر تشغيل العظة';
     }
     loadingId = null;
     notifyListeners();
   }
 
-  void toggle() => _player.playing ? _player.pause() : _player.play();
+  void toggle() {
+    if (_player.playing) {
+      _intent = false;
+      _player.pause();
+    } else {
+      _intent = true;
+      _attempts = 0;
+      // لو كان واقف بسبب انقطاع، نعيد تحميل المصدر بدل ما نشغّل حاجة ميتة
+      if (_player.processingState == ProcessingState.idle && _source != null) {
+        _recover(immediate: true);
+      } else {
+        _player.play();
+      }
+    }
+  }
   void seekBy(int seconds) {
     final target = position + Duration(seconds: seconds);
     _player.seek(target < Duration.zero ? Duration.zero : target);

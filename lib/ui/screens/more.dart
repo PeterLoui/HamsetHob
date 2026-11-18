@@ -97,6 +97,11 @@ class _MoreScreenState extends State<MoreScreen> {
             }
           }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
+          _label('الصوت في الخلفية'),
+          _group(null, [
+            _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
+            _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
+          ]),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {
             settings.morningEnabled = v;

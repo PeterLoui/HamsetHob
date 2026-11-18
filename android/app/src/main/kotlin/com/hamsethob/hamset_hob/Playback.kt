@@ -1,6 +1,7 @@
 package com.hamsethob.hamset_hob
 
 import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -38,6 +39,34 @@ object PlaybackLocks {
             wake = null
             wifi = null
         }
+    }
+
+    /**
+     * يفتح إعدادات التشغيل في الخلفية: [kind] = "autostart" (التشغيل التلقائي في شاومي/HyperOS)
+     * أو "battery" (توفير البطارية للتطبيق). لو الصفحة الخاصة بالشركة مش موجودة بيفتح معلومات التطبيق.
+     */
+    fun openBackgroundSettings(ctx: Context, kind: String): Boolean {
+        val pkg = ctx.packageName
+        val tries = mutableListOf<Intent>()
+        if (kind == "autostart") {
+            tries += Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+            tries += Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"))
+            tries += Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"))
+        } else {
+            tries += Intent("miui.intent.action.HIDDEN_APPS_CONFIG_ACTIVITY")
+                .putExtra("package_name", pkg)
+                .putExtra("package_label", "همسة حب")
+            tries += Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        }
+        tries += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))
+        for (i in tries) {
+            try {
+                ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return true
+            } catch (_: Exception) {
+            }
+        }
+        return false
     }
 
     /** يطلب مرة واحدة استثناء التطبيق من توفير البطارية عشان النظام مايوقفش الصوت في الخلفية. */
