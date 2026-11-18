@@ -13,3 +13,9 @@ android/gradlew.bat
 android/gradle/
 android/*.iml
 android/app/src/main/java/
+
+# مفاتيح التوقيع: بتتحفظ برّه المستودع وكـ GitHub Secrets بس
+*.p12
+*.jks
+*.keystore
+key.properties

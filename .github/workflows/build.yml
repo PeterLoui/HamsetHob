@@ -15,16 +15,22 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # إصدار Flutter ثابت: أحدث إصدار ممكن يشيل حاجات بنستخدمها (زي Material القديمة) فالبناء يقع فجأة.
+      # بنحدّثه بإيدينا لما نكون جاهزين.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.50.0
           cache: true
 
       - run: flutter --version
 
       # يولّد ملفات أندرويد الناقصة فقط (Gradle والأيقونات) دون أن يلمس ملفاتنا
       - name: Generate Android scaffolding
-        run: flutter create --platforms=android --org com.hamsethob --project-name hamset_hob .
+        run: |
+          flutter create --platforms=android --org com.hamsethob --project-name hamset_hob .
+          # اختبار القالب الافتراضي مش بتاعنا، وبيطلّع أخطاء في الفحص
+          rm -f test/widget_test.dart
 
       # الويدجتس والإشعارات تحتاج أندرويد 8 (API 26) على الأقل
       - name: Set minSdk 26
@@ -35,6 +41,19 @@ jobs:
             grep -n "minSdk" "$f"
           done
 
+      # مفتاح توقيع ثابت من الـ Secrets، عشان كل نسخة تتركّب فوق اللي قبلها من غير ما تمسح التطبيق
+      - name: Release signing
+        env:
+          HAMSET_KEYSTORE_B64: ${{ secrets.HAMSET_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$HAMSET_KEYSTORE_B64" ]; then
+            echo "::warning::No signing key in secrets; this APK is signed with a throwaway debug key"
+            exit 0
+          fi
+          echo "$HAMSET_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/hamset-release.p12"
+          echo "HAMSET_KEYSTORE_PATH=$RUNNER_TEMP/hamset-release.p12" >> "$GITHUB_ENV"
+          python3 .github/scripts/release_signing.py
+
       - run: flutter pub get
 
       # فحص الكود: بيطبع التحذيرات في السجل من غير ما يوقف البناء
@@ -42,8 +61,25 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
         continue-on-error: true
 
+      # رقم الإصدار بيزيد مع كل بناء (رقم التشغيل في GitHub)
       - name: Build release APK
-        run: flutter build apk --release
+        env:
+          HAMSET_STORE_PASSWORD: ${{ secrets.HAMSET_STORE_PASSWORD }}
+          HAMSET_KEY_ALIAS: ${{ secrets.HAMSET_KEY_ALIAS }}
+          HAMSET_KEY_PASSWORD: ${{ secrets.HAMSET_KEY_PASSWORD }}
+        run: flutter build apk --release --build-name=2.1.${{ github.run_number }} --build-number=${{ github.run_number }}
+
+      # تأكيد إن الـ APK متوقّع بالمفتاح الثابت (بصمة الشهادة)
+      - name: Verify signature
+        env:
+          HAMSET_KEYSTORE_B64: ${{ secrets.HAMSET_KEYSTORE_B64 }}
+        run: |
+          [ -n "$HAMSET_KEYSTORE_B64" ] || exit 0
+          expected="F8:52:4E:43:11:2A:53:2E:CD:31:43:19:C9:85:56:68:86:59:6C:A4:50:0B:37:45:21:E3:77:B3:0B:1E:D9:FE"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          actual=$("$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep -m1 "SHA-256 digest" | awk '{print $NF}' | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          echo "certificate SHA-256: $actual"
+          [ "$actual" = "$expected" ] || { echo "::error::APK is not signed with the fixed release key"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:

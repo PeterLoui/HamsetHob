@@ -15,7 +15,6 @@ class StationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
     const side = 24.0;
     return ListenableBuilder(
