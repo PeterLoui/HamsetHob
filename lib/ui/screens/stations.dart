@@ -78,6 +78,19 @@ class _StationCard extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: c.textFaint),
                 ),
               ]),
+              // اللي بيتذاع دلوقتي على المحطة، لو بتبعت اسمه
+              if (current && player.streamTitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(children: [
+                    Icon(Icons.graphic_eq, size: 14, color: c.live),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(player.streamTitle!,
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.textSoft)),
+                    ),
+                  ]),
+                ),
             ]),
           ),
           const SizedBox(width: 8),

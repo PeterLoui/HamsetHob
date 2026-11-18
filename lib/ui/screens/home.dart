@@ -469,7 +469,7 @@ class _NowPlayingCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(now.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
-                    Text(now.category, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    Text(player.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: c.textFaint)),
                   ]),
                 ),

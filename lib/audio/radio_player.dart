@@ -73,6 +73,14 @@ class RadioPlayer extends ChangeNotifier {
     });
     _player.androidAudioSessionIdStream.listen((_) => notifyListeners());
     addListener(_syncWidget);
+    // اسم اللي بيتذاع دلوقتي على المحطة (ICY): ٦ من الـ ٨ محطات بيبعتوه
+    _player.icyMetadataStream.listen((m) {
+      final t = cleanStreamTitle(m?.info?.title, nowPlaying?.title);
+      if (t != streamTitle) {
+        streamTitle = t;
+        notifyListeners();
+      }
+    });
     _player.durationStream.listen((d) {
       duration = d ?? Duration.zero;
       notifyListeners();
@@ -87,7 +95,7 @@ class RadioPlayer extends ChangeNotifier {
   void _syncWidget() {
     final now = nowPlaying;
     final title = now?.title ?? '';
-    final sub = now == null ? '' : (live ? 'بث مباشر' : (radioOn ? 'بث متواصل · ${now.category}' : now.category));
+    final sub = subtitle;
     final playing = isPlaying;
     final state = '$title|$sub|$playing';
     if (state == _widgetState) return;
@@ -206,6 +214,27 @@ class RadioPlayer extends ChangeNotifier {
 
   bool get isPlaying => _player.playing;
 
+  /// اسم اللي بيتذاع دلوقتي على المحطة لو بتبعته (ترنيمة، عظة، لحن)، وإلا null.
+  String? streamTitle;
+
+  /// السطر اللي تحت الاسم: اللي بيتذاع على المحطة، أو قسم العظة.
+  String get subtitle {
+    final now = nowPlaying;
+    if (now == null) return '';
+    if (live) return streamTitle ?? 'بث مباشر';
+    return radioOn ? 'بث متواصل · ${now.category}' : now.category;
+  }
+
+  /// تنضيف عنوان المحطة: من غير أكواد زي [JI6]، والشرطة السفلية مسافة، ومن غير اسم المحطة نفسه.
+  static String? cleanStreamTitle(String? raw, String? stationName) {
+    if (raw == null) return null;
+    var t = raw.replaceAll(RegExp(r'\[[^\]]*\]'), ' ').replaceAll('_', ' ');
+    t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+    t = t.replaceAll(RegExp(r'^[-–·|:\s]+|[-–·|:\s]+$'), '').trim();
+    if (t.length < 2 || t == stationName) return null;
+    return t;
+  }
+
   // ─── مؤقت النوم ───
   Timer? _sleep;
 
@@ -263,6 +292,7 @@ class RadioPlayer extends ChangeNotifier {
   /// تشغيل محطة إذاعة مسيحية بث مباشر.
   Future<void> playStation(Station st) async {
     SharedPreferences.getInstance().then((p) => p.setString('last_station', st.id));
+    streamTitle = null;
     radioOn = false;
     live = true;
     stationId = st.id;
@@ -314,6 +344,7 @@ class RadioPlayer extends ChangeNotifier {
 
   Future<void> _start(Sermon s) async {
     live = false;
+    streamTitle = null;
     stationId = null;
     loadingId = s.id;
     error = null;

@@ -160,7 +160,7 @@ class _NowPlaying extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text)),
             Text(
-              now == null ? 'عظات عشوائية متتالية من المكتبة' : (player.radioOn ? 'بث متواصل • ${now.category}' : now.category),
+              now == null ? 'عظات عشوائية متتالية من المكتبة' : player.subtitle,
               style: TextStyle(fontSize: 12, color: c.textSoft),
             ),
             if (now != null && !player.live) ...[
@@ -280,7 +280,7 @@ class MiniPlayer extends StatelessWidget {
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(now.title,
                       maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
-                  Text(player.radioOn ? 'بث متواصل • ${now.category}' : now.category,
+                  Text(player.subtitle,
                       maxLines: 1, style: TextStyle(fontSize: 11, color: c.textSoft)),
                 ]),
               ),
