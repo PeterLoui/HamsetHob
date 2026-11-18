@@ -18,6 +18,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _coptic = false;
   late DateTime _anchor = dateOnly(widget.today);
 
+  @override
+  void didUpdateWidget(CalendarScreen old) {
+    super.didUpdateWidget(old);
+    if (dateOnly(old.today) != dateOnly(widget.today) && _anchor == dateOnly(old.today)) _anchor = dateOnly(widget.today);
+  }
+
   // الأسبوع يبدأ السبت: DateTime.weekday للسبت = 6
   static const _weekOrder = [6, 7, 1, 2, 3, 4, 5];
 

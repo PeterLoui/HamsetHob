@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -59,21 +61,46 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didUpdateWidget(HomeScreen old) {
     super.didUpdateWidget(old);
-    if (dateOnly(old.today) != dateOnly(widget.today)) _load();
+    if (dateOnly(old.today) != dateOnly(widget.today)) {
+      // يوم جديد: نشيل تذكار ورسالة امبارح فوراً بدل ما يفضلوا ظاهرين لحد ما الجديد يتحمّل
+      setState(() {
+        _readings = null;
+        _verse = null;
+      });
+      _load();
+    }
   }
 
+  @override
+  void dispose() {
+    _retry?.cancel();
+    super.dispose();
+  }
+
+  Timer? _retry;
+
   Future<void> _load() async {
-    KatamerosRepository.instance.day(widget.today).then((r) {
-      if (mounted) setState(() => _readings = r);
-    }).catchError((_) {});
+    _loadReadings();
     await _loadVerse();
+  }
+
+  /// قراءات اليوم (ومنها اسم قديس السنكسار). لو الشبكة مش موجودة بنجرّب تاني كل نص دقيقة.
+  void _loadReadings() {
+    _retry?.cancel();
+    final day = dateOnly(widget.today);
+    KatamerosRepository.instance.day(day).then((r) {
+      if (mounted && dateOnly(widget.today) == day) setState(() => _readings = r);
+    }).catchError((_) {
+      if (mounted && dateOnly(widget.today) == day) _retry = Timer(const Duration(seconds: 30), _loadReadings);
+    });
   }
 
   Future<void> _loadVerse({bool forceNew = false}) async {
     setState(() => _verseFailed = false);
+    final day = dateOnly(widget.today);
     try {
       final v = await BibleRepository.instance.dailyVerse(widget.today, forceNew: forceNew);
-      if (!mounted) return;
+      if (!mounted || dateOnly(widget.today) != day) return;
       setState(() => _verse = v);
       widget.onVerseLoaded(v);
     } catch (_) {
@@ -90,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
         stories.first.title,
         more > 0 ? 'و${ar(more)} ${more == 1 ? 'تذكار آخر' : 'تذكارات أخرى'} في سنكسار اليوم' : 'سنكسار اليوم',
         Kind.saint,
-        null, // اسم قديس من السنكسار الكامل: مالوش صورة متراجعة، فمانعرضش صورة التذكار الشهري معاه
+        null, // اسم قديس من السنكسار الكامل: صورته من صفحة سنكسار اليوم على st-takla لو موجودة (SaintImages)
       );
     }
     return local;
@@ -125,6 +152,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // صورة قديس اليوم أو العيد ورا التاريخ والتذكار: من الشمال، بشفافية ٣٠٪، وبتتلاشى لنص الصفحة
         _SaintBackdrop(
           wiki: com.wiki,
+          name: com.title,
+          date: today,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text('${weekdayName(today)} ${ar(today.day)} ${gregorianMonths[today.month - 1]}', style: context.heading(size: 28)),
               const SizedBox(height: 2),
@@ -217,14 +246,18 @@ class _HomeScreenState extends State<HomeScreen> {
 /// صورة التذكار ورا رأس الصفحة: بتبدأ من شمال الشاشة بشفافية ٣٠٪ وبتتلاشى تدريجياً لحد نص الصفحة يمين،
 /// ومن تحت كمان، فمافيش حافة واضحة. الصور من جدول متراجع (SaintImages)، ولو مافيش صورة الرأس بيفضل زي ما هو.
 class _SaintBackdrop extends StatelessWidget {
-  const _SaintBackdrop({required this.wiki, required this.child});
+  const _SaintBackdrop({required this.wiki, required this.name, required this.date, required this.child});
   final String? wiki;
+  final String name;
+  final DateTime date;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String?>(
-      future: SaintImages.instance.imageUrl(wiki, ''),
+      // المفتاح بيخلّي صورة امبارح تختفي أول ما التذكار يتغيّر، مش تفضل لحد ما الجديدة تتحمّل
+      key: ValueKey('$wiki|$name|${dateOnly(date)}'),
+      future: SaintImages.instance.imageUrl(wiki, name, date),
       builder: (context, snap) {
         final url = snap.data;
         // لو التذكار مالوش صورة متراجعة (أو الصورة مافتحتش) بيظهر الصليب القبطي مكانها
