@@ -83,8 +83,9 @@ class LiturgyBlock {
   final bool rubric;
 }
 
-/// الخولاجي من st-takla.org: فهرس كل قداس، وكل جزء في صفحة.
-/// الصفحات بترميز windows-1256، وكل صفحة اتفتحت بتتحفظ عشان تشتغل من غير نت.
+/// الخولاجي: القداسات التلاتة محفوظة جوه التطبيق (assets/liturgies.json) فبتتقري من غير نت.
+/// النص من st-takla.org، اتجمع بنفس طريقة القراءة هنا. لو جزء مش موجود في الملف بنقراه من الموقع
+/// (صفحات بترميز windows-1256)، وكل صفحة اتفتحت بتتحفظ.
 class LiturgyRepository {
   LiturgyRepository._();
   static final instance = LiturgyRepository._();
@@ -94,6 +95,28 @@ class LiturgyRepository {
 
   final _indexes = <String, List<LiturgyPart>>{};
   final _parts = <String, List<LiturgyBlock>>{};
+  Future<void>? _bundled;
+
+  /// يقرا القداسات المحفوظة جوه التطبيق مرة واحدة.
+  Future<void> _loadBundled() => _bundled ??= () async {
+        try {
+          final root = jsonDecode(await rootBundle.loadString('assets/liturgies.json')) as Map<String, dynamic>;
+          (root['liturgies'] as Map<String, dynamic>).forEach((id, list) {
+            final parts = <LiturgyPart>[];
+            for (final p in list as List) {
+              final m = p as Map<String, dynamic>;
+              final part = LiturgyPart(m['t'] as String, m['u'] as String);
+              parts.add(part);
+              _parts[part.url] = [
+                for (final b in m['b'] as List) LiturgyBlock(b[0] as String, rubric: b[1] == 1),
+              ];
+            }
+            if (parts.isNotEmpty) _indexes[id] = parts;
+          });
+        } catch (_) {
+          // من غير الملف بنرجع للموقع
+        }
+      }();
 
   Future<String> _page(String url) async {
     final prefs = await SharedPreferences.getInstance();
@@ -112,6 +135,7 @@ class LiturgyRepository {
   }
 
   Future<List<LiturgyPart>> parts(Liturgy l) async {
+    await _loadBundled();
     final cached = _indexes[l.id];
     if (cached != null) return cached;
     final html = await _page(_base.resolve(l.indexPath).toString());
@@ -129,6 +153,7 @@ class LiturgyRepository {
   }
 
   Future<List<LiturgyBlock>> part(LiturgyPart p) async {
+    await _loadBundled();
     final cached = _parts[p.url];
     if (cached != null) return cached;
     return _parts[p.url] = parsePart(await _page(p.url));
@@ -154,6 +179,8 @@ class LiturgyRepository {
       if (text.isEmpty) continue;
       // سطور الموقع: تقصير الرابط، انظر أيضاً، والترجمة الإنجليزية
       if (text.contains('tak.la') || text.contains('تقصير الرابط') || text.startsWith('*')) continue;
+      // قايمة روابط الموقع اللي ساعات بتتحشر قبل آخر الصفحة
+      if (text.contains('الكتاب المقدس (+ بحث') || text.contains('| القراءات اليومية |')) continue;
       final latin = _latin.allMatches(text).length, arabic = _arabic.allMatches(text).length;
       if (arabic == 0 || latin > arabic) continue;
       final bold = RegExp(r'^\s*<b\b', caseSensitive: false).hasMatch(inner);

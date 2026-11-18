@@ -133,6 +133,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     // بنقارن التاريخ كل شوية، وكمان أول ما التطبيق يرجع للواجهة.
     _dayTicker = Timer.periodic(const Duration(seconds: 20), (_) => _checkDay());
     NativeBridge.onLaunchRef((ref) => _open(ChapterOverlay(ref)));
+    // زرار التشغيل في ويدجت الإذاعة
+    NativeBridge.onResumeRadio = RadioPlayer.instance.resumeLast;
+    NativeBridge.takeResume().then((yes) {
+      if (yes) RadioPlayer.instance.resumeLast();
+    });
     NativeBridge.takeLaunchRef().then((ref) {
       if (ref != null) _open(ChapterOverlay(ref));
     });

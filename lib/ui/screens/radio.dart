@@ -188,8 +188,11 @@ class _NowPlaying extends StatelessWidget {
               ]),
             ],
             const SizedBox(height: 12),
-            Pill(player.radioOn ? 'إيقاف البث المتواصل' : 'بث متواصل عشوائي',
-                onTap: player.radioOn ? player.stopRadio : onStartRadio),
+            Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+              Pill(player.radioOn ? 'إيقاف البث المتواصل' : 'بث متواصل عشوائي',
+                  onTap: player.radioOn ? player.stopRadio : onStartRadio),
+              Pill(sleepLabel(player), filled: player.sleepOn, onTap: () => showSleepTimer(context)),
+            ]),
             if (player.error != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(player.error!, style: TextStyle(fontSize: 12, color: c.saint))),
           ]);
@@ -281,6 +284,7 @@ class MiniPlayer extends StatelessWidget {
                       maxLines: 1, style: TextStyle(fontSize: 11, color: c.textSoft)),
                 ]),
               ),
+              if (player.sleepOn) Icon(Icons.bedtime_outlined, size: 18, color: c.textFaint),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: AppIconView(AppIcon.radio, size: 20, color: c.textFaint)),
             ]),
           ),
@@ -289,4 +293,56 @@ class MiniPlayer extends StatelessWidget {
       },
     );
   }
+}
+
+/// نص زرار مؤقت النوم: «مؤقت النوم»، أو الباقي («يقف بعد ٢٣ د»)، أو «يقف آخر العظة».
+String sleepLabel(RadioPlayer p) {
+  if (p.sleepAtEnd) return 'يقف آخر العظة';
+  final left = p.sleepLeft;
+  if (left == null) return 'مؤقت النوم';
+  final m = (left.inSeconds / 60).ceil();
+  return 'يقف بعد ${ar(m)} د';
+}
+
+/// اختيار مؤقت النوم: ١٥ / ٣٠ / ٤٥ / ٦٠ دقيقة، أو آخر العظة (للعظات بس)، أو إلغاء.
+Future<void> showSleepTimer(BuildContext context) {
+  final c = context.colors;
+  final p = RadioPlayer.instance;
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: c.surface,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (context) {
+      Widget option(String label, VoidCallback onTap, {bool on = false}) => InkWell(
+            onTap: () {
+              onTap();
+              Navigator.of(context).pop();
+            },
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
+              child: Row(children: [
+                Expanded(child: Text(label, style: TextStyle(fontSize: 16, color: c.text))),
+                if (on) Icon(Icons.check, size: 20, color: c.text),
+              ]),
+            ),
+          );
+      return SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+            child: Text('مؤقت النوم', style: context.heading(size: 20)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            child: Text('الصوت بيخفت شوية شوية وبعدين يقف', style: TextStyle(fontSize: 13, color: c.textSoft)),
+          ),
+          for (final m in const [15, 30, 45, 60]) option('بعد ${ar(m)} دقيقة', () => p.setSleep(Duration(minutes: m))),
+          if (!p.live) option('آخر العظة', p.setSleepAtEnd, on: p.sleepAtEnd),
+          if (p.sleepOn) option('إلغاء المؤقت', () => p.setSleep(null)),
+        ]),
+      );
+    },
+  );
 }

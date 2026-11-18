@@ -93,6 +93,19 @@
                 android:resource="@xml/lock_line_widget_info" />
         </receiver>
 
+        <!-- ويدجت الإذاعة: اللي شغال وزرار تشغيل/إيقاف -->
+        <receiver
+            android:name=".RadioWidgetProvider"
+            android:label="@string/widget_radio_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/radio_widget_info" />
+        </receiver>
+
         <!-- تحديث يومي ورسالة الصباح وإعادة الجدولة بعد إعادة التشغيل -->
         <receiver android:name=".DailyReceiver" android:exported="false" />
         <receiver android:name=".MorningReceiver" android:exported="false" />

@@ -71,6 +71,40 @@ class TasbehaScreen extends StatefulWidget {
 class _TasbehaScreenState extends State<TasbehaScreen> {
   final _library = TasbehaRepository.instance.load();
   final _last = TasbehaRepository.instance.last();
+  String _query = '';
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  /// نتايج البحث مكان القائمة طول ما فيه كلمة مكتوبة.
+  List<Widget> _results(TasbehaLibrary lib) {
+    final c = context.colors;
+    final hits = lib.search(_query, DateTime.now());
+    if (hits.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Text('مافيش لحن فيه «$_query»', style: TextStyle(fontSize: 14, color: c.textSoft)),
+        ),
+      ];
+    }
+    return [
+      _groupLabel(context, hits.length == 60 ? 'أول ٦٠ نتيجة' : '${ar(hits.length)} نتيجة'),
+      for (final h in hits)
+        _Row(
+          title: h.piece.title,
+          subtitle: [
+            '${h.book.title} · ${h.day.name} · ${h.day.sectionOf(h.index)}',
+            if (h.snippet.isNotEmpty) h.snippet.length > 90 ? '${h.snippet.substring(0, 90)}…' : h.snippet,
+          ].join('\n'),
+          onTap: () => widget.onRead(h.book, h.day, h.index),
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,8 +117,20 @@ class _TasbehaScreenState extends State<TasbehaScreen> {
           padding: _pagePadding(context),
           children: [
             ScreenHeader('تسبحة', subtitle: 'تسبحة نصف الليل', onBack: widget.onBack),
+            AppSearchBar(
+              placeholder: 'ابحث عن لحن أو كلمة',
+              onChanged: (q) {
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 250), () {
+                  if (mounted) setState(() => _query = q.trim());
+                });
+              },
+            ),
+            const SizedBox(height: 12),
             if (lib == null)
               _loading()
+            else if (_query.length > 1)
+              ..._results(lib)
             else ...[
               Builder(builder: (context) {
                 final (book, day) = lib.tonight(DateTime.now());

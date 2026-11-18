@@ -7,7 +7,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/prayers.dart' show Station;
+import '../data/prayers.dart' show Station, stations;
 import '../native/native_bridge.dart';
 import '../data/sermons.dart';
 
@@ -28,7 +28,16 @@ class RadioPlayer extends ChangeNotifier {
   RadioPlayer._() {
     _player.playbackEventStream.listen((_) {}, onError: (Object e, StackTrace _) => _recover());
     _player.playerStateStream.listen((s) {
-      if (s.processingState == ProcessingState.completed && radioOn) _playRandom();
+      if (s.processingState == ProcessingState.completed) {
+        if (sleepAtEnd) {
+          // مؤقت النوم «آخر العظة»: العظة خلصت، فمانكملش للي بعدها
+          sleepAtEnd = false;
+          radioOn = false;
+          _intent = false;
+        } else if (radioOn) {
+          _playRandom();
+        }
+      }
       final active = s.playing && s.processingState != ProcessingState.idle && s.processingState != ProcessingState.completed;
       if (active && s.processingState == ProcessingState.ready) {
         // رجع يشتغل: نصفّر المحاولات
@@ -63,12 +72,45 @@ class RadioPlayer extends ChangeNotifier {
       notifyListeners();
     });
     _player.androidAudioSessionIdStream.listen((_) => notifyListeners());
+    addListener(_syncWidget);
     _player.durationStream.listen((d) {
       duration = d ?? Duration.zero;
       notifyListeners();
     });
   }
   static final instance = RadioPlayer._();
+
+  // ─── ويدجت الإذاعة ───
+  String _widgetState = '';
+
+  /// بيبعت للويدجت اللي شغال لما يتغير بس (مش مع كل تحديث للمكان).
+  void _syncWidget() {
+    final now = nowPlaying;
+    final title = now?.title ?? '';
+    final sub = now == null ? '' : (live ? 'بث مباشر' : (radioOn ? 'بث متواصل · ${now.category}' : now.category));
+    final playing = isPlaying;
+    final state = '$title|$sub|$playing';
+    if (state == _widgetState) return;
+    _widgetState = state;
+    NativeBridge.updateRadioWidget(title, sub, playing);
+  }
+
+  /// زرار التشغيل في الويدجت: يكمّل اللي كان شغال، أو آخر محطة، أو البث المتواصل.
+  Future<void> resumeLast() async {
+    if (isPlaying) return;
+    if (_source != null) {
+      toggle();
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getString('last_station');
+    final st = stations.where((s) => s.id == id);
+    if (st.isNotEmpty) {
+      await playStation(st.first);
+    } else {
+      await startRadio();
+    }
+  }
 
   // بافر أكبر من الافتراضي عشان البث يعدّي انقطاعات النت القصيرة والشاشة مقفولة
   final _player = AudioPlayer(
@@ -164,6 +206,55 @@ class RadioPlayer extends ChangeNotifier {
 
   bool get isPlaying => _player.playing;
 
+  // ─── مؤقت النوم ───
+  Timer? _sleep;
+
+  /// وقت الإيقاف لو المؤقت شغال بمدة.
+  DateTime? sleepAt;
+
+  /// الإيقاف في آخر العظة الحالية (للعظات بس، مش البث المباشر).
+  bool sleepAtEnd = false;
+
+  bool get sleepOn => sleepAt != null || sleepAtEnd;
+
+  /// المدة الباقية على الإيقاف، لو المؤقت شغال بمدة.
+  Duration? get sleepLeft {
+    final at = sleepAt;
+    if (at == null) return null;
+    final left = at.difference(DateTime.now());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// يشغّل مؤقت النوم بمدة، أو يلغيه لو [d] = null.
+  void setSleep(Duration? d) {
+    _sleep?.cancel();
+    sleepAtEnd = false;
+    sleepAt = d == null ? null : DateTime.now().add(d);
+    if (d != null) _sleep = Timer(d, _sleepNow);
+    notifyListeners();
+  }
+
+  void setSleepAtEnd() {
+    _sleep?.cancel();
+    sleepAt = null;
+    sleepAtEnd = true;
+    notifyListeners();
+  }
+
+  /// الصوت بيخفت في ٨ ثواني وبعدين يقف، بدل ما يتقطع فجأة.
+  Future<void> _sleepNow() async {
+    sleepAt = null;
+    for (var v = 1.0; v > 0.05 && _player.playing; v -= .1) {
+      await _player.setVolume(v);
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    }
+    _intent = false;
+    radioOn = false;
+    await _player.pause();
+    await _player.setVolume(1);
+    notifyListeners();
+  }
+
   /// جلسة الصوت في أندرويد، للضوء المتزامن مع الإيقاع.
   int? get audioSessionId => _player.androidAudioSessionId;
   bool get isBuffering =>
@@ -171,6 +262,7 @@ class RadioPlayer extends ChangeNotifier {
 
   /// تشغيل محطة إذاعة مسيحية بث مباشر.
   Future<void> playStation(Station st) async {
+    SharedPreferences.getInstance().then((p) => p.setString('last_station', st.id));
     radioOn = false;
     live = true;
     stationId = st.id;
@@ -193,12 +285,14 @@ class RadioPlayer extends ChangeNotifier {
   }
 
   Future<void> play(Sermon s) async {
+    SharedPreferences.getInstance().then((p) => p.remove('last_station'));
     radioOn = false;
     await _start(s);
   }
 
   /// البث المتواصل: عظات عشوائية متتالية من القسم المختار.
   Future<void> startRadio([int category = 0]) async {
+    SharedPreferences.getInstance().then((p) => p.remove('last_station'));
     radioOn = true;
     radioCategory = category;
     await _playRandom();

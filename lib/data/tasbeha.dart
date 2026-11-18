@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/coptic.dart';
+import 'net.dart' show normalizeArabic;
 
 /// سطر من التسبحة: النص العربي، والقبطي مكتوب بحروف عربية لو موجود. أو ملاحظة طقسية (rubric).
 class TasbehaLine {
@@ -63,10 +64,67 @@ class TasbehaBook {
   }
 }
 
+/// نتيجة بحث: لحن في يوم معيّن، وسطر من نصه فيه الكلمة.
+class TasbehaHit {
+  const TasbehaHit(this.book, this.day, this.index, this.piece, this.snippet);
+  final TasbehaBook book;
+  final TasbehaDay day;
+  final int index;
+  final TasbehaPiece piece;
+  final String snippet;
+}
+
 class TasbehaLibrary {
-  const TasbehaLibrary(this.source, this.books);
+  TasbehaLibrary(this.source, this.books);
   final String source;
   final List<TasbehaBook> books;
+
+  /// نص كل لحن متوحّد للبحث (من غير تشكيل، والألف والياء والتاء المربوطة موحّدين)، بيتعمل أول مرة بس.
+  late final Map<String, (String, List<String>)> _index = {
+    for (final b in books)
+      for (final d in b.days)
+        for (final p in d.pieces)
+          p.id: (
+            normalizeArabic(p.title),
+            [for (final l in p.lines) normalizeArabic('${l.arabic} ${l.coptic ?? ''}')],
+          ),
+  };
+
+  /// بحث عن لحن أو كلمة في العناوين والنصوص (العربي والقبطي المعرّب). كل الكلمات لازم تكون موجودة.
+  /// اللحن بيظهر مرة واحدة في كل تسبحة، في يوم الليلة لو موجود فيه، وإلا في أول يوم بيتقال فيه.
+  List<TasbehaHit> search(String query, DateTime now, {int limit = 60}) {
+    final words = normalizeArabic(query).split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
+    if (words.isEmpty) return const [];
+    final inTitle = <TasbehaHit>[], inText = <TasbehaHit>[];
+    for (final b in books) {
+      final seen = <String>{};
+      final today = b.days.length > now.weekday % 7 ? b.days[now.weekday % 7] : null;
+      final order = [if (today != null) today, ...b.days.where((d) => !identical(d, today))];
+      for (final d in order) {
+        final pieces = d.pieces;
+        for (var i = 0; i < pieces.length; i++) {
+          final p = pieces[i];
+          if (!seen.add(p.id)) continue;
+          final (title, lines) = _index[p.id]!;
+          final all = '$title ${lines.join(' ')}';
+          if (!words.every(all.contains)) {
+            seen.remove(p.id);
+            continue;
+          }
+          if (words.every(title.contains)) {
+            inTitle.add(TasbehaHit(b, d, i, p, ''));
+          } else {
+            final at = lines.indexWhere((l) => l.contains(words.first));
+            final line = at < 0 ? p.lines.first : p.lines[at];
+            // السطر اللي فيه الكلمة: العربي لو هي فيه، وإلا القبطي المعرّب
+            final inArabic = normalizeArabic(line.arabic).contains(words.first);
+            inText.add(TasbehaHit(b, d, i, p, inArabic ? line.arabic : (line.coptic ?? line.arabic)));
+          }
+        }
+      }
+    }
+    return [...inTitle, ...inText].take(limit).toList();
+  }
 
   TasbehaBook? book(String id) {
     for (final b in books) {

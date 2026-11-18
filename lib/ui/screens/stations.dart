@@ -6,6 +6,7 @@ import '../fluid_light.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
+import 'radio.dart' show showSleepTimer, sleepLabel;
 
 /// إذاعات مسيحية بث مباشر: كارت لكل محطة تحت بعض، وزرار تشغيل سريع على الشمال.
 class StationsScreen extends StatelessWidget {
@@ -24,7 +25,16 @@ class StationsScreen extends StatelessWidget {
         itemCount: stations.length + 1,
         separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 0 : 10),
         itemBuilder: (context, i) => i == 0
-            ? ScreenHeader('إذاعات', subtitle: 'إذاعات مسيحية بث مباشر', onBack: onBack)
+            ? ScreenHeader(
+                'إذاعات',
+                subtitle: RadioPlayer.instance.sleepOn ? sleepLabel(RadioPlayer.instance) : 'إذاعات مسيحية بث مباشر',
+                onBack: onBack,
+                trailing: IconButton(
+                  icon: Icon(RadioPlayer.instance.sleepOn ? Icons.bedtime : Icons.bedtime_outlined, color: context.colors.text),
+                  tooltip: 'مؤقت النوم',
+                  onPressed: () => showSleepTimer(context),
+                ),
+              )
             : _StationCard(station: stations[i - 1]),
       ),
     );

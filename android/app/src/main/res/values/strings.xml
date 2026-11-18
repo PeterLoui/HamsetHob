@@ -6,4 +6,6 @@
     <string name="widget_verse_label">رسالة اليوم</string>
     <string name="widget_lock_label">همسة حب - رقم كبير</string>
     <string name="widget_lock_line_label">همسة حب - سطر التاريخ</string>
+    <string name="widget_radio_label">همسة حب - الإذاعة</string>
+    <string name="widget_radio_desc">تشغيل وإيقاف الإذاعة أو العظة من الشاشة الرئيسية</string>
 </resources>

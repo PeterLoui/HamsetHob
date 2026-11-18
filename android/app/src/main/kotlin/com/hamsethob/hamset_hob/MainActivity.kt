@@ -18,6 +18,8 @@ class MainActivity : AudioServiceActivity() {
     private var launchRef: Map<String, Int>? = null
     private var levels: AudioLevels? = null
     private var micResult: MethodChannel.Result? = null
+    /** اتفتح من زرار التشغيل في ويدجت الإذاعة: Flutter بيسأل عنه أول ما يبدأ. */
+    private var pendingResume = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +30,7 @@ class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         launchRef = refFrom(intent)
+        pendingResume = intent?.action == RadioWidget.ACTION_RESUME
         val lv = AudioLevels(applicationContext).also { levels = it }
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/levels").setStreamHandler(lv)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/native").apply {
@@ -77,6 +80,19 @@ class MainActivity : AudioServiceActivity() {
                         PlaybackLocks.requestBatteryExemption(this@MainActivity)
                         result.success(null)
                     }
+                    "updateRadioWidget" -> {
+                        RadioWidget.save(
+                            ctx,
+                            call.argument<String>("title") ?: "",
+                            call.argument<String>("sub") ?: "",
+                            call.argument<Boolean>("playing") == true,
+                        )
+                        result.success(null)
+                    }
+                    "takeResume" -> {
+                        result.success(pendingResume)
+                        pendingResume = false
+                    }
                     "takeLaunchRef" -> {
                         result.success(launchRef)
                         launchRef = null
@@ -103,6 +119,7 @@ class MainActivity : AudioServiceActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         refFrom(intent)?.let { channel?.invokeMethod("openRef", it) }
+        if (intent.action == RadioWidget.ACTION_RESUME) channel?.invokeMethod("resumeRadio", null)
     }
 
     private fun refFrom(intent: Intent?): Map<String, Int>? {

@@ -49,8 +49,19 @@ class NativeBridge {
     return VerseRef(m['book']!, m['chapter'] ?? 1, m['verse'] ?? 1);
   }
 
+  /// زرار التشغيل في ويدجت الإذاعة والتطبيق مفتوح.
+  static void Function()? onResumeRadio;
+
+  /// التطبيق اتفتح من زرار التشغيل في ويدجت الإذاعة؟
+  static Future<bool> takeResume() => _ask('takeResume', {});
+
+  /// حالة ويدجت الإذاعة: اللي شغال، والسطر اللي تحته، وشغال ولا واقف.
+  static Future<void> updateRadioWidget(String title, String sub, bool playing) =>
+      _call('updateRadioWidget', {'title': title, 'sub': sub, 'playing': playing});
+
   static void onLaunchRef(void Function(VerseRef) handler) {
     _channel.setMethodCallHandler((call) async {
+      if (call.method == 'resumeRadio') onResumeRadio?.call();
       if (call.method == 'openRef') {
         final m = (call.arguments as Map).cast<String, int>();
         handler(VerseRef(m['book']!, m['chapter'] ?? 1, m['verse'] ?? 1));

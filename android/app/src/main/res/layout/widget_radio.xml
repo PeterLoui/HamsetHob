@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ويدجت الإذاعة: كبسولة فيها اللي شغال دلوقتي وزرار تشغيل/إيقاف.
+  الإيقاف بيشتغل من غير ما يفتح التطبيق، والتشغيل بيفتح التطبيق ويكمّل آخر حاجة كانت شغالة.
+  زجاج صافي بالنهار ومدخّن بالليل زي باقي الويدجتس.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layoutDirection="rtl">
+
+    <ImageView
+        android:id="@+id/glass"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_pill" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="10dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/radio_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:textColor="@color/widget_accent"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/radio_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_ink"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/radio_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_soft"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/radio_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_live_circle" />
+
+            <ImageView
+                android:id="@+id/radio_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/widget_ic_play" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>
