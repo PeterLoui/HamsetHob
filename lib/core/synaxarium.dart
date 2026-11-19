@@ -101,7 +101,43 @@ final Map<int, Commemoration> _movable = {
   50: _c('بداية صوم الرسل', 'يستمر حتى ٤ أبيب', Kind.fast, 'Twelve_Apostles'),
 };
 
+/// عنصر في فهرس الأعياد والتذكارات: التذكار وتاريخه الميلادي في السنة القبطية الحالية.
+class SynaxEntry {
+  const SynaxEntry(this.commemoration, this.date, this.copticMonth, this.copticDay);
+  final Commemoration commemoration;
+  final DateTime date;
+  final int copticMonth;
+  final int copticDay;
+}
+
 class Synaxarium {
+  /// فهرس الأعياد الكبرى والتذكارات المعروفة، مرتّب على ترتيب السنة القبطية (توت أولاً)،
+  /// وكل واحد بتاريخه الميلادي في السنة القبطية الحالية عشان يفتح سنكسار يومه.
+  static List<SynaxEntry> browse(DateTime anchor) {
+    final cy = CopticDate.fromGregorian(anchor).year;
+    // عيد القيامة للسنة القبطية الحالية (الأعياد المتحركة محسوبة منه)
+    var easter = copticEaster(anchor.year);
+    for (final y in [anchor.year, anchor.year + 1, anchor.year - 1]) {
+      final e = copticEaster(y);
+      if (CopticDate.fromGregorian(e).year == cy) {
+        easter = e;
+        break;
+      }
+    }
+    final out = <SynaxEntry>[];
+    _fixed.forEach((key, com) {
+      final m = key ~/ 100, d = key % 100;
+      out.add(SynaxEntry(com, CopticDate(cy, m, d).toGregorian(), m, d));
+    });
+    _movable.forEach((off, com) {
+      final date = easter.add(Duration(days: off));
+      final c = CopticDate.fromGregorian(date);
+      out.add(SynaxEntry(com, date, c.month, c.day));
+    });
+    out.sort((a, b) => a.copticMonth != b.copticMonth ? a.copticMonth - b.copticMonth : a.copticDay - b.copticDay);
+    return out;
+  }
+
   /// العيد أو بداية الصوم في هذا اليوم إن وُجد (للنتيجة).
   static Commemoration? feastOrFast(DateTime date) {
     final m = _movable[daysBetween(copticEaster(date.year), date)];

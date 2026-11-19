@@ -33,6 +33,10 @@ class ChapterOverlay extends SubScreen {
   final VerseRef ref;
 }
 
+class SynaxariumBrowseOverlay extends SubScreen {
+  const SynaxariumBrowseOverlay();
+}
+
 class SynaxariumOverlay extends SubScreen {
   const SynaxariumOverlay(this.date);
   final DateTime date;
@@ -210,7 +214,19 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Widget _overlayBody(SubScreen o) => switch (o) {
         ChapterOverlay(:final ref) => ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back),
-        SynaxariumOverlay(:final date) => SynaxariumScreen(start: date, onBack: _back),
+        SynaxariumOverlay(:final date) => SynaxariumScreen(
+            start: date,
+            onBack: _back,
+            onBrowse: () => _open(const SynaxariumBrowseOverlay()),
+          ),
+        SynaxariumBrowseOverlay() => SynaxariumBrowseScreen(
+            today: _today,
+            onBack: _back,
+            onOpenDate: (d) {
+              _back();
+              _open(SynaxariumOverlay(d));
+            },
+          ),
         FavoritesOverlay() => FavoritesScreen(onOpenChapter: (r) => _open(ChapterOverlay(r)), onBack: _back),
         RadioOverlay() => RadioScreen(onBack: _back),
         MeditationOverlay(:final meditation) => MeditationScreen(meditation: meditation, onBack: _back),

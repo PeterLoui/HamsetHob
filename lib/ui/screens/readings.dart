@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/coptic.dart';
+import '../../core/synaxarium.dart';
 import '../../data/katameros.dart';
+import '../../data/net.dart' show normalizeArabic;
 import '../glass.dart';
 import '../theme.dart';
 
@@ -27,10 +29,26 @@ class DateSwitcher extends StatelessWidget {
           size: 44,
         ),
         Expanded(
-          child: Column(children: [
-            Text(coptic.label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.text)),
-            Text('${weekdayName(date)} ${gregorianLabel(date)}', style: TextStyle(fontSize: 12, color: c.textSoft)),
-          ]),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: date,
+                firstDate: DateTime(date.year - 3),
+                lastDate: DateTime(date.year + 3),
+                helpText: 'اختر اليوم',
+              );
+              if (picked != null) onChange(picked);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(children: [
+                Text(coptic.label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.text)),
+                Text('${weekdayName(date)} ${gregorianLabel(date)}', style: TextStyle(fontSize: 12, color: c.textSoft)),
+              ]),
+            ),
+          ),
         ),
         RoundAction(
           icon: Icon(Icons.chevron_left, color: c.text),
@@ -182,9 +200,10 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
 
 /// سير قديسي اليوم كاملة.
 class SynaxariumScreen extends StatefulWidget {
-  const SynaxariumScreen({super.key, required this.start, required this.onBack});
+  const SynaxariumScreen({super.key, required this.start, required this.onBack, this.onBrowse});
   final DateTime start;
   final VoidCallback onBack;
+  final VoidCallback? onBrowse;
 
   @override
   State<SynaxariumScreen> createState() => _SynaxariumScreenState();
@@ -200,7 +219,14 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top, 16, MediaQuery.paddingOf(context).bottom + 24),
       children: [
-        ScreenHeader('السنكسار', subtitle: 'سير القديسين وتذكاراتهم', onBack: widget.onBack),
+        ScreenHeader(
+          'السنكسار',
+          subtitle: 'سير القديسين وتذكاراتهم',
+          onBack: widget.onBack,
+          trailing: widget.onBrowse == null
+              ? null
+              : IconButton(icon: Icon(Icons.search, color: c.text), tooltip: 'الأعياد والقديسين', onPressed: widget.onBrowse),
+        ),
         DateSwitcher(
           date: _date,
           onChange: (d) => setState(() {
@@ -241,6 +267,77 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
             ]);
           },
         ),
+      ],
+    );
+  }
+}
+
+/// فهرس الأعياد والقديسين: بحث وتصفّح، ولمسة تفتح سنكسار يوم التذكار.
+class SynaxariumBrowseScreen extends StatefulWidget {
+  const SynaxariumBrowseScreen({super.key, required this.today, required this.onBack, required this.onOpenDate});
+  final DateTime today;
+  final VoidCallback onBack;
+  final ValueChanged<DateTime> onOpenDate;
+
+  @override
+  State<SynaxariumBrowseScreen> createState() => _SynaxariumBrowseScreenState();
+}
+
+class _SynaxariumBrowseScreenState extends State<SynaxariumBrowseScreen> {
+  late final List<SynaxEntry> _all = Synaxarium.browse(widget.today);
+  String _q = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final q = normalizeArabic(_q.trim());
+    final list = q.length < 2
+        ? _all
+        : _all.where((e) => normalizeArabic('${e.commemoration.title} ${e.commemoration.detail}').contains(q)).toList();
+    final rows = <Widget>[];
+    var month = 0;
+    for (final e in list) {
+      if (e.copticMonth != month) {
+        month = e.copticMonth;
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(4, 18, 4, 6),
+          child: Text(copticMonths[month - 1], style: TextStyle(fontSize: 13, color: c.textFaint)),
+        ));
+      }
+      final com = e.commemoration;
+      rows.add(InkWell(
+        onTap: () => widget.onOpenDate(e.date),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
+          child: Row(children: [
+            SizedBox(
+              width: 52,
+              child: Text('${ar(e.copticDay)} ${copticMonths[e.copticMonth - 1]}',
+                  style: TextStyle(fontSize: 11, color: c.accent)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(com.title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+                Text(com.detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.textFaint)),
+              ]),
+            ),
+            Icon(Icons.chevron_left, color: c.textFaint, size: 18),
+          ]),
+        ),
+      ));
+    }
+    return ListView(
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top, 16, MediaQuery.paddingOf(context).bottom + 24),
+      children: [
+        ScreenHeader('الأعياد والقديسين', subtitle: 'اختر تذكاراً لتقرأ سيرته', onBack: widget.onBack),
+        AppSearchBar(placeholder: 'ابحث عن قديس أو عيد', onChanged: (v) => setState(() => _q = v)),
+        if (list.isEmpty)
+          Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Text('مافيش نتيجة لـ «$_q»', style: TextStyle(fontSize: 14, color: c.textSoft)))
+        else
+          ...rows,
       ],
     );
   }
