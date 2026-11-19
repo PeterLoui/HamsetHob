@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/coptic.dart' show ar;
 import '../../data/prayers.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
+
+/// نسخ نص للحافظة مع إشعار قصير.
+void copyText(BuildContext context, String text, [String done = 'تم النسخ']) {
+  Clipboard.setData(ClipboardData(text: text));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+}
+
+/// زرار نسخ لرأس شاشات القراءة.
+Widget copyButton(BuildContext context, String Function() text, [String done = 'تم النسخ']) => IconButton(
+      icon: Icon(Icons.copy_rounded, color: context.colors.text, size: 22),
+      tooltip: 'نسخ',
+      onPressed: () => copyText(context, text(), done),
+    );
 
 EdgeInsets _pagePadding(BuildContext context) {
   final pad = MediaQuery.paddingOf(context);
@@ -139,6 +153,10 @@ class _AgpeyaPrayerScreenState extends State<AgpeyaPrayerScreen> {
           p.title,
           subtitle: many ? '${p.subtitle ?? 'الأجبية'} · ${ar(_i + 1)} من ${ar(_count)}' : (p.subtitle ?? 'الأجبية'),
           onBack: widget.onBack,
+          trailing: copyButton(context, () {
+            final s = p.sections[_i];
+            return s.title.isEmpty ? s.text : '${s.title}\n\n${s.text}';
+          }, 'تم نسخ الصلاة'),
         ),
         Expanded(
           child: PageView.builder(
@@ -252,8 +270,14 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
   late int _i = widget.index;
   late Future<List<LiturgyBlock>> _future = _load();
   final _scroll = ScrollController();
+  List<LiturgyBlock>? _blocks;
 
-  Future<List<LiturgyBlock>> _load() => LiturgyRepository.instance.part(widget.parts[_i]);
+  Future<List<LiturgyBlock>> _load() async {
+    _blocks = null;
+    final b = await LiturgyRepository.instance.part(widget.parts[_i]);
+    _blocks = b;
+    return b;
+  }
 
   void _go(int step) {
     final next = _i + step;
@@ -279,7 +303,20 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 8),
       child: Column(children: [
-        ScreenHeader(widget.parts[_i].title, subtitle: '${widget.liturgy.title} · ${ar(_i + 1)} من ${ar(widget.parts.length)}', onBack: widget.onBack),
+        ScreenHeader(
+          widget.parts[_i].title,
+          subtitle: '${widget.liturgy.title} · ${ar(_i + 1)} من ${ar(widget.parts.length)}',
+          onBack: widget.onBack,
+          trailing: IconButton(
+            icon: Icon(Icons.copy_rounded, color: c.text, size: 22),
+            tooltip: 'نسخ',
+            onPressed: () async {
+              final blocks = _blocks ?? await _future.catchError((_) => <LiturgyBlock>[]);
+              if (blocks.isEmpty || !context.mounted) return;
+              copyText(context, '${widget.parts[_i].title}\n\n${blocks.map((b) => b.text).join('\n')}', 'تم نسخ الجزء');
+            },
+          ),
+        ),
         Expanded(
           child: FutureBuilder<List<LiturgyBlock>>(
             future: _future,

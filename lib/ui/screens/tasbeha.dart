@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/coptic.dart' show ar;
+import '../../data/store.dart';
 import '../../data/tasbeha.dart';
 import '../../native/native_bridge.dart';
 import '../glass.dart';
@@ -264,9 +266,7 @@ class TasbehaReaderScreen extends StatefulWidget {
 
 class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   static const _copticKey = 'tasbeha_show_coptic';
-  static const _scaleKey = 'tasbeha_scale';
   static bool? _showCoptic;
-  static double _scale = 1;
   String? _scrub; // اسم اللحن اللي هتوصله وأنت بتسحب الشريط
   Timer? _scrubTimer;
   double _edgeDrag = 0;
@@ -283,20 +283,13 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     NativeBridge.keepScreenOn(true);
     if (_showCoptic == null) {
       SharedPreferences.getInstance().then((p) {
-        if (mounted) {
-          setState(() {
-            _showCoptic = p.getBool(_copticKey) ?? true;
-            _scale = p.getDouble(_scaleKey) ?? 1;
-          });
-        }
+        if (mounted) setState(() => _showCoptic = p.getBool(_copticKey) ?? true);
       });
     }
   }
 
   void _setScale(double v) {
-    final next = (v * 20).round() / 20; // خطوات ٥٪
-    setState(() => _scale = next.clamp(.85, 1.6));
-    SharedPreferences.getInstance().then((p) => p.setDouble(_scaleKey, _scale));
+    setState(() => AppSettings.instance.readingScale = (v * 20).round() / 20); // خطوات ٥٪
   }
 
   void _scrubTo(double v) {
@@ -324,6 +317,7 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
             setSheet(() {});
           }
 
+          final s = AppSettings.instance.readingScale;
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
@@ -335,21 +329,23 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
                   AppIconButton(
                     icon: Text('أ-', style: TextStyle(fontSize: 15, color: c.text)),
                     label: 'تصغير الخط',
-                    onTap: () => change(() => _setScale(_scale - .1)),
+                    onTap: () => change(() => _setScale(s - .1)),
                   ),
                   SizedBox(
                     width: 64,
-                    child: Text('${ar((_scale * 100).round())}٪',
+                    child: Text('${ar((s * 100).round())}٪',
                         textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: c.textSoft)),
                   ),
                   AppIconButton(
                     icon: Text('أ+', style: TextStyle(fontSize: 19, color: c.text)),
                     label: 'تكبير الخط',
-                    onTap: () => change(() => _setScale(_scale + .1)),
+                    onTap: () => change(() => _setScale(s + .1)),
                   ),
                 ]),
-                const SizedBox(height: 12),
-                Text('السلام لك يا مريم الحمامة الحسنة', style: context.scripture(size: 19 * _scale)),
+                const SizedBox(height: 4),
+                Text('يسري على كل شاشات القراءة في التطبيق', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                const SizedBox(height: 10),
+                Text('السلام لك يا مريم الحمامة الحسنة', style: context.scripture(size: 19)),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(
@@ -360,6 +356,14 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
                   ),
                   AppSwitch(value: _showCoptic ?? true, label: 'القبطي المعرّب', onChanged: (_) => change(_toggleCoptic)),
                 ]),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: AppChip(label: 'انسخ اللحن الحالي', onTap: () {
+                    Navigator.of(context).pop();
+                    _copyCurrent();
+                  }),
+                ),
               ]),
             ),
           );
@@ -372,6 +376,18 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     final v = !(_showCoptic ?? true);
     setState(() => _showCoptic = v);
     SharedPreferences.getInstance().then((p) => p.setBool(_copticKey, v));
+  }
+
+  /// نسخ نص اللحن الحالي (العنوان والعربي، والقبطي المعرّب لو مفعّل).
+  void _copyCurrent() {
+    final p = _pieces[_i];
+    final coptic = _showCoptic ?? true;
+    final body = p.lines.map((l) {
+      if (l.rubric) return l.arabic;
+      return coptic && l.coptic != null ? '${l.arabic}\n${l.coptic}' : l.arabic;
+    }).join('\n');
+    Clipboard.setData(ClipboardData(text: '${p.title}\n\n$body'));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ اللحن')));
   }
 
   void _go(int step) {
@@ -418,6 +434,7 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     final pad = MediaQuery.paddingOf(context);
     final count = _pieces.length;
     final coptic = _showCoptic ?? true;
+    final s = context.readingScale;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return Stack(fit: StackFit.expand, children: [
       Padding(
@@ -454,18 +471,18 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
               return ListView(
                 padding: const EdgeInsets.only(bottom: 16),
                 children: [
-                  Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(p.title, style: context.heading(size: 21 * _scale))),
+                  Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(p.title, style: context.heading(size: 21 * s))),
                   for (final l in p.lines)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: l.rubric
-                          ? Text(l.arabic, style: TextStyle(fontSize: 13 * _scale, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
+                          ? Text(l.arabic, style: TextStyle(fontSize: 13 * s, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
                           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(l.arabic, style: context.scripture(size: 19 * _scale)),
+                              Text(l.arabic, style: context.scripture(size: 19)),
                               if (coptic && l.coptic != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: Text(l.coptic!, style: TextStyle(fontSize: 14 * _scale, height: 1.7, color: c.textFaint)),
+                                  child: Text(l.coptic!, style: TextStyle(fontSize: 14 * s, height: 1.7, color: c.textFaint)),
                                 ),
                             ]),
                     ),

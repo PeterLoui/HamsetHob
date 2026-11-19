@@ -97,6 +97,8 @@ class _MoreScreenState extends State<MoreScreen> {
             }
           }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
+          const SizedBox(height: 10),
+          _readingSize(),
           _label('الصوت في الخلفية'),
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
@@ -145,6 +147,33 @@ class _MoreScreenState extends State<MoreScreen> {
         padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
         child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: context.colors.textFaint)),
       );
+
+  /// حجم خط القراءة في كل الشاشات (الكتاب، الأجبية، القداس، التسبحة، السنكسار).
+  Widget _readingSize() {
+    final c = context.colors;
+    final s = AppSettings.instance.readingScale;
+    void set(double v) => setState(() => AppSettings.instance.readingScale = (v * 20).round() / 20);
+    return _group(null, [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 10, 12, 4),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('حجم خط القراءة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
+              Text('يسري على كل شاشات القراءة', style: TextStyle(fontSize: 12, color: c.textSoft)),
+            ]),
+          ),
+          AppIconButton(icon: Text('أ-', style: TextStyle(fontSize: 15, color: c.text)), label: 'تصغير الخط', onTap: () => set(s - .1)),
+          SizedBox(width: 56, child: Text('${ar((s * 100).round())}٪', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: c.textSoft))),
+          AppIconButton(icon: Text('أ+', style: TextStyle(fontSize: 19, color: c.text)), label: 'تكبير الخط', onTap: () => set(s + .1)),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 2, 18, 12),
+        child: Text('مثال: الله محبة، ومن يثبت في المحبة يثبت في الله', style: context.scripture(size: 18)),
+      ),
+    ]);
+  }
 
   Widget _group(String? title, List<Widget> children) => GlassPanel(
         radius: 26,

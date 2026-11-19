@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/coptic.dart';
 import '../../data/katameros.dart';
@@ -220,7 +221,17 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
                 GlassPanel(
                   radius: 26,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s.title, style: context.heading(size: 18)),
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(child: Text(s.title, style: context.heading(size: 18))),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: '${s.title}\n\n${s.text}'));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ السيرة')));
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.copy_rounded, size: 20, color: c.textFaint)),
+                      ),
+                    ]),
                     const SizedBox(height: 10),
                     Text(s.text, style: context.scripture(size: 17)),
                   ]),

@@ -89,11 +89,14 @@ class AppColors extends ThemeExtension<AppColors> {
 extension AppColorsX on BuildContext {
   AppColors get colors => Theme.of(this).extension<AppColors>()!;
 
-  /// خط الآيات: أميري إن كان مفعّلاً.
+  /// خط الآيات: أميري إن كان مفعّلاً، وبمقياس حجم القراءة من الإعدادات.
   TextStyle scripture({double size = 19, Color? color}) {
-    final base = TextStyle(fontSize: size, height: 1.8, color: color ?? colors.text);
+    final base = TextStyle(fontSize: size * AppSettings.instance.readingScale, height: 1.8, color: color ?? colors.text);
     return AppSettings.instance.scriptureFont ? GoogleFonts.amiri(textStyle: base) : base;
   }
+
+  /// مقياس حجم القراءة الحالي، للنصوص اللي مش بتستخدم scripture (زي القبطي المعرّب والإرشادات).
+  double get readingScale => AppSettings.instance.readingScale;
 
   /// العناوين الكبيرة: أميري في مخطوطة، ونوتو نسخ في سهرانية.
   TextStyle heading({double size = 26, Color? color}) {

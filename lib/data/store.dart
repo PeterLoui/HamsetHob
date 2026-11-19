@@ -28,6 +28,10 @@ class AppSettings extends ChangeNotifier {
   bool get scriptureFont => _prefs.getBool('amiri') ?? true;
   set scriptureFont(bool v) => _set(() => _prefs.setBool('amiri', v));
 
+  /// مقياس حجم خط القراءة في كل الشاشات (الكتاب، الأجبية، القداس، التأمل، السنكسار، التسبحة).
+  double get readingScale => _prefs.getDouble('reading_scale') ?? 1.0;
+  set readingScale(double v) => _set(() => _prefs.setDouble('reading_scale', v.clamp(0.8, 1.7)));
+
   bool get lockNotification => _prefs.getBool('lock_notif') ?? true;
   set lockNotification(bool v) => _set(() => _prefs.setBool('lock_notif', v));
 
