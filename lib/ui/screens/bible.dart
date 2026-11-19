@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
+import '../../data/store.dart';
 import '../glass.dart';
 import '../theme.dart';
 import 'home.dart' show VerseActions;
+
+/// ألوان تظليل الآيات: شفافة عشان تبان كويس في مخطوطة وسهرانية.
+const highlightColors = [Color(0x55E0A64A), Color(0x4D6FA875), Color(0x4DC56E8E), Color(0x4D6E8EC5)];
 
 /// تصفح الأسفار بالعهدين والبحث في نص الكتاب المقدس.
 class BibleScreen extends StatefulWidget {
@@ -74,6 +78,57 @@ class _BibleScreenState extends State<BibleScreen> {
           ),
           const SizedBox(height: 14),
           if (!searching) ...[
+            ListenableBuilder(
+              listenable: BibleMarks.instance,
+              builder: (context, _) {
+                final last = BibleMarks.instance.lastRead;
+                final marks = BibleMarks.instance.bookmarks;
+                if (last == null && marks.isEmpty) return const SizedBox.shrink();
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  if (last != null)
+                    GlassPanel(
+                      radius: 20,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      onTap: () => widget.onOpenChapter(last),
+                      child: Row(children: [
+                        Icon(Icons.menu_book_outlined, size: 20, color: c.textFaint),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('كمّل القراءة', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                            Text('${books[last.book - 1].name} ${ar(last.chapter)}',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
+                          ]),
+                        ),
+                        Icon(Icons.chevron_left, color: c.textFaint),
+                      ]),
+                    ),
+                  if (marks.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4, bottom: 8),
+                      child: Text('العلامات المرجعية', style: TextStyle(fontSize: 13, color: c.textFaint)),
+                    ),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final m in marks)
+                        Material(
+                          color: c.chip,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => widget.onOpenChapter(m),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Text('${books[m.book - 1].name} ${ar(m.chapter)}', style: TextStyle(fontSize: 13, color: c.text)),
+                            ),
+                          ),
+                        ),
+                    ]),
+                  ],
+                  const SizedBox(height: 16),
+                ]);
+              },
+            ),
             AppSegmented(
               labels: const ['العهد القديم', 'العهد الجديد'],
               selectedIndex: _testament,
@@ -200,6 +255,8 @@ class _ChapterScreenState extends State<ChapterScreen> {
       final v = await BibleRepository.instance.chapter(_book, _chapter);
       if (!mounted) return;
       setState(() => _verses = v);
+      // آخر موضع قراءة، عشان «كمّل القراءة» في شاشة الكتاب
+      BibleMarks.instance.saveLast(_book, _chapter, _highlight > 0 ? _highlight : 1);
       if (_highlight > 1) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final ctx = _keys[_highlight]?.currentContext;
@@ -235,56 +292,74 @@ class _ChapterScreenState extends State<ChapterScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top, 16, MediaQuery.paddingOf(context).bottom + 8),
       child: Column(children: [
-        ScreenHeader(books[_book - 1].name, subtitle: 'الإصحاح ${ar(_chapter)}', onBack: widget.onBack),
+        ScreenHeader(
+          books[_book - 1].name,
+          subtitle: 'الإصحاح ${ar(_chapter)}',
+          onBack: widget.onBack,
+          trailing: ListenableBuilder(
+            listenable: BibleMarks.instance,
+            builder: (context, _) {
+              final on = BibleMarks.instance.isBookmarked(_book, _chapter);
+              return IconButton(
+                icon: Icon(on ? Icons.bookmark : Icons.bookmark_border, color: on ? c.accent : c.text),
+                tooltip: on ? 'إزالة العلامة' : 'علامة مرجعية',
+                onPressed: () => BibleMarks.instance.toggleBookmark(_book, _chapter),
+              );
+            },
+          ),
+        ),
         Expanded(
           child: verses == null
               ? Center(
                   child: _failed
                       ? Text('تعذّر تحميل الإصحاح، تأكد من الاتصال بالإنترنت', style: TextStyle(color: c.textSoft))
                       : const CircularProgressIndicator())
-              : SingleChildScrollView(
-                  child: Column(children: [
-                    for (final v in verses)
-                      Container(
-                        key: _keys.putIfAbsent(v.number, GlobalKey.new),
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: v.number == _selected
+              : ListenableBuilder(
+                  listenable: BibleMarks.instance,
+                  builder: (context, _) => SingleChildScrollView(
+                    child: Column(children: [
+                      for (final v in verses)
+                        Builder(builder: (context) {
+                          final ref = VerseRef(_book, _chapter, v.number);
+                          final hi = BibleMarks.instance.highlightOf(ref);
+                          final bg = v.number == _selected
                               ? c.chip
-                              : v.number == _highlight
-                                  ? c.chip
-                                  : Colors.transparent,
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => setState(() => _selected = _selected == v.number ? 0 : v.number),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                SizedBox(
-                                  width: 30,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Text(ar(v.number), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accent)),
-                                  ),
-                                ),
-                                Expanded(child: Text(v.text, style: context.scripture())),
-                              ]),
-                              if (v.number == _selected)
-                                Align(
-                                  alignment: AlignmentDirectional.centerEnd,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: VerseActions(ref: VerseRef(_book, _chapter, v.number), text: v.text, showCopy: true),
-                                  ),
-                                ),
-                            ]),
-                          ),
-                        ),
-                      ),
-                  ]),
+                              : hi != null
+                                  ? highlightColors[hi % highlightColors.length]
+                                  : v.number == _highlight
+                                      ? c.chip
+                                      : Colors.transparent;
+                          return Container(
+                            key: _keys.putIfAbsent(v.number, GlobalKey.new),
+                            margin: const EdgeInsets.only(bottom: 4),
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: bg),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => setState(() => _selected = _selected == v.number ? 0 : v.number),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    SizedBox(
+                                      width: 30,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Text(ar(v.number), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accent)),
+                                      ),
+                                    ),
+                                    Expanded(child: Text(v.text, style: context.scripture())),
+                                  ]),
+                                  if (v.number == _selected) ...[
+                                    const SizedBox(height: 8),
+                                    _VerseTools(ref: ref, text: v.text, current: hi),
+                                  ],
+                                ]),
+                              ),
+                            ),
+                          );
+                        }),
+                    ]),
+                  ),
                 ),
         ),
         const SizedBox(height: 10),
@@ -294,5 +369,40 @@ class _ChapterScreenState extends State<ChapterScreen> {
         ]),
       ]),
     );
+  }
+}
+
+/// أدوات الآية المختارة: تظليل بالألوان، وحفظ ومشاركة ونسخ.
+class _VerseTools extends StatelessWidget {
+  const _VerseTools({required this.ref, required this.text, required this.current});
+  final VerseRef ref;
+  final String text;
+  final int? current;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(children: [
+      for (var i = 0; i < highlightColors.length; i++)
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => BibleMarks.instance.setHighlight(ref, current == i ? null : i),
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: highlightColors[i].withValues(alpha: 1),
+                border: Border.all(color: current == i ? c.text : c.hairline, width: current == i ? 2 : 1),
+              ),
+              child: current == i ? Icon(Icons.check, size: 15, color: c.text) : null,
+            ),
+          ),
+        ),
+      const Spacer(),
+      VerseActions(ref: ref, text: text, showCopy: true),
+    ]);
   }
 }

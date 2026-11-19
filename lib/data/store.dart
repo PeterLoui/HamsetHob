@@ -57,6 +57,72 @@ class Favorite {
   final String text;
 }
 
+/// علامات الكتاب المقدس: آخر موضع قراءة، العلامات المرجعية على الإصحاحات، وتظليل الآيات بألوان.
+class BibleMarks extends ChangeNotifier {
+  BibleMarks._(this._prefs) {
+    for (final o in jsonDecode(_prefs.getString('bible_bookmarks') ?? '[]') as List) {
+      _bookmarks.add(_chapterKey(o['b'] as int, o['c'] as int));
+    }
+    (jsonDecode(_prefs.getString('bible_highlights') ?? '{}') as Map).forEach((k, v) => highlights[k as String] = v as int);
+  }
+  final SharedPreferences _prefs;
+  static late BibleMarks instance;
+
+  static Future<void> load() async => instance = BibleMarks._(await SharedPreferences.getInstance());
+
+  // ── آخر موضع قراءة ──
+  VerseRef? get lastRead {
+    final p = (_prefs.getString('bible_last') ?? '').split('.');
+    if (p.length != 3) return null;
+    final n = p.map(int.tryParse).toList();
+    return n.any((x) => x == null) ? null : VerseRef(n[0]!, n[1]!, n[2]!);
+  }
+
+  void saveLast(int book, int chapter, int verse) => _prefs.setString('bible_last', '$book.$chapter.$verse');
+
+  // ── العلامات المرجعية (سفر.إصحاح) ──
+  final _bookmarks = <String>{};
+  static String _chapterKey(int b, int c) => '$b.$c';
+
+  bool isBookmarked(int b, int c) => _bookmarks.contains(_chapterKey(b, c));
+
+  /// العلامات كمراجع (الآية ٠ = الإصحاح كله)، بترتيب السفر ثم الإصحاح.
+  List<VerseRef> get bookmarks {
+    final list = _bookmarks.map((k) {
+      final p = k.split('.');
+      return VerseRef(int.parse(p[0]), int.parse(p[1]), 0);
+    }).toList();
+    list.sort((a, b) => a.book != b.book ? a.book - b.book : a.chapter - b.chapter);
+    return list;
+  }
+
+  void toggleBookmark(int book, int chapter) {
+    final k = _chapterKey(book, chapter);
+    if (!_bookmarks.remove(k)) _bookmarks.add(k);
+    _prefs.setString('bible_bookmarks', jsonEncode([
+      for (final k in _bookmarks) {'b': int.parse(k.split('.')[0]), 'c': int.parse(k.split('.')[1])},
+    ]));
+    notifyListeners();
+  }
+
+  // ── تظليل الآيات (سفر.إصحاح.آية → رقم اللون) ──
+  final highlights = <String, int>{};
+  static String _verseKey(VerseRef r) => '${r.book}.${r.chapter}.${r.verse}';
+
+  int? highlightOf(VerseRef r) => highlights[_verseKey(r)];
+
+  void setHighlight(VerseRef r, int? color) {
+    final k = _verseKey(r);
+    if (color == null) {
+      highlights.remove(k);
+    } else {
+      highlights[k] = color;
+    }
+    _prefs.setString('bible_highlights', jsonEncode(highlights));
+    notifyListeners();
+  }
+}
+
 /// الآيات المحفوظة، الأحدث أولاً.
 class Favorites extends ChangeNotifier {
   Favorites._(this._prefs) {
