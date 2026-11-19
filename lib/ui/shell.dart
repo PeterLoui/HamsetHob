@@ -20,8 +20,10 @@ import 'screens/prayers.dart';
 import 'screens/stations.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
+import 'screens/reading_plans.dart';
 import 'screens/readings.dart';
 import 'screens/tasbeha.dart';
+import '../data/reading_plans.dart';
 
 /// شاشات فرعية تُفتح فوق التبويبات.
 sealed class SubScreen {
@@ -82,6 +84,15 @@ class StationsOverlay extends SubScreen {
 
 class BooksOverlay extends SubScreen {
   const BooksOverlay();
+}
+
+class ReadingPlansOverlay extends SubScreen {
+  const ReadingPlansOverlay();
+}
+
+class ReadingPlanOverlay extends SubScreen {
+  const ReadingPlanOverlay(this.plan);
+  final ReadingPlan plan;
 }
 
 class TasbehaOverlay extends SubScreen {
@@ -205,6 +216,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         3 => CalendarScreen(today: _today),
         _ => MoreScreen(
             onOpenFavorites: () => _open(const FavoritesOverlay()),
+            onOpenReadingPlans: () => _open(const ReadingPlansOverlay()),
             onSettingsChanged: () {
               widget.onThemeChanged();
               _syncWidgets();
@@ -245,6 +257,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
         StationsOverlay() => StationsScreen(onBack: _back),
         BooksOverlay() => BooksScreen(onBack: _back),
+        ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
+        ReadingPlanOverlay(:final plan) =>
+          ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
         TasbehaOverlay() => TasbehaScreen(
             onBack: _back,
             onOpenBook: (b) => _open(TasbehaBookOverlay(b)),

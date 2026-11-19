@@ -24,6 +24,7 @@ Future<void> main() async {
   await AppSettings.load();
   await Favorites.load();
   await BibleMarks.load();
+  await ReadingProgress.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const HamsetApp());
 }

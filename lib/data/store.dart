@@ -123,6 +123,42 @@ class BibleMarks extends ChangeNotifier {
   }
 }
 
+/// تقدّم خطط قراءة الكتاب: أيام كل خطة اللي اتقرأت.
+class ReadingProgress extends ChangeNotifier {
+  ReadingProgress._(this._prefs);
+  final SharedPreferences _prefs;
+  static late ReadingProgress instance;
+
+  static Future<void> load() async => instance = ReadingProgress._(await SharedPreferences.getInstance());
+
+  Set<int> done(String planId) =>
+      ((jsonDecode(_prefs.getString('plan_$planId') ?? '[]')) as List).map((e) => e as int).toSet();
+
+  bool isDone(String planId, int day) => done(planId).contains(day);
+
+  int completed(String planId) => done(planId).length;
+
+  /// أول يوم لسه ماتقراش (= عدد الأيام يعني الخطة خلصت).
+  int currentDay(String planId, int total) {
+    final s = done(planId);
+    for (var i = 0; i < total; i++) {
+      if (!s.contains(i)) return i;
+    }
+    return total;
+  }
+
+  void setDone(String planId, int day, bool value) {
+    final s = done(planId);
+    if (value) {
+      s.add(day);
+    } else {
+      s.remove(day);
+    }
+    _prefs.setString('plan_$planId', jsonEncode(s.toList()..sort()));
+    notifyListeners();
+  }
+}
+
 /// الآيات المحفوظة، الأحدث أولاً.
 class Favorites extends ChangeNotifier {
   Favorites._(this._prefs) {

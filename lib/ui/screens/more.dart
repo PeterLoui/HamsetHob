@@ -11,8 +11,9 @@ import 'home.dart' show VerseActions;
 
 /// المزيد: المفضلة والإعدادات وتحميل الكتاب المقدس.
 class MoreScreen extends StatefulWidget {
-  const MoreScreen({super.key, required this.onOpenFavorites, required this.onSettingsChanged});
+  const MoreScreen({super.key, required this.onOpenFavorites, required this.onOpenReadingPlans, required this.onSettingsChanged});
   final VoidCallback onOpenFavorites;
+  final VoidCallback onOpenReadingPlans;
   final VoidCallback onSettingsChanged;
 
   @override
@@ -74,6 +75,7 @@ class _MoreScreenState extends State<MoreScreen> {
           const ScreenHeader('المزيد'),
           _group(null, [
             _item('المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
+            _item('خطط قراءة الكتاب', 'اقرأ الكتاب بترتيب وتابع تقدّمك', widget.onOpenReadingPlans),
           ]),
           _label('المظهر'),
           AppSegmented(
