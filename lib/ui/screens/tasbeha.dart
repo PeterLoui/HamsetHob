@@ -275,6 +275,8 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   late List<TasbehaPiece> _pieces = _day.pieces;
   late PageController _pages = PageController(initialPage: widget.index);
   late int _i = widget.index;
+  // الأماكن اللي كنت فيها قبل ما تنتقل ليوم تاني، عشان زرار «ارجع لمكانك»
+  final _history = <(TasbehaBook, TasbehaDay, int)>[];
 
   @override
   void initState() {
@@ -397,11 +399,13 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
   }
 
   /// قفزة من الفهرس الجانبي: لنفس اليوم بيقلب للصفحة، وليوم تاني بيبدّل اليوم كله.
-  void _jump(TasbehaBook book, TasbehaDay day, int index) {
+  /// [record] بيحفظ مكانك الحالي عشان ترجعله، إلا لو إحنا أصلاً بنرجع.
+  void _jump(TasbehaBook book, TasbehaDay day, int index, {bool record = true}) {
     if (identical(day, _day)) {
       _pages.jumpToPage(index);
       return;
     }
+    if (record) _history.add((_book, _day, _i));
     final old = _pages;
     setState(() {
       _book = book;
@@ -418,6 +422,13 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     final lib = await TasbehaRepository.instance.load();
     if (!mounted) return;
     await showTasbehaIndex(context, library: lib, book: _book, day: _day, index: _i, onPick: _jump);
+  }
+
+  /// يرجّعك للمكان اللي كنت بتقرا فيه قبل ما تنتقل ليوم تاني.
+  void _jumpBack() {
+    if (_history.isEmpty) return;
+    final (b, d, i) = _history.removeLast();
+    _jump(b, d, i, record: false);
   }
 
   @override
@@ -457,6 +468,36 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
             ),
           ]),
         ),
+        // زرار الرجوع لمكانك قبل ما تنتقل ليوم تاني
+        if (_history.isNotEmpty)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: c.chip,
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: _jumpBack,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Builder(builder: (context) {
+                      final (_, d, i) = _history.last;
+                      return Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.undo, size: 16, color: c.accent),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text('ارجع لمكانك · ${d.name} ${ar(i + 1)}',
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.text)),
+                        ),
+                      ]);
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          ),
         Expanded(
           child: PageView.builder(
             key: ValueKey('${_book.id}/${_day.id}'),
