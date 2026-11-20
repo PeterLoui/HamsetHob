@@ -41,8 +41,8 @@ class BookCategory {
       BookCategory(j['id'] as int, stripHtml(j['name'] as String), j['parent'] as int, j['count'] as int);
 }
 
-class Book {
-  const Book({required this.id, required this.title, this.author, this.cover, this.pdf, required this.link, this.about = ''});
+class LibraryBook {
+  const LibraryBook({required this.id, required this.title, this.author, this.cover, this.pdf, required this.link, this.about = ''});
   final int id;
   final String title;
   final String? author;
@@ -55,7 +55,7 @@ class Book {
 
   Map<String, dynamic> toJson() =>
       {'id': id, 'title': title, 'author': author, 'cover': cover, 'pdf': pdf, 'link': link, 'about': about};
-  factory Book.fromJson(Map<String, dynamic> j) => Book(
+  factory LibraryBook.fromJson(Map<String, dynamic> j) => LibraryBook(
         id: j['id'] as int,
         title: j['title'] as String,
         author: j['author'] as String?,
@@ -66,7 +66,7 @@ class Book {
       );
 
   /// من مقال WordPress: العنوان «كتاب X – المؤلف»، والغلاف أول صورة، والتحميل أول لينك mediafire أو pdf.
-  factory Book.fromPost(Map<String, dynamic> p) {
+  factory LibraryBook.fromPost(Map<String, dynamic> p) {
     var title = stripHtml((p['title'] as Map)['rendered'] as String).replaceAll('\n', ' ').trim();
     String? author;
     // المؤلف بعد آخر شرطة: «كتاب فيلسوف القلب – الحياة القلقة لكيركغارد – كلير كارلايل»
@@ -87,7 +87,7 @@ class Book {
         break;
       }
     }
-    return Book(
+    return LibraryBook(
       id: p['id'] as int,
       title: title,
       author: (author?.isEmpty ?? true) ? null : author,
@@ -123,7 +123,7 @@ class Book {
 
 class BookPage {
   const BookPage(this.books, this.totalPages);
-  final List<Book> books;
+  final List<LibraryBook> books;
   final int totalPages;
 }
 
@@ -190,7 +190,7 @@ class BooksRepository extends ChangeNotifier {
       try {
         final r = await _get(key);
         final total = int.tryParse(r.headers['x-wp-totalpages'] ?? '') ?? 1;
-        final list = [for (final p in jsonDecode(r.body) as List) Book.fromPost(p as Map<String, dynamic>)];
+        final list = [for (final p in jsonDecode(r.body) as List) LibraryBook.fromPost(p as Map<String, dynamic>)];
         return BookPage(list, total);
       } catch (e) {
         _pages.remove(key);
@@ -208,7 +208,7 @@ class BooksRepository extends ChangeNotifier {
   }
 
   /// لينك الـ PDF المباشر: mediafire بيحوّل (302) على سيرفر التحميل، فبناخد العنوان من غير ما ننزّل الملف.
-  Future<Uri> directPdf(Book b) async {
+  Future<Uri> directPdf(LibraryBook b) async {
     final src = b.pdf;
     if (src == null) throw const FileSystemException('الكتاب ده مالوش ملف تحميل');
     var url = Uri.parse(src);
@@ -243,18 +243,18 @@ class BooksRepository extends ChangeNotifier {
 
   // ───── الكتب المحفوظة ─────
 
-  List<Book> _saved = [];
-  List<Book> get saved => List.unmodifiable(_saved);
+  List<LibraryBook> _saved = [];
+  List<LibraryBook> get saved => List.unmodifiable(_saved);
   final downloads = <int, BookDownload>{};
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final s = prefs.getString(_savedKey);
     if (s != null) {
-      _saved = [for (final j in jsonDecode(s) as List) Book.fromJson(j as Map<String, dynamic>)];
+      _saved = [for (final j in jsonDecode(s) as List) LibraryBook.fromJson(j as Map<String, dynamic>)];
     }
     // ملف اتمسح من برّه: نشيله من القائمة
-    final kept = <Book>[];
+    final kept = <LibraryBook>[];
     for (final b in _saved) {
       if (await (await fileOf(b)).exists()) kept.add(b);
     }
@@ -265,13 +265,13 @@ class BooksRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<File> fileOf(Book b) async {
+  Future<File> fileOf(LibraryBook b) async {
     final dir = Directory('${(await getApplicationDocumentsDirectory()).path}/books');
     if (!await dir.exists()) await dir.create(recursive: true);
     return File('${dir.path}/${b.id}.pdf');
   }
 
-  bool isSaved(Book b) => _saved.any((x) => x.id == b.id);
+  bool isSaved(LibraryBook b) => _saved.any((x) => x.id == b.id);
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
@@ -279,7 +279,7 @@ class BooksRepository extends ChangeNotifier {
   }
 
   /// تنزيل الكتاب لمكتبة التطبيق (يتقري من غير نت). التقدّم بيتبعت مع notifyListeners.
-  Future<void> download(Book b) async {
+  Future<void> download(LibraryBook b) async {
     if (downloads[b.id]?.done == false && downloads[b.id]?.error == null) return; // شغال فعلاً
     downloads[b.id] = BookDownload(progress: 0);
     notifyListeners();
@@ -324,7 +324,7 @@ class BooksRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> remove(Book b) async {
+  Future<void> remove(LibraryBook b) async {
     final f = await fileOf(b);
     if (await f.exists()) await f.delete();
     _saved.removeWhere((x) => x.id == b.id);

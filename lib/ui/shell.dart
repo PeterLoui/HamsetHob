@@ -95,12 +95,12 @@ class BookCategoryOverlay extends SubScreen {
 
 class BookOverlay extends SubScreen {
   const BookOverlay(this.book);
-  final Book book;
+  final LibraryBook book;
 }
 
 class BookReaderOverlay extends SubScreen {
   const BookReaderOverlay(this.book);
-  final Book book;
+  final LibraryBook book;
 }
 
 class ReadingPlansOverlay extends SubScreen {

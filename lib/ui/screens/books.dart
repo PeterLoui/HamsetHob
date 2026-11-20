@@ -17,7 +17,7 @@ class BooksScreen extends StatefulWidget {
   const BooksScreen({super.key, required this.onBack, required this.onOpenCategory, required this.onOpenBook});
   final VoidCallback onBack;
   final ValueChanged<BookCategory> onOpenCategory;
-  final ValueChanged<Book> onOpenBook;
+  final ValueChanged<LibraryBook> onOpenBook;
 
   @override
   State<BooksScreen> createState() => _BooksScreenState();
@@ -146,7 +146,7 @@ class _CategoryRow extends StatelessWidget {
 /// غلاف الكتاب، ولو مالوش صورة: لوح بلون الورق عليه أول كلمتين من العنوان.
 class BookCover extends StatelessWidget {
   const BookCover({super.key, required this.book, required this.width, required this.height});
-  final Book book;
+  final LibraryBook book;
   final double width, height;
 
   @override
@@ -184,7 +184,7 @@ class BookCover extends StatelessWidget {
 
 class _ShelfBook extends StatelessWidget {
   const _ShelfBook({required this.book, required this.onTap});
-  final Book book;
+  final LibraryBook book;
   final VoidCallback onTap;
 
   @override
@@ -206,7 +206,7 @@ class _ShelfBook extends StatelessWidget {
 
 class BookRow extends StatelessWidget {
   const BookRow({super.key, required this.book, required this.onTap});
-  final Book book;
+  final LibraryBook book;
   final VoidCallback onTap;
 
   @override
@@ -262,7 +262,7 @@ class _ResultList extends StatelessWidget {
   const _ResultList({required this.future, required this.query, required this.onOpenBook});
   final Future<BookPage> future;
   final String query;
-  final ValueChanged<Book> onOpenBook;
+  final ValueChanged<LibraryBook> onOpenBook;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +285,7 @@ class BookCategoryScreen extends StatefulWidget {
   const BookCategoryScreen({super.key, required this.category, required this.onBack, required this.onOpenBook});
   final BookCategory category;
   final VoidCallback onBack;
-  final ValueChanged<Book> onOpenBook;
+  final ValueChanged<LibraryBook> onOpenBook;
 
   @override
   State<BookCategoryScreen> createState() => _BookCategoryScreenState();
@@ -295,7 +295,7 @@ class _BookCategoryScreenState extends State<BookCategoryScreen> {
   final repo = BooksRepository.instance;
   List<BookCategory> _subs = [];
   late int _selected = widget.category.id;
-  final _books = <Book>[];
+  final _books = <LibraryBook>[];
   int _page = 0, _total = 1;
   bool _loading = false, _failed = false;
 
@@ -399,7 +399,7 @@ class _BookCategoryScreenState extends State<BookCategoryScreen> {
 /// صفحة الكتاب: الغلاف والتعريف، و«اقرأ» و«تنزيل PDF».
 class BookScreen extends StatelessWidget {
   const BookScreen({super.key, required this.book, required this.onBack, required this.onRead});
-  final Book book;
+  final LibraryBook book;
   final VoidCallback onBack;
   final VoidCallback onRead;
 
@@ -445,10 +445,10 @@ class BookScreen extends StatelessWidget {
                 Column(children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(value: dl!.progress, minHeight: 6, color: c.navGlow, backgroundColor: c.chip),
+                    child: LinearProgressIndicator(value: dl.progress, minHeight: 6, color: c.navGlow, backgroundColor: c.chip),
                   ),
                   const SizedBox(height: 6),
-                  Text(dl!.progress == null ? 'بيتنزّل…' : 'بيتنزّل ${_count((dl.progress! * 100).round())}٪',
+                  Text(dl.progress == null ? 'بيتنزّل…' : 'بيتنزّل ${_count((dl.progress! * 100).round())}٪',
                       style: TextStyle(fontSize: 12, color: c.textSoft)),
                 ])
               else if (saved)
@@ -493,8 +493,7 @@ class BookScreen extends StatelessWidget {
               const SizedBox(height: 28),
               Text('محتويات الكتاب', style: context.heading(size: 17)),
               const SizedBox(height: 8),
-              for (final line in book.about.split('
-'))
+              for (final line in book.about.split('\n'))
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.hairline))),
@@ -520,7 +519,7 @@ class BookScreen extends StatelessWidget {
 /// قارئ الـ PDF: من الموبايل لو متنزّل، أو من النت على طول.
 class BookReaderScreen extends StatefulWidget {
   const BookReaderScreen({super.key, required this.book, required this.onBack});
-  final Book book;
+  final LibraryBook book;
   final VoidCallback onBack;
 
   @override
