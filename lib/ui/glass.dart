@@ -218,7 +218,7 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final safe = MediaQuery.paddingOf(context).bottom;
-    // التبويب المفتوح بالحبر (الأحمر للتاريخ القبطي وأرقام الآيات بس)، وفي سهرانية نقطة عسلية تحته.
+    // التبويب المفتوح: وهج ورا الأيقونة، أصفر زي ضوء الشمعة في الداكن وأحمر في الفاتح.
     final on = c.text;
     return Container(
       height: 64 + safe,
@@ -233,10 +233,7 @@ class BottomNavBar extends StatelessWidget {
               child: InkResponse(
                 onTap: () => onTabSelected(i),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  IconTheme(
-                    data: IconThemeData(color: i == selectedIndex ? on : c.textFaint, size: 22),
-                    child: tabs[i].icon,
-                  ),
+                  _GlowIcon(on: i == selectedIndex, color: c.navGlow, idle: c.textFaint, child: tabs[i].icon),
                   const SizedBox(height: 2),
                   Text(tabs[i].label,
                       style: TextStyle(
@@ -244,21 +241,94 @@ class BottomNavBar extends StatelessWidget {
                         fontWeight: i == selectedIndex ? FontWeight.w500 : FontWeight.w400,
                         color: i == selectedIndex ? on : c.textFaint,
                       )),
-                  if (c.isDark)
-                    Container(
-                      width: 4,
-                      height: 4,
-                      margin: const EdgeInsets.only(top: 2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == selectedIndex ? c.accent : Colors.transparent,
-                      ),
-                    ),
                 ]),
               ),
             ),
           ),
       ]),
+    );
+  }
+}
+
+/// أيقونة التبويب: لما يكون مفتوح بيتلوّن ويطلع وراه وهج ناعم بيرمش ببطء زي لهب الشمعة.
+class _GlowIcon extends StatefulWidget {
+  const _GlowIcon({required this.on, required this.color, required this.idle, required this.child});
+  final bool on;
+  final Color color, idle;
+  final Widget child;
+
+  @override
+  State<_GlowIcon> createState() => _GlowIconState();
+}
+
+class _GlowIconState extends State<_GlowIcon> with SingleTickerProviderStateMixin {
+  late final _flicker = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_GlowIcon old) {
+    super.didUpdateWidget(old);
+    if (old.on != widget.on) _sync();
+  }
+
+  void _sync() {
+    final still = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    if (widget.on && !still) {
+      _flicker.repeat(reverse: true);
+    } else {
+      _flicker.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _flicker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.on ? 1 : 0),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      builder: (context, t, _) => AnimatedBuilder(
+        animation: _flicker,
+        builder: (context, _) {
+          // الوهج بيتنفّس بين ٨٥٪ و١٠٠٪
+          final g = t * (.85 + .15 * Curves.easeInOut.transform(_flicker.value));
+          return SizedBox(
+            width: 44,
+            height: 30,
+            child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
+              if (g > 0)
+                Container(
+                  width: 40,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: RadialGradient(colors: [
+                      widget.color.withValues(alpha: .34 * g),
+                      widget.color.withValues(alpha: .12 * g),
+                      widget.color.withValues(alpha: 0),
+                    ], stops: const [0, .55, 1]),
+                    boxShadow: [BoxShadow(color: widget.color.withValues(alpha: .28 * g), blurRadius: 16, spreadRadius: -4)],
+                  ),
+                ),
+              IconTheme(
+                data: IconThemeData(color: Color.lerp(widget.idle, widget.color, t), size: 22),
+                child: widget.child,
+              ),
+            ]),
+          );
+        },
+      ),
     );
   }
 }

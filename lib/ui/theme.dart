@@ -77,6 +77,9 @@ class AppColors extends ThemeExtension<AppColors> {
   Color get live => isDark ? accent : text;
   Color get onLive => isDark ? onAccent : surface;
 
+  /// وهج التبويب المفتوح في الشريط السفلي: ضوء شمعة أصفر في الداكن، وأحمر المخطوطة في الفاتح.
+  Color get navGlow => isDark ? const Color(0xFFF5BF52) : accent;
+
   Color kindColor(Kind k) => switch (k) { Kind.feast => accent, Kind.fast => fast, Kind.saint => saint };
 
   @override
