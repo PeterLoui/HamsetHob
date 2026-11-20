@@ -13,6 +13,8 @@ import '../audio/radio_player.dart';
 import 'glass.dart';
 import 'icons.dart';
 import 'screens/bible.dart';
+import 'screens/books.dart';
+import '../data/books.dart';
 import 'screens/calendar.dart';
 import 'screens/home.dart';
 import 'screens/meditation.dart';
@@ -84,6 +86,21 @@ class StationsOverlay extends SubScreen {
 
 class BooksOverlay extends SubScreen {
   const BooksOverlay();
+}
+
+class BookCategoryOverlay extends SubScreen {
+  const BookCategoryOverlay(this.category);
+  final BookCategory category;
+}
+
+class BookOverlay extends SubScreen {
+  const BookOverlay(this.book);
+  final Book book;
+}
+
+class BookReaderOverlay extends SubScreen {
+  const BookReaderOverlay(this.book);
+  final Book book;
 }
 
 class ReadingPlansOverlay extends SubScreen {
@@ -256,7 +273,15 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         LiturgyPartOverlay(:final liturgy, :final parts, :final index) =>
           LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
         StationsOverlay() => StationsScreen(onBack: _back),
-        BooksOverlay() => BooksScreen(onBack: _back),
+        BooksOverlay() => BooksScreen(
+            onBack: _back,
+            onOpenCategory: (cat) => _open(BookCategoryOverlay(cat)),
+            onOpenBook: (b) => _open(BookOverlay(b)),
+          ),
+        BookCategoryOverlay(:final category) =>
+          BookCategoryScreen(category: category, onBack: _back, onOpenBook: (b) => _open(BookOverlay(b))),
+        BookOverlay(:final book) => BookScreen(book: book, onBack: _back, onRead: () => _open(BookReaderOverlay(book))),
+        BookReaderOverlay(:final book) => BookReaderScreen(book: book, onBack: _back),
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),

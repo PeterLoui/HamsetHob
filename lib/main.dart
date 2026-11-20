@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import 'data/books.dart';
 import 'data/store.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
@@ -25,6 +26,7 @@ Future<void> main() async {
   await Favorites.load();
   await BibleMarks.load();
   await ReadingProgress.load();
+  await BooksRepository.instance.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const HamsetApp());
 }

@@ -117,27 +117,3 @@ class _StationCard extends StatelessWidget {
     );
   }
 }
-
-/// الكتب: لسه.
-class BooksScreen extends StatelessWidget {
-  const BooksScreen({super.key, required this.onBack});
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final pad = MediaQuery.paddingOf(context);
-    const side = 24.0;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(side, pad.top, side, pad.bottom + 32),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        ScreenHeader('الكتب', onBack: onBack),
-        const Spacer(),
-        Center(child: AppIconView(AppIcon.books, size: 48, color: c.textFaint)),
-        const SizedBox(height: 12),
-        Text('سيضاف قريباً', textAlign: TextAlign.center, style: context.heading(size: 22)),
-        const Spacer(flex: 2),
-      ]),
-    );
-  }
-}
