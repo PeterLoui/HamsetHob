@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
 import '../../data/katameros.dart';
 import '../../data/net.dart' show normalizeArabic;
+import '../../data/saint_images.dart';
 import '../glass.dart';
 import '../theme.dart';
 
@@ -242,11 +244,20 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
             final stories = snap.data?.synaxarium;
             if (stories == null) return const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()));
             if (stories.isEmpty) return Text('لا يوجد سنكسار لهذا اليوم', style: TextStyle(color: c.textSoft));
+            // التذكار الأساسي لليوم ليه صورة متراجعة (ويكيميديا)، والباقي بيتدوّر عليه في صفحة اليوم على st-takla
+            final local = Synaxarium.forDate(_date);
             return Column(children: [
-              for (final s in stories) ...[
+              for (final (i, s) in stories.indexed) ...[
                 GlassPanel(
                   radius: 26,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SaintFrame(
+                      key: ValueKey('${dateOnly(_date)}|${s.title}'),
+                      wiki: i == 0 && !local.generic ? local.wiki : null,
+                      name: s.title,
+                      date: _date,
+                      fallbackCross: i == 0,
+                    ),
                     Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Expanded(child: Text(s.title, style: context.heading(size: 18))),
                       InkWell(
@@ -341,4 +352,79 @@ class _SynaxariumBrowseScreenState extends State<SynaxariumBrowseScreen> {
       ],
     );
   }
+}
+
+/// صورة القديس جوه إطار مزدوج زي أيقونات حامل الأيقونات: إطار خارجي بلون التذكار وخط رفيع جوه.
+/// الصورة من نفس مصادر الرئيسية (SaintImages)، ولو مالقيناش صورة مؤكدة: الصليب القبطي للتذكار الأول، ولا حاجة للباقي.
+class SaintFrame extends StatelessWidget {
+  const SaintFrame({super.key, required this.wiki, required this.name, required this.date, this.fallbackCross = false});
+  final String? wiki;
+  final String name;
+  final DateTime date;
+  final bool fallbackCross;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return FutureBuilder<String?>(
+      future: SaintImages.instance.imageUrl(wiki, name, date),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return fallbackCross ? _frame(c, null, loading: true) : const SizedBox.shrink();
+        }
+        final url = snap.data;
+        if (url == null && !fallbackCross) return const SizedBox.shrink();
+        return _frame(c, url);
+      },
+    );
+  }
+
+  Widget _frame(AppColors c, String? url, {bool loading = false}) {
+    const w = 196.0, h = 252.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Center(
+        child: Container(
+          width: w,
+          height: h,
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: c.navGlow.withValues(alpha: .55), width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: c.isDark ? .35 : .08), blurRadius: 14, offset: const Offset(0, 4))],
+          ),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: c.hairline),
+              color: c.surface,
+            ),
+            child: loading
+                ? Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: c.textFaint)))
+                : url == null
+                    ? _cross()
+                    : LayoutBuilder(
+                        builder: (context, box) => CachedNetworkImage(
+                          imageUrl: url,
+                          fit: BoxFit.cover,
+                          width: box.maxWidth,
+                          height: box.maxHeight,
+                          alignment: SaintImages.focus(wiki, box.maxWidth, box.maxHeight),
+                          fadeInDuration: const Duration(milliseconds: 300),
+                          placeholder: (_, __) => const SizedBox.shrink(),
+                          errorWidget: (_, __, ___) => _cross(),
+                        ),
+                      ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _cross() => Padding(
+        padding: const EdgeInsets.all(28),
+        child: Opacity(opacity: .3, child: Image.asset('assets/coptic_cross.png', fit: BoxFit.contain)),
+      );
 }
