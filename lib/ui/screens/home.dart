@@ -11,6 +11,7 @@ import '../../data/katameros.dart';
 import '../../data/meditations.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
+import '../../native/calendar_widget.dart';
 import '../../share/verse_image.dart';
 import '../fluid_light.dart';
 import '../glass.dart';
@@ -81,7 +82,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     _loadReadings();
+    _syncCalendarWidget(); // من الجدول المحلي فوراً، وبعدها بالاسم الكامل لما القراءات توصل
     await _loadVerse();
+  }
+
+  /// ويدجت التقويم: تذكار النهارده وصورته (نفس اللي ظاهر في الصفحة).
+  Future<void> _syncCalendarWidget() async {
+    final day = dateOnly(widget.today);
+    final com = _commemoration;
+    String? url;
+    try {
+      url = await SaintImages.instance.imageUrl(com.wiki, com.title, widget.today);
+    } catch (_) {
+      url = null;
+    }
+    if (!mounted || dateOnly(widget.today) != day) return;
+    await CalendarWidgetSync.sync(widget.today, full: com, imageUrl: url);
   }
 
   /// قراءات اليوم (ومنها اسم قديس السنكسار). لو الشبكة مش موجودة بنجرّب تاني كل نص دقيقة.
@@ -89,7 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _retry?.cancel();
     final day = dateOnly(widget.today);
     KatamerosRepository.instance.day(day).then((r) {
-      if (mounted && dateOnly(widget.today) == day) setState(() => _readings = r);
+      if (mounted && dateOnly(widget.today) == day) {
+        setState(() => _readings = r);
+        _syncCalendarWidget(); // اسم قديس اليوم من السنكسار الكامل
+      }
     }).catchError((_) {
       if (mounted && dateOnly(widget.today) == day) _retry = Timer(const Duration(seconds: 30), _loadReadings);
     });

@@ -96,6 +96,10 @@ class MainActivity : AudioServiceActivity() {
                         result.success(pendingResume)
                         pendingResume = false
                     }
+                    "updateCalendarWidget" -> {
+                        CalendarWidget.save(ctx, call.arguments as Map<*, *>)
+                        result.success(null)
+                    }
                     "scheduleReminders" -> {
                         Reminders.save(ctx, call.argument<List<*>>("list") ?: emptyList<Any>())
                         result.success(null)

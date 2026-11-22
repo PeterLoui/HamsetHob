@@ -124,6 +124,7 @@ object Widgets {
         manager.updateAppWidget(ComponentName(ctx, LockLineWidgetProvider::class.java), line)
 
         lockNotification(ctx, p.getBoolean("lock", true), coptic.label, text, ref, open)
+        CalendarWidget.render(ctx)
     }
 
     /** خلفية الويدجت: «زجاج صافي» مرسوم vector، فبيتمدد على أي مقاس من غير تشويه. */

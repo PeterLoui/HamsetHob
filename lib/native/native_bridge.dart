@@ -42,6 +42,14 @@ class NativeBridge {
   static Future<void> scheduleMorning(bool enabled, int minutes) =>
       _call('scheduleMorning', {'enabled': enabled, 'minutes': minutes});
 
+  /// ويدجت التقويم القبطي: تذكارات الأيام الجاية وصورة تذكار يوم معيّن (ملف على الجهاز).
+  static Future<void> updateCalendarWidget({
+    required List<Map<String, Object?>> days,
+    String? imagePath,
+    String? imageDate,
+  }) =>
+      _call('updateCalendarWidget', {'days': days, 'imagePath': imagePath, 'imageDate': imageDate});
+
   /// يجدول تذكيرات الصلاة والأعياد (بيلغي القديم). كل عنصر: id وtitle وbody وإما minutes (يومي) أو at (ميلي ثانية).
   static Future<void> scheduleReminders(List<Map<String, Object?>> list) => _call('scheduleReminders', {'list': list});
 
