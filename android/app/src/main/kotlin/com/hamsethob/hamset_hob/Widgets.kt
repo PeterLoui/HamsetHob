@@ -398,6 +398,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         DailyReceiver.schedule(context)
         MorningReceiver.reschedule(context)
+        Reminders.scheduleAll(context)
         Widgets.render(context)
     }
 }

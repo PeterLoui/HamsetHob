@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
+import '../../data/reminders.dart';
 import '../../data/store.dart';
 import '../../native/native_bridge.dart';
 import '../glass.dart';
@@ -61,11 +62,56 @@ class _MoreScreenState extends State<MoreScreen> {
     setState(() {});
   }
 
+  static String _fmt(int minutes) {
+    final h = minutes ~/ 60, m = minutes % 60;
+    return '${ar(h % 12 == 0 ? 12 : h % 12)}:${ar(m.toString().padLeft(2, '0'))} ${h < 12 ? 'صباحاً' : 'مساءً'}';
+  }
+
+  /// يختار وقت جديد ويرجّعه، أو null لو المستخدم لغى.
+  Future<int?> _pickMinutes(int current) async {
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60));
+    return t == null ? null : t.hour * 60 + t.minute;
+  }
+
+  Widget _hourRow(PrayerHour h) {
+    final c = context.colors;
+    final on = settings.hourOn(h.id);
+    final at = settings.hourAt(h.id, h.defaultMinutes);
+    return InkWell(
+      onTap: on
+          ? () async {
+              final m = await _pickMinutes(at);
+              if (m == null) return;
+              settings.setHourAt(h.id, m);
+              Reminders.sync();
+            }
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(h.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
+              Text(on ? '${_fmt(at)} • اضغط لتغيير الوقت' : 'متوقف', style: TextStyle(fontSize: 12, color: c.textSoft)),
+            ]),
+          ),
+          AppSwitch(
+            value: on,
+            label: 'تذكير ${h.name}',
+            onChanged: (v) {
+              settings.setHourOn(h.id, v);
+              Reminders.sync();
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final h = settings.morningMinutes ~/ 60, m = settings.morningMinutes % 60;
-    final time = '${ar(h % 12 == 0 ? 12 : h % 12)}:${ar(m.toString().padLeft(2, '0'))} ${h < 12 ? 'صباحاً' : 'مساءً'}';
+    final time = _fmt(settings.morningMinutes);
 
     return ListenableBuilder(
       listenable: settings,
@@ -116,6 +162,27 @@ class _MoreScreenState extends State<MoreScreen> {
             settings.lockNotification = v;
             widget.onSettingsChanged();
           }),
+          _label('تذكير الصلاة'),
+          for (final h in prayerHours) _hourRow(h),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Text('الضغط على الإشعار بيفتح الصلاة. التذكير ممكن يتأخر دقايق قليلة لتوفير البطارية.',
+                style: TextStyle(fontSize: 11, height: 1.5, color: c.textFaint)),
+          ),
+          _label('الأعياد والأصوام'),
+          _toggle('تنبيه قبلها بيوم', 'إشعار مساء اليوم السابق للأعياد وبدايات الأصوام', settings.feastReminders, (v) {
+            settings.feastReminders = v;
+            Reminders.sync();
+          }),
+          if (settings.feastReminders)
+            _group(null, [
+              _item('وقت التنبيه', _fmt(settings.feastAt), () async {
+                final m = await _pickMinutes(settings.feastAt);
+                if (m == null) return;
+                settings.feastAt = m;
+                Reminders.sync();
+              }),
+            ]),
           _label('الكتاب المقدس بدون إنترنت'),
           _group(null, [
             if (_progress != null)

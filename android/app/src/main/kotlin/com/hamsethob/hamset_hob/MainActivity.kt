@@ -16,6 +16,8 @@ class MainActivity : AudioServiceActivity() {
 
     private var channel: MethodChannel? = null
     private var launchRef: Map<String, Int>? = null
+    /** الصلاة اللي إشعار التذكير فتح التطبيق عشانها (رقمها في الأجبية). */
+    private var launchPrayer: String? = null
     private var levels: AudioLevels? = null
     private var micResult: MethodChannel.Result? = null
     /** اتفتح من زرار التشغيل في ويدجت الإذاعة: Flutter بيسأل عنه أول ما يبدأ. */
@@ -30,6 +32,7 @@ class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         launchRef = refFrom(intent)
+        launchPrayer = intent?.getStringExtra(Reminders.EXTRA_PRAYER)
         pendingResume = intent?.action == RadioWidget.ACTION_RESUME
         val lv = AudioLevels(applicationContext).also { levels = it }
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/levels").setStreamHandler(lv)
@@ -93,6 +96,14 @@ class MainActivity : AudioServiceActivity() {
                         result.success(pendingResume)
                         pendingResume = false
                     }
+                    "scheduleReminders" -> {
+                        Reminders.save(ctx, call.argument<List<*>>("list") ?: emptyList<Any>())
+                        result.success(null)
+                    }
+                    "takeLaunchPrayer" -> {
+                        result.success(launchPrayer)
+                        launchPrayer = null
+                    }
                     "takeLaunchRef" -> {
                         result.success(launchRef)
                         launchRef = null
@@ -119,6 +130,7 @@ class MainActivity : AudioServiceActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         refFrom(intent)?.let { channel?.invokeMethod("openRef", it) }
+        intent.getStringExtra(Reminders.EXTRA_PRAYER)?.let { channel?.invokeMethod("openPrayer", it) }
         if (intent.action == RadioWidget.ACTION_RESUME) channel?.invokeMethod("resumeRadio", null)
     }
 

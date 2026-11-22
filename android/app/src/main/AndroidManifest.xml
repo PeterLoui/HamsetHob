@@ -109,6 +109,7 @@
         <!-- تحديث يومي ورسالة الصباح وإعادة الجدولة بعد إعادة التشغيل -->
         <receiver android:name=".DailyReceiver" android:exported="false" />
         <receiver android:name=".MorningReceiver" android:exported="false" />
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

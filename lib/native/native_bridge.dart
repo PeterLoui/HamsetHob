@@ -42,6 +42,23 @@ class NativeBridge {
   static Future<void> scheduleMorning(bool enabled, int minutes) =>
       _call('scheduleMorning', {'enabled': enabled, 'minutes': minutes});
 
+  /// يجدول تذكيرات الصلاة والأعياد (بيلغي القديم). كل عنصر: id وtitle وbody وإما minutes (يومي) أو at (ميلي ثانية).
+  static Future<void> scheduleReminders(List<Map<String, Object?>> list) => _call('scheduleReminders', {'list': list});
+
+  /// الصلاة اللي اتفتح بيها التطبيق من إشعار تذكير، إن وُجدت.
+  static Future<String?> takeLaunchPrayer() async {
+    try {
+      return await _channel.invokeMethod<String>('takeLaunchPrayer');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// إشعار تذكير اتضغط والتطبيق مفتوح.
+  static void Function(String prayerId)? onOpenPrayer;
+
   /// الآية التي فُتح بها التطبيق من الويدجت أو الإشعار، إن وُجدت.
   static Future<VerseRef?> takeLaunchRef() async {
     final m = await _channel.invokeMapMethod<String, int>('takeLaunchRef');
@@ -62,6 +79,7 @@ class NativeBridge {
   static void onLaunchRef(void Function(VerseRef) handler) {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'resumeRadio') onResumeRadio?.call();
+      if (call.method == 'openPrayer') onOpenPrayer?.call(call.arguments as String);
       if (call.method == 'openRef') {
         final m = (call.arguments as Map).cast<String, int>();
         handler(VerseRef(m['book']!, m['chapter'] ?? 1, m['verse'] ?? 1));

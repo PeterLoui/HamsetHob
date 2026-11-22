@@ -6,6 +6,7 @@ import '../core/coptic.dart';
 import '../data/bible.dart';
 import '../data/meditations.dart';
 import '../data/prayers.dart';
+import '../data/reminders.dart';
 import '../data/store.dart';
 import '../data/tasbeha.dart';
 import '../native/native_bridge.dart';
@@ -173,8 +174,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     NativeBridge.takeLaunchRef().then((ref) {
       if (ref != null) _open(ChapterOverlay(ref));
     });
+    // إشعار تذكير الصلاة بيفتح الصلاة نفسها
+    NativeBridge.onOpenPrayer = _openPrayerById;
+    NativeBridge.takeLaunchPrayer().then((id) {
+      if (id != null) _openPrayerById(id);
+    });
     final s = AppSettings.instance;
     NativeBridge.scheduleMorning(s.morningEnabled, s.morningMinutes);
+    Reminders.sync();
   }
 
   @override
@@ -182,10 +189,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) _checkDay();
   }
 
+  Future<void> _openPrayerById(String id) async {
+    final agpeya = await AgpeyaRepository.instance.load();
+    final prayer = agpeya.hours.where((p) => p.id == id).firstOrNull;
+    if (prayer != null && mounted) _open(AgpeyaPrayerOverlay(prayer));
+  }
+
   void _checkDay() {
     final now = DateTime.now();
     if (!mounted || dateOnly(now) == dateOnly(_today)) return;
     setState(() => _today = now);
+    Reminders.sync(); // نافذة الأعياد القادمة بتتحرك مع اليوم
   }
 
   @override
