@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
+import '../../data/sermon_downloads.dart';
 import '../../data/sermons.dart';
 import '../fluid_light.dart';
 import '../glass.dart';
@@ -42,6 +43,7 @@ class _RadioScreenState extends State<RadioScreen> {
   void initState() {
     super.initState();
     _load(reset: true);
+    SermonDownloads.instance.addListener(_onDownloads);
     _scroll.addListener(() {
       if (_scroll.position.extentAfter < 600 && _page < _totalPages) _load(reset: false);
     });
@@ -49,12 +51,40 @@ class _RadioScreenState extends State<RadioScreen> {
 
   @override
   void dispose() {
+    SermonDownloads.instance.removeListener(_onDownloads);
     _scroll.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
+  /// تبويب «المحمّلة»: بيشتغل من غير نت وبيتفلتر محلياً.
+  static const _downloadsTab = -1;
+
+  int _seenCount = SermonDownloads.instance.count;
+
+  /// عظة اتحذفت (أو اتضافت) وإحنا واقفين في «المحمّلة»: القايمة تتحدّث.
+  void _onDownloads() {
+    final n = SermonDownloads.instance.count;
+    if (n == _seenCount) return;
+    _seenCount = n;
+    if (_category == _downloadsTab && mounted) _showDownloads();
+  }
+
+  void _showDownloads() {
+    final q = _query.trim();
+    setState(() {
+      _loading = false;
+      _failed = false;
+      _page = 1;
+      _totalPages = 1;
+      _sermons
+        ..clear()
+        ..addAll(SermonDownloads.instance.sermons.where((s) => q.isEmpty || s.title.contains(q) || s.summary.contains(q)));
+    });
+  }
+
   Future<void> _load({required bool reset}) async {
+    if (_category == _downloadsTab) return _showDownloads();
     if (_loading && !reset) return;
     final category = _category, query = _query, target = reset ? 1 : _page + 1;
     setState(() {
@@ -91,10 +121,11 @@ class _RadioScreenState extends State<RadioScreen> {
           height: 44,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: sermonCategories.length,
+            itemCount: sermonCategories.length + 1,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, i) {
-              final cat = sermonCategories[i];
+              // أول تبويب: العظات المحمّلة على الجهاز
+              final cat = i == 0 ? const SermonCategory(_downloadsTab, 'المحمّلة') : sermonCategories[i - 1];
               return AppChip(
                 label: cat.name,
                 selected: cat.id == _category,
@@ -118,8 +149,16 @@ class _RadioScreenState extends State<RadioScreen> {
           },
         ),
         const SizedBox(height: 12),
-        if (_failed && _sermons.isEmpty) Text('تعذّر تحميل العظات، تأكد من الاتصال بالإنترنت', style: TextStyle(color: c.textSoft)),
-        if (!_loading && !_failed && _sermons.isEmpty) Text('لا توجد عظات مطابقة', style: TextStyle(color: c.textSoft)),
+        if (_category == _downloadsTab) _DownloadsSummary(onChanged: _showDownloads),
+        if (_failed && _sermons.isEmpty)
+          Text(
+              SermonDownloads.instance.count > 0
+                  ? 'تعذّر تحميل العظات، تأكد من الاتصال بالإنترنت، أو افتح «المحمّلة» لسماع العظات المحمّلة'
+                  : 'تعذّر تحميل العظات، تأكد من الاتصال بالإنترنت',
+              style: TextStyle(color: c.textSoft)),
+        if (!_loading && !_failed && _sermons.isEmpty)
+          Text(_category == _downloadsTab ? 'ما حمّلتش عظات لسه. اضغط على سهم التحميل جنب أي عظة.' : 'لا توجد عظات مطابقة',
+              style: TextStyle(color: c.textSoft)),
         for (final s in _sermons) ...[_SermonRow(sermon: s), const SizedBox(height: 10)],
         if (_loading) const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())),
       ],
@@ -211,7 +250,7 @@ class _SermonRow extends StatelessWidget {
     final c = context.colors;
     final player = RadioPlayer.instance;
     return ListenableBuilder(
-      listenable: player,
+      listenable: Listenable.merge([player, SermonDownloads.instance]),
       builder: (context, _) {
         final current = player.nowPlaying?.id == sermon.id;
         return GlassPanel(
@@ -240,6 +279,109 @@ class _SermonRow extends StatelessWidget {
                   Text(sermon.summary,
                       maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, height: 1.5, color: c.textSoft)),
               ]),
+            ),
+            _DownloadButton(sermon: sermon),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+/// زرار التحميل في صف العظة: سهم، شريط تقدّم بيتلغي بالضغط، أو علامة «محمّلة» بتتمسح بالضغط.
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.sermon});
+  final Sermon sermon;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final d = SermonDownloads.instance;
+    final id = sermon.id;
+    if (d.has(id)) {
+      return RoundAction(
+        size: 40,
+        tooltip: 'محمّلة على الجهاز، اضغط للحذف',
+        icon: Icon(Icons.download_done_rounded, size: 20, color: c.live),
+        onTap: () => _confirmDelete(context, sermon),
+      );
+    }
+    if (d.isDownloading(id)) {
+      final p = d.progressOf(id) ?? 0;
+      return RoundAction(
+        size: 40,
+        tooltip: 'إلغاء التحميل',
+        icon: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2, value: p > 0 ? p : null, color: c.live),
+        ),
+        onTap: () => d.cancel(id),
+      );
+    }
+    return RoundAction(
+      size: 40,
+      tooltip: d.failed(id) ? 'فشل التحميل، حاول تاني' : 'تحميل العظة لسماعها من غير نت',
+      icon: Icon(d.failed(id) ? Icons.refresh_rounded : Icons.download_rounded, size: 20, color: c.textSoft),
+      onTap: () => d.download(sermon),
+    );
+  }
+}
+
+Future<void> _confirmDelete(BuildContext context, Sermon s) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('حذف العظة من الجهاز؟'),
+      content: Text(s.title, maxLines: 3, overflow: TextOverflow.ellipsis),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
+      ],
+    ),
+  );
+  if (ok == true) await SermonDownloads.instance.delete(s.id);
+}
+
+/// في تبويب «المحمّلة»: كام عظة وحجمهم، وزرار حذف الكل.
+class _DownloadsSummary extends StatelessWidget {
+  const _DownloadsSummary({required this.onChanged});
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final d = SermonDownloads.instance;
+    return ListenableBuilder(
+      listenable: d,
+      builder: (context, _) {
+        if (d.count == 0) return const SizedBox.shrink();
+        final mb = (d.totalBytes / (1024 * 1024)).round();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(children: [
+            Expanded(
+              child: Text('${ar(d.count)} ${d.count == 1 ? 'عظة' : 'عظات'} • ${ar(mb)} ميجا على الجهاز',
+                  style: TextStyle(fontSize: 12, color: c.textFaint)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('حذف كل العظات المحمّلة؟'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف الكل')),
+                    ],
+                  ),
+                );
+                if (ok == true) {
+                  await d.deleteAll();
+                  onChanged();
+                }
+              },
+              child: Text('حذف الكل', style: TextStyle(color: c.textSoft)),
             ),
           ]),
         );

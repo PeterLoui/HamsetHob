@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/prayers.dart' show Station, stations;
 import '../native/native_bridge.dart';
+import '../data/sermon_downloads.dart';
 import '../data/sermons.dart';
 
 class NowPlaying {
@@ -337,6 +338,9 @@ class RadioPlayer extends ChangeNotifier {
     try {
       await _start(await _repo.random(radioCategory));
     } catch (_) {
+      // من غير نت: البث المتواصل بيدوّر على العظات المحمّلة
+      final saved = SermonDownloads.instance.sermons;
+      if (saved.isNotEmpty) return _start(saved[math.Random().nextInt(saved.length)]);
       error = 'تعذّر الاتصال بمكتبة العظات';
       notifyListeners();
     }
@@ -351,9 +355,11 @@ class RadioPlayer extends ChangeNotifier {
     notifyListeners();
     _attempts = 0;
     try {
-      final url = await _repo.audioUrl(s);
+      // العظة المحمّلة بتشتغل من الملف، من غير نت
+      final local = SermonDownloads.instance.pathOf(s.id);
+      final uri = local != null ? Uri.file(local) : Uri.parse(await _repo.audioUrl(s));
       await _load(AudioSource.uri(
-        Uri.parse(url),
+        uri,
         tag: MediaItem(
           id: '${s.id}',
           title: s.title,
