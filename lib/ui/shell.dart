@@ -30,6 +30,8 @@ import 'screens/reading_plans.dart';
 import 'screens/readings.dart';
 import 'screens/tasbeha.dart';
 import 'screens/study.dart';
+import 'screens/nativity.dart';
+import '../core/season.dart';
 import '../data/study.dart';
 import '../data/quiz.dart';
 import '../data/reading_plans.dart';
@@ -117,6 +119,10 @@ class ReadingPlansOverlay extends SubScreen {
 class ReadingPlanOverlay extends SubScreen {
   const ReadingPlanOverlay(this.plan);
   final ReadingPlan plan;
+}
+
+class NativityOverlay extends SubScreen {
+  const NativityOverlay();
 }
 
 class StudyBookOverlay extends SubScreen {
@@ -311,6 +317,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenBooks: () => _open(const BooksOverlay()),
             onOpenTasbeha: () => _open(const TasbehaOverlay()),
             onVerseLoaded: _syncWidgets,
+            onOpenNativity: () => _open(const NativityOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -375,6 +382,19 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        NativityOverlay() => NativityScreen(
+            today: _today,
+            onBack: _back,
+            onOpenTasbeha: () => _open(const TasbehaOverlay()),
+            onOpenReadings: () {
+              _overlays.clear();
+              setState(() => _tab = 2);
+            },
+            onOpenProphecy: () {
+              final s = NativitySeason.of(_today);
+              if (s.inFast) _open(ChapterOverlay(NativitySeason.verseForDay(s.dayOfFast)));
+            },
+          ),
         StudyBookOverlay(:final book) => StudyBookScreen(
             book: book,
             onBack: _back,

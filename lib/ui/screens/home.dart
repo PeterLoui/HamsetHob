@@ -9,7 +9,9 @@ import '../../core/synaxarium.dart';
 import '../../data/bible.dart';
 import '../../data/katameros.dart';
 import '../../data/meditations.dart';
+import '../../core/season.dart';
 import '../../data/demiana.dart';
+import '../season_widgets.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
 import '../../native/calendar_widget.dart';
@@ -36,6 +38,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenBooks,
     required this.onOpenTasbeha,
     required this.onVerseLoaded,
+    required this.onOpenNativity,
   });
 
   final DateTime today;
@@ -44,6 +47,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
+  final VoidCallback onOpenNativity;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -180,7 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final v = _verse;
     final gospel = _readings?.liturgyGospel;
 
-    return ListView(
+    final season = NativitySeason.of(today);
+    final list = ListView(
       padding: EdgeInsets.fromLTRB(24, MediaQuery.paddingOf(context).top + 8, 24, 24),
       children: [
         Row(children: [
@@ -226,6 +231,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ]),
         ),
+        if (season.active || season.comingSoon) ...[
+          NativityCard(season: season, onTap: widget.onOpenNativity),
+          const SizedBox(height: 4),
+        ],
         const _Ornament(),
         Text('رسالة اليوم', style: TextStyle(fontSize: 13, color: c.textFaint)),
         const SizedBox(height: 4),
@@ -288,6 +297,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],
     );
+    if (!season.active && !season.comingSoon) return list;
+    // موسم الميلاد: سماء بنجوم ورا المحتوى
+    return Stack(children: [
+      Positioned(left: 0, right: 0, top: 0, child: SeasonSky(height: MediaQuery.paddingOf(context).top + 330)),
+      list,
+    ]);
   }
 }
 
