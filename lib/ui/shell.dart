@@ -219,7 +219,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (yes) _checkUpdate(force: true);
     });
     Updater.instance.init().then((_) {
-      if (s.autoUpdate) _checkUpdate();
+      // أول ما يتفتح التطبيق: لو فيه نسخة جديدة يسأل «تحديث الآن» ولا «لاحقاً»، وبيسأل تاني في كل فتحة لحد ما يتحدّث
+      if (s.autoUpdate) _checkUpdate(force: true);
     });
   }
 
