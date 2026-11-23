@@ -198,10 +198,13 @@ class NavTab {
   const NavTab({required this.label, required this.icon});
 }
 
-/// ارتفاع الشريط السفلي بدون مساحة النظام.
-double bottomBarHeight(BuildContext context) => 64.0;
+/// ارتفاع الشريط السفلي العائم (الكبسولة + المسافة تحتها) بدون مساحة النظام.
+double bottomBarHeight(BuildContext context) => _barHeight + _barGap + 8;
 
-/// الشريط السفلي: شريط ثابت بخط رفيع فوقه.
+const _barHeight = 64.0;
+const _barGap = 14.0;
+
+/// الشريط السفلي العائم: كبسولة فوق المحتوى. التبويب المفتوح حبة ملونة فيها الأيقونة والاسم، والباقي أيقونات.
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final List<NavTab> tabs;
@@ -218,116 +221,58 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final safe = MediaQuery.paddingOf(context).bottom;
-    // التبويب المفتوح: وهج ورا الأيقونة، أصفر زي ضوء الشمعة في الداكن وأحمر في الفاتح.
-    final on = c.text;
-    return Container(
-      height: 64 + safe,
-      padding: EdgeInsets.only(bottom: safe),
-      decoration: BoxDecoration(color: c.navBar, border: Border(top: BorderSide(color: c.hairline))),
-      child: Row(children: [
-        for (var i = 0; i < tabs.length; i++)
-          Expanded(
-            child: Semantics(
+    final onPill = c.isDark ? const Color(0xFF14120F) : Colors.white;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(14, 0, 14, safe + _barGap),
+      child: Container(
+        height: _barHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: c.card.withValues(alpha: .97),
+          borderRadius: BorderRadius.circular(_barHeight / 2),
+          border: Border.all(color: c.hairline),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: c.isDark ? .5 : .16),
+              blurRadius: 26,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          for (var i = 0; i < tabs.length; i++)
+            Semantics(
               selected: i == selectedIndex,
               button: true,
+              label: tabs[i].label,
               child: InkResponse(
                 onTap: () => onTabSelected(i),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _GlowIcon(on: i == selectedIndex, color: c.navGlow, idle: c.textFaint, child: tabs[i].icon),
-                  const SizedBox(height: 2),
-                  Text(tabs[i].label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: i == selectedIndex ? FontWeight.w500 : FontWeight.w400,
-                        color: i == selectedIndex ? on : c.textFaint,
-                      )),
-                ]),
+                radius: 28,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  height: 48,
+                  constraints: const BoxConstraints(minWidth: 42),
+                  padding: EdgeInsets.symmetric(horizontal: i == selectedIndex ? 12 : 4),
+                  decoration: BoxDecoration(
+                    color: i == selectedIndex ? c.navGlow : Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: i == selectedIndex ? [BoxShadow(color: c.navGlow.withValues(alpha: .33), blurRadius: 18)] : const [],
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                    IconTheme(
+                      data: IconThemeData(color: i == selectedIndex ? onPill : c.textFaint, size: 24),
+                      child: tabs[i].icon,
+                    ),
+                    if (i == selectedIndex) ...[
+                      const SizedBox(width: 7),
+                      Text(tabs[i].label, maxLines: 1, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: onPill)),
+                    ],
+                  ]),
+                ),
               ),
             ),
-          ),
-      ]),
-    );
-  }
-}
-
-/// أيقونة التبويب: لما يكون مفتوح بيتلوّن ويطلع وراه وهج ناعم بيرمش ببطء زي لهب الشمعة.
-class _GlowIcon extends StatefulWidget {
-  const _GlowIcon({required this.on, required this.color, required this.idle, required this.child});
-  final bool on;
-  final Color color, idle;
-  final Widget child;
-
-  @override
-  State<_GlowIcon> createState() => _GlowIconState();
-}
-
-class _GlowIconState extends State<_GlowIcon> with SingleTickerProviderStateMixin {
-  late final _flicker = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
-
-  @override
-  void initState() {
-    super.initState();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_GlowIcon old) {
-    super.didUpdateWidget(old);
-    if (old.on != widget.on) _sync();
-  }
-
-  void _sync() {
-    final still = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
-    if (widget.on && !still) {
-      _flicker.repeat(reverse: true);
-    } else {
-      _flicker.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _flicker.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(end: widget.on ? 1 : 0),
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-      builder: (context, t, _) => AnimatedBuilder(
-        animation: _flicker,
-        builder: (context, _) {
-          // الوهج بيتنفّس بين ٨٥٪ و١٠٠٪
-          final g = t * (.85 + .15 * Curves.easeInOut.transform(_flicker.value));
-          return SizedBox(
-            width: 44,
-            height: 30,
-            child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
-              if (g > 0)
-                Container(
-                  width: 40,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.rectangle,
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: RadialGradient(colors: [
-                      widget.color.withValues(alpha: .34 * g),
-                      widget.color.withValues(alpha: .12 * g),
-                      widget.color.withValues(alpha: 0),
-                    ], stops: const [0, .55, 1]),
-                    boxShadow: [BoxShadow(color: widget.color.withValues(alpha: .28 * g), blurRadius: 16, spreadRadius: -4)],
-                  ),
-                ),
-              IconTheme(
-                data: IconThemeData(color: Color.lerp(widget.idle, widget.color, t), size: 22),
-                child: widget.child,
-              ),
-            ]),
-          );
-        },
+        ]),
       ),
     );
   }
