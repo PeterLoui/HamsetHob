@@ -22,6 +22,7 @@ import 'screens/home.dart';
 import 'screens/meditation.dart';
 import 'screens/prayers.dart';
 import 'screens/stations.dart';
+import 'pinch_zoom.dart';
 import 'update_dialog.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
@@ -164,6 +165,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppSettings.instance.addListener(_onSettings);
     // مؤقّت واحد لنص الليل مابيشتغلش والتطبيق في الخلفية أو الموبايل نايم، فاليوم كان بيفضل زي ما هو.
     // بنقارن التاريخ كل شوية، وكمان أول ما التطبيق يرجع للواجهة.
     _dayTicker = Timer.periodic(const Duration(seconds: 20), (_) => _checkDay());
@@ -231,8 +233,19 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     Reminders.sync(); // نافذة الأعياد القادمة بتتحرك مع اليوم
   }
 
+  double _scale = AppSettings.instance.readingScale;
+
+  /// حجم الخط اتغيّر (بالقرص أو من الخيارات): الشاشات بتقراه وقت الرسم، فنعيد بناء المحتوى.
+  void _onSettings() {
+    final s = AppSettings.instance.readingScale;
+    if (s == _scale) return;
+    _scale = s;
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    AppSettings.instance.removeListener(_onSettings);
     WidgetsBinding.instance.removeObserver(this);
     _dayTicker?.cancel();
     super.dispose();
@@ -364,7 +377,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           const Positioned.fill(child: Wallpaper()),
           Positioned.fill(
             // المحتوى بيبدأ تحت منطقة التلاشي، فالتغبيش يلمس بس اللي بيطلع لفوق وأنت بتعمل سكرول
-            child: MediaQuery(
+            // قرص بإصبعين يكبّر ويصغّر خط القراءة في كل الشاشات
+            child: PinchZoom(
+              child: MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 padding: MediaQuery.paddingOf(context).copyWith(top: MediaQuery.paddingOf(context).top + StatusBarFade.fade),
               ),
@@ -394,6 +409,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         },
                       ),
               ),
+            ),
             ),
           ),
           const Positioned(left: 0, right: 0, top: 0, child: StatusBarFade()),
