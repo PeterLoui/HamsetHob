@@ -6,6 +6,7 @@ import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
 import '../../data/katameros.dart';
 import '../../data/net.dart' show normalizeArabic;
+import '../../data/demiana.dart';
 import '../../data/saint_images.dart';
 import '../glass.dart';
 import '../theme.dart';
@@ -213,7 +214,7 @@ class SynaxariumScreen extends StatefulWidget {
 
 class _SynaxariumScreenState extends State<SynaxariumScreen> {
   late DateTime _date = widget.start;
-  late Future<DayReadings> _future = KatamerosRepository.instance.day(_date);
+  late Future<List<SaintStory>> _future = synaxariumStories(_date);
 
   @override
   Widget build(BuildContext context) {
@@ -233,15 +234,15 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
           date: _date,
           onChange: (d) => setState(() {
             _date = d;
-            _future = KatamerosRepository.instance.day(d);
+            _future = synaxariumStories(d);
           }),
         ),
         const SizedBox(height: 16),
-        FutureBuilder<DayReadings>(
+        FutureBuilder<List<SaintStory>>(
           future: _future,
           builder: (context, snap) {
             if (snap.hasError) return Text('تعذّر تحميل السنكسار، تأكد من الاتصال بالإنترنت', style: TextStyle(color: c.textSoft));
-            final stories = snap.data?.synaxarium;
+            final stories = snap.data;
             if (stories == null) return const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()));
             if (stories.isEmpty) return Text('لا يوجد سنكسار لهذا اليوم', style: TextStyle(color: c.textSoft));
             // التذكار الأساسي لليوم ليه صورة متراجعة (ويكيميديا)، والباقي بيتدوّر عليه بالاسم في نفس الجدول (ويكيميديا)

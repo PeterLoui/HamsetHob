@@ -9,6 +9,7 @@ import '../../core/synaxarium.dart';
 import '../../data/bible.dart';
 import '../../data/katameros.dart';
 import '../../data/meditations.dart';
+import '../../data/demiana.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
 import '../../native/calendar_widget.dart';
@@ -50,6 +51,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DayReadings? _readings;
+  List<SaintStory>? _stories;
+  FatherSaying? _saying;
+  int _sayingShift = 0;
   DailyVerse? _verse;
   bool _verseFailed = false;
 
@@ -66,6 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // يوم جديد: نشيل تذكار ورسالة امبارح فوراً بدل ما يفضلوا ظاهرين لحد ما الجديد يتحمّل
       setState(() {
         _readings = null;
+        _stories = null;
+        _saying = null;
+        _sayingShift = 0;
         _verse = null;
       });
       _load();
@@ -100,10 +107,19 @@ class _HomeScreenState extends State<HomeScreen> {
     await CalendarWidgetSync.sync(widget.today, full: com, imageUrl: url);
   }
 
-  /// قراءات اليوم (ومنها اسم قديس السنكسار). لو الشبكة مش موجودة بنجرّب تاني كل نص دقيقة.
+  /// قراءات اليوم (إنجيل القداس) وسنكسار اليوم من st-demiana.com وقول للآباء. لو الشبكة مش موجودة بنجرّب تاني كل نص دقيقة.
   void _loadReadings() {
     _retry?.cancel();
     final day = dateOnly(widget.today);
+    synaxariumStories(day).then((st) {
+      if (mounted && dateOnly(widget.today) == day) {
+        setState(() => _stories = st);
+        _syncCalendarWidget();
+      }
+    }).catchError((_) {
+      if (mounted && dateOnly(widget.today) == day) _retry = Timer(const Duration(seconds: 30), _loadReadings);
+    });
+    _loadSaying();
     KatamerosRepository.instance.day(day).then((r) {
       if (mounted && dateOnly(widget.today) == day) {
         setState(() => _readings = r);
@@ -112,6 +128,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }).catchError((_) {
       if (mounted && dateOnly(widget.today) == day) _retry = Timer(const Duration(seconds: 30), _loadReadings);
     });
+  }
+
+  Future<void> _loadSaying({bool next = false}) async {
+    if (next) _sayingShift++;
+    final day = dateOnly(widget.today);
+    try {
+      final f = await DemianaRepository.instance.sayingFor(widget.today, shift: _sayingShift);
+      if (mounted && dateOnly(widget.today) == day) setState(() => _saying = f);
+    } catch (_) {/* القول إضافة: لو مش متاح مابنعرضش حاجة */}
   }
 
   Future<void> _loadVerse({bool forceNew = false}) async {
@@ -129,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Commemoration get _commemoration {
     final local = Synaxarium.forDate(widget.today);
-    final stories = _readings?.synaxarium ?? const [];
+    final stories = _stories ?? const <SaintStory>[];
     if (local.generic && stories.isNotEmpty) {
       final more = stories.length - 1;
       return Commemoration(
@@ -242,6 +267,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ])
         else
           const SizedBox(height: 80, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+        if (_saying != null) ...[
+          const SizedBox(height: 18),
+          _SayingCard(saying: _saying!, onNext: () => _loadSaying(next: true)),
+        ],
         const SizedBox(height: 20),
         MeditationCard(today: today, onOpen: widget.onOpenMeditation),
         const SizedBox(height: 16),
@@ -576,6 +605,32 @@ class PlayButton extends StatelessWidget {
             ? SizedBox(width: size * .45, height: size * .45, child: CircularProgressIndicator(strokeWidth: 2, color: c.onLive))
             : AppIconView(player.isPlaying ? AppIcon.pause : AppIcon.play, size: size * .5, color: c.onLive),
       ),
+    );
+  }
+}
+
+
+/// قول من أقوال الآباء تحت رسالة اليوم (من st-demiana.com).
+class _SayingCard extends StatelessWidget {
+  const _SayingCard({required this.saying, required this.onNext});
+  final FatherSaying saying;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 6, 8),
+      decoration: BoxDecoration(border: Border(right: BorderSide(color: c.accent, width: 3))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('من أقوال الآباء', style: TextStyle(fontSize: 12, color: c.textFaint)),
+        const SizedBox(height: 4),
+        Text('«${saying.text}»', style: context.scripture(size: 18)),
+        Row(children: [
+          Expanded(child: Text(saying.father, style: TextStyle(fontSize: 13, color: c.accent))),
+          RoundAction(icon: Icon(Icons.refresh, color: c.textFaint, size: 20), onTap: onNext, tooltip: 'قول آخر'),
+        ]),
+      ]),
     );
   }
 }
