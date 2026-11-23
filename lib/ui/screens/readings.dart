@@ -244,7 +244,7 @@ class _SynaxariumScreenState extends State<SynaxariumScreen> {
             final stories = snap.data?.synaxarium;
             if (stories == null) return const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()));
             if (stories.isEmpty) return Text('لا يوجد سنكسار لهذا اليوم', style: TextStyle(color: c.textSoft));
-            // التذكار الأساسي لليوم ليه صورة متراجعة (ويكيميديا)، والباقي بيتدوّر عليه في صفحة اليوم على st-takla
+            // التذكار الأساسي لليوم ليه صورة متراجعة (ويكيميديا)، والباقي بيتدوّر عليه بالاسم في نفس الجدول (ويكيميديا)
             final local = Synaxarium.forDate(_date);
             return Column(children: [
               for (final (i, s) in stories.indexed) ...[

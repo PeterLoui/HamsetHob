@@ -6,7 +6,7 @@ import '../../core/coptic.dart' show ar;
 import '../../data/quiz.dart';
 import '../../data/study.dart';
 import '../glass.dart';
-import '../study_wheel.dart';
+import '../study_path.dart';
 import '../theme.dart';
 
 EdgeInsets _pad(BuildContext context) {
@@ -55,7 +55,15 @@ class _StudyScreenState extends State<StudyScreen> {
             AppSegmented(labels: const ['الدراسة', 'المسابقات'], selectedIndex: _mode, onSelected: (i) => setState(() => _mode = i)),
             const SizedBox(height: 18),
             if (_mode == 0)
-              _StudyHome(cat: cat, prog: prog, onOpenBook: widget.onOpenBook, onOpenDoc: widget.onOpenDoc, onOpenGuide: widget.onOpenGuide)
+              _StudyHome(
+                  cat: cat,
+                  prog: prog,
+                  bank: bank,
+                  qprog: qprog,
+                  onOpenBook: widget.onOpenBook,
+                  onOpenDoc: widget.onOpenDoc,
+                  onOpenGuide: widget.onOpenGuide,
+                  onOpenQuiz: widget.onOpenQuiz)
             else
               _QuizHome(cat: cat, bank: bank, qprog: qprog, onOpenQuiz: widget.onOpenQuiz),
           ],
@@ -65,38 +73,40 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 }
 
-// ───────────────────────── الدراسة: العجلة ─────────────────────────
+// ───────────────────────── الدراسة: الطريق ─────────────────────────
 
 class _StudyHome extends StatefulWidget {
-  const _StudyHome({required this.cat, required this.prog, required this.onOpenBook, required this.onOpenDoc, required this.onOpenGuide});
+  const _StudyHome({
+    required this.cat,
+    required this.prog,
+    required this.bank,
+    required this.qprog,
+    required this.onOpenBook,
+    required this.onOpenDoc,
+    required this.onOpenGuide,
+    required this.onOpenQuiz,
+  });
   final StudyCatalog cat;
   final StudyProgress prog;
+  final QuizBank bank;
+  final QuizProgress qprog;
   final ValueChanged<StudyBook> onOpenBook;
   final void Function(List<StudyDoc> docs, int index, StudyBook? book) onOpenDoc;
   final ValueChanged<StudyGuide> onOpenGuide;
+  final void Function(String title, List<QuizQuestion> questions) onOpenQuiz;
 
   @override
   State<_StudyHome> createState() => _StudyHomeState();
 }
 
-class _StudyHomeState extends State<_StudyHome> with SingleTickerProviderStateMixin {
-  late final WheelLayout _layout = WheelLayout(widget.cat);
-  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
-  String? _group;
+class _StudyHomeState extends State<_StudyHome> {
+  late final Set<String> _open = {_startGroup()};
 
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  void _tap(Offset p, Size size) {
-    final d = p - size.center(Offset.zero);
-    final dist = d.distance;
-    final r = size.shortestSide / 2 - 22;
-    if (dist < r - 46 || dist > r + 24) return;
-    final g = _layout.groupAt(math.atan2(d.dy, d.dx));
-    if (g != null) setState(() => _group = _group == g.group.id ? null : g.group.id);
+  /// المرحلة اللي واقف فيها الدارس تتفتح، وإلا أول مرحلة.
+  String _startGroup() {
+    final key = widget.prog.last;
+    final b = key == null ? null : widget.cat.byId(key.split(':').first);
+    return b?.group ?? widget.cat.groups.first.id;
   }
 
   void _resume() {
@@ -117,112 +127,202 @@ class _StudyHomeState extends State<_StudyHome> with SingleTickerProviderStateMi
   Widget build(BuildContext context) {
     final c = context.colors;
     final cat = widget.cat;
-    final sel = _group == null ? null : cat.groups.firstWhere((g) => g.id == _group);
     return ListenableBuilder(
-      listenable: widget.prog,
+      listenable: Listenable.merge([widget.prog, widget.qprog]),
       builder: (context, _) {
         final done = widget.prog.totalDone;
-        final pct = (done * 100 / cat.totalChapters);
         final lastKey = widget.prog.last;
         final lastBook = lastKey == null ? null : cat.byId(lastKey.split(':').first);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (lastBook != null) ...[
-            GlassPanel(
-              onTap: _resume,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(children: [
-                Icon(Icons.bookmark_outline, color: c.accent),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('كمّل من حيث وقفت', style: TextStyle(fontSize: 12, color: c.textFaint)),
-                    Text(_labelOf(lastKey!, lastBook), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
-                  ]),
-                ),
-                Icon(Icons.chevron_left, color: c.textFaint),
-              ]),
-            ),
-            const SizedBox(height: 16),
-          ],
-          Center(
-            child: LayoutBuilder(builder: (context, box) {
-              final side = math.min(box.maxWidth, 360.0);
-              final size = Size(side, side);
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (d) => _tap(d.localPosition, size),
-                child: SizedBox(
-                  width: side,
-                  height: side,
-                  child: AnimatedBuilder(
-                    animation: _pulse,
-                    builder: (context, _) => CustomPaint(
-                      painter: StudyWheelPainter(
-                        layout: _layout,
-                        progress: widget.prog,
-                        dark: c.isDark,
-                        track: c.hairline,
-                        selected: _group,
-                        pulse: Curves.easeInOut.transform(_pulse.value),
-                      ),
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(side * .28),
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            if (sel == null) ...[
-                              Text('${ar(pct.floor())}٪', style: context.heading(size: 34)),
-                              Text('${ar(done)} من ${ar(cat.totalChapters)} أصحاح',
-                                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: c.textSoft)),
-                            ] else ...[
-                              Text(sel.name, textAlign: TextAlign.center, style: context.heading(size: 22, color: groupColor(sel.id, c.isDark))),
-                              Text('${ar(cat.inGroup(sel.id).length)} سفر', style: TextStyle(fontSize: 12, color: c.textSoft)),
-                            ],
-                          ]),
-                        ),
-                      ),
-                    ),
+          GlassPanel(
+            padding: const EdgeInsets.all(16),
+            onTap: lastBook == null ? null : _resume,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (lastBook != null) ...[
+                Row(children: [
+                  Icon(Icons.local_fire_department_outlined, color: c.honey, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('سراجك واقف عند', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                      Text(_labelOf(lastKey!, lastBook), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
+                    ]),
                   ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(_group == null ? 'المس قوساً لتفتح مجموعة أسفار — الحلقة بتتلوّن كل ما تخلّص أصحاح' : 'اللمس مرة تانية يقفل المجموعة',
-                textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: c.textFaint)),
-          ),
-          const SizedBox(height: 14),
-          // شرائح المجموعات: بديل دقيق للمس على العجلة
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final g in cat.groups)
-              AppChip(label: g.name, selected: _group == g.id, onTap: () => setState(() => _group = _group == g.id ? null : g.id)),
-          ]),
-          const SizedBox(height: 8),
-          if (sel != null)
-            for (final b in cat.inGroup(sel.id)) _BookRow(book: b, prog: widget.prog, color: groupColor(sel.id, c.isDark), onTap: () => widget.onOpenBook(b)),
-          if (sel == null) ...[
-            const SizedBox(height: 20),
-            Text('مداخل عامة', style: TextStyle(fontSize: 13, color: c.textFaint)),
-            const SizedBox(height: 6),
-            for (final g in cat.guides)
-              InkWell(
-                onTap: () => widget.onOpenGuide(g),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 56),
-                  decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
-                  child: Row(children: [
-                    Expanded(child: Text(g.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text))),
-                    Text('${ar(g.pages.length)} صفحة', style: TextStyle(fontSize: 12, color: c.textFaint)),
-                    Icon(Icons.chevron_left, color: c.textFaint, size: 18),
-                  ]),
-                ),
+                  Icon(Icons.chevron_left, color: c.textFaint),
+                ]),
+                const SizedBox(height: 12),
+              ],
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(value: done / cat.totalChapters, minHeight: 5, color: c.honey, backgroundColor: c.chip),
               ),
-          ],
+              const SizedBox(height: 6),
+              Text('${ar(done)} من ${ar(cat.totalChapters)} أصحاح — الطريق بينوّر وراك كل ما تخلّص أصحاح', style: TextStyle(fontSize: 12, color: c.textFaint)),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          // قفز سريع لمرحلة
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: cat.groups.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final g = cat.groups[i];
+                return AppChip(label: g.name, selected: _open.contains(g.id), onTap: () => setState(() => _open.contains(g.id) ? _open.remove(g.id) : _open.add(g.id)));
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final g in cat.groups) _Era(group: g, home: widget, open: _open.contains(g.id), onToggle: () => setState(() => _open.contains(g.id) ? _open.remove(g.id) : _open.add(g.id))),
+          const SizedBox(height: 20),
+          Text('مداخل عامة', style: TextStyle(fontSize: 13, color: c.textFaint)),
+          const SizedBox(height: 6),
+          for (final g in cat.guides)
+            InkWell(
+              onTap: () => widget.onOpenGuide(g),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 56),
+                decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
+                child: Row(children: [
+                  Expanded(child: Text(g.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text))),
+                  Text('${ar(g.pages.length)} صفحة', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                  Icon(Icons.chevron_left, color: c.textFaint, size: 18),
+                ]),
+              ),
+            ),
           const SizedBox(height: 16),
           Text('المصدر: تفاسير ومقدمات القمص أنطونيوس فكري، موقع الأنبا تكلا هيمانوت. بتتحمّل عند أول قراءة وتتحفظ على جهازك.',
               style: TextStyle(fontSize: 11, color: c.textFaint, height: 1.6)),
         ]);
       },
+    );
+  }
+}
+
+/// مرحلة على الطريق: عنوانها وتقدمها، ولما تتفتح بتظهر محطاتها (الأسفار) على طريق متعرّج.
+class _Era extends StatelessWidget {
+  const _Era({required this.group, required this.home, required this.open, required this.onToggle});
+  final StudyGroup group;
+  final _StudyHome home;
+  final bool open;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final books = home.cat.inGroup(group.id);
+    final col = groupColor(group.id, c.isDark);
+    final total = books.fold<int>(0, (a, b) => a + b.chapters);
+    final done = books.fold<int>(0, (a, b) => a + home.prog.doneIn(b));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      InkWell(
+        onTap: onToggle,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
+          child: Row(children: [
+            Container(width: 6, height: 40, decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(3))),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(group.name, style: context.heading(size: 21, color: col)),
+                Text(eraSubtitles[group.id] ?? '', style: TextStyle(fontSize: 12, color: c.textFaint)),
+              ]),
+            ),
+            Text('${ar(done)}/${ar(total)}', style: TextStyle(fontSize: 12, color: c.textFaint)),
+            Icon(open ? Icons.expand_less : Icons.expand_more, color: c.textFaint),
+          ]),
+        ),
+      ),
+      if (open) _EraPath(group: group, books: books, home: home, color: col),
+    ]);
+  }
+}
+
+class _EraPath extends StatelessWidget {
+  const _EraPath({required this.group, required this.books, required this.home, required this.color});
+  final StudyGroup group;
+  final List<StudyBook> books;
+  final _StudyHome home;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return LayoutBuilder(builder: (context, box) {
+      final w = box.maxWidth;
+      final pts = pathPoints(w, books.length);
+      var lit = -1;
+      for (var i = 0; i < books.length; i++) {
+        if (home.prog.doneIn(books[i]) > 0) lit = i;
+      }
+      return SizedBox(
+        height: pathHeight(books.length),
+        child: Stack(children: [
+          Positioned.fill(child: CustomPaint(painter: EraPathPainter(points: pts, lit: lit, honey: c.honey, dim: c.isDark ? const Color(0xFF3A342B) : const Color(0xFFD3C9B6)))),
+          for (var i = 0; i < books.length; i++) _station(context, books[i], pts[i], w, i == lit),
+        ]),
+      );
+    });
+  }
+
+  Widget _station(BuildContext context, StudyBook b, Offset p, double w, bool current) {
+    final c = context.colors;
+    final done = home.prog.doneIn(b);
+    final f = done / b.chapters;
+    final qs = home.bank.inBook(b.id);
+    final starred = qs.isNotEmpty && home.qprog.knownIn(qs) >= math.min(3, qs.length);
+    final onRight = p.dx > w / 2;
+    final labelW = (onRight ? w - p.dx : p.dx) - 30;
+    final label = SizedBox(
+      width: labelW,
+      child: Column(crossAxisAlignment: onRight ? CrossAxisAlignment.start : CrossAxisAlignment.end, children: [
+        Text(b.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: done > 0 ? c.text : c.textSoft)),
+        Text(done == 0 ? '${ar(b.chapters)} أصحاح' : (f >= 1 ? 'تمّ' : '${ar(done)} من ${ar(b.chapters)}'),
+            style: TextStyle(fontSize: 11.5, color: c.textFaint)),
+        // سؤال على الطريق: ٣ أسئلة عن السفر اللي بدأته
+        if (done > 0 && qs.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => home.onOpenQuiz('أسئلة على الطريق: ${b.name}', buildSession(qs, home.qprog, size: 3)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: c.chip, borderRadius: BorderRadius.circular(8), border: Border.all(color: c.hairline)),
+                child: Text(starred ? '★ أسئلة' : '٣ أسئلة', style: TextStyle(fontSize: 11, color: c.honey, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ),
+      ]),
+    );
+    const dotR = 15.0;
+    final dot = StationDot(fraction: f, color: color, bg: c.isDark ? const Color(0xFF14120F) : const Color(0xFFF3EEE4), idle: c.hairline, starred: starred);
+    return Positioned(
+      left: onRight ? p.dx - dotR : null,
+      right: onRight ? null : w - p.dx - dotR,
+      top: p.dy - 28,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => home.onOpenBook(b),
+        child: SizedBox(
+          height: 70,
+          child: Row(
+            textDirection: onRight ? TextDirection.ltr : TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(padding: const EdgeInsets.only(top: 13), child: dot),
+              const SizedBox(width: 10),
+              label,
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -237,45 +337,6 @@ String _labelOf(String key, StudyBook b) {
   if (p.length > 1 && p[1] == 'intro') return 'مقدمة ${b.name}';
   final ch = p.length > 1 ? int.tryParse(p[1]) : null;
   return ch == null ? b.name : '${b.name} ${ar(ch)}';
-}
-
-class _BookRow extends StatelessWidget {
-  const _BookRow({required this.book, required this.prog, required this.color, required this.onTap});
-  final StudyBook book;
-  final StudyProgress prog;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final done = prog.doneIn(book);
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 56),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
-        child: Row(children: [
-          Container(width: 6, height: 34, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(book.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.text)),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(value: done / book.chapters, minHeight: 3, color: color, backgroundColor: color.withValues(alpha: .18)),
-              ),
-            ]),
-          ),
-          const SizedBox(width: 12),
-          Text('${ar(done)}/${ar(book.chapters)}', style: TextStyle(fontSize: 12, color: c.textFaint)),
-          Icon(Icons.chevron_left, color: c.textFaint, size: 18),
-        ]),
-      ),
-    );
-  }
 }
 
 // ───────────────────────── شاشة السفر ─────────────────────────

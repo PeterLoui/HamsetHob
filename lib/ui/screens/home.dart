@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         stories.first.title,
         more > 0 ? 'و${ar(more)} ${more == 1 ? 'تذكار آخر' : 'تذكارات أخرى'} في سنكسار اليوم' : 'سنكسار اليوم',
         Kind.saint,
-        null, // اسم قديس من السنكسار الكامل: صورته من صفحة سنكسار اليوم على st-takla لو موجودة (SaintImages)
+        null, // اسم قديس من السنكسار الكامل: بتتدوّر في جدول ويكيميديا كومنز المتراجع (SaintImages)، ولو مافيش صورة الصليب
       );
     }
     return local;

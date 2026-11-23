@@ -1,25 +1,14 @@
-import 'dart:convert';
-
 import 'package:flutter/painting.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/coptic.dart';
-import 'net.dart';
+import 'net.dart' show normalizeArabic;
 
-/// صورة تذكار اليوم، بالترتيب:
-/// ١. الجدول المتراجع [verified] للأعياد والقديسين المشهورين (ويكيميديا كومنز)، بمفتاح اليوم أو بكلمة في العنوان.
-/// ٢. صور صفحة سنكسار اليوم نفسه على موقع الأنبا تكلا (st-takla.org)، بشرط إن وصف الصورة فيه اسم صاحب التذكار.
+/// صورة تذكار اليوم من ويكيميديا كومنز فقط، من جدول متراجع [verified] بمفتاح اليوم أو بكلمة في عنوان التذكار.
 /// مافيش بحث بالاسم في ويكيبيديا: كان بيجيب لوحات غربية أو شخص تاني، والقاعدة إن الصورة الغلط أسوأ من الصليب.
 /// لو مافيش صورة مؤكدة الواجهة بتعرض الصليب القبطي.
 class SaintImages {
   SaintImages._();
   static final instance = SaintImages._();
-
-  static const _taklaMonths = [
-    'Toot', 'Babah', 'Hatoor', 'Keyahk', 'Topah', 'Amsheer', 'Baramhat',
-    'Bermodah', 'Bashans', 'Bawoonah', 'Abeeb', 'Mesraa', 'Nasea',
-  ];
-  static const _taklaBase = 'https://st-takla.org/Full-Free-Coptic-Books/Synaxarium-or-Synaxarion';
 
   /// كلمات مش جزء من اسم القديس.
   static const _titles = {
@@ -31,12 +20,7 @@ class SaintImages {
     'والده', 'اخته', 'اخيه', 'امه', 'بجبل', 'مدينه',
   };
 
-  static const _missTtl = Duration(days: 7);
-  static const _retryAfterFailure = Duration(minutes: 1);
-
   final _memo = <String, Future<String?>>{};
-  final _taklaMemo = <int, Future<_TaklaDay>>{};
-  final _storyMemo = <String, Future<List<(String, String)>>>{};
 
   /// نفس الطلب بيرجّع نفس الـ Future، فالصورة ماتتحمّلش من جديد مع كل إعادة رسم.
   /// [wikiTitle] مفتاح الجدول المتراجع، [name] عنوان التذكار، [date] اليوم الميلادي.
@@ -45,148 +29,7 @@ class SaintImages {
     if (fixed != null) return _memo.putIfAbsent('v|$wikiTitle', () => Future.value(fixed));
     final c = CopticDate.fromGregorian(date);
     final key = '${c.month}-${c.day}|${normalizeArabic(name)}';
-    return _memo.putIfAbsent(key, () => _lookup(key, c, name));
-  }
-
-  Future<String?> _lookup(String key, CopticDate c, String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cacheKey = 'saint_img3_$key';
-    final cached = prefs.getString(cacheKey);
-    if (cached != null) {
-      if (cached.startsWith('http')) return cached;
-      // «مافيش صورة» بتتجرّب تاني بعد أسبوع، يمكن اتضافت
-      final at = DateTime.fromMillisecondsSinceEpoch(int.tryParse(cached) ?? 0);
-      if (DateTime.now().difference(at) < _missTtl) return null;
-    }
-    var failed = false;
-    String? url = _alias(name);
-    if (url != null) return url;
-    try {
-      final day = await _taklaMemo.putIfAbsent(c.month * 100 + c.day, () => _stTaklaDay(c));
-      url = _pickTakla(day.images, name) ?? await _pickFromStories(day.stories, name);
-    } catch (_) {
-      failed = true;
-      _taklaMemo.remove(c.month * 100 + c.day);
-    }
-    if (url != null) {
-      await prefs.setString(cacheKey, url);
-    } else if (!failed) {
-      await prefs.setString(cacheKey, '${DateTime.now().millisecondsSinceEpoch}');
-    } else {
-      // الشبكة وقعت: مانحفظش «مافيش صورة»، ونجرّب تاني بعد شوية
-      Future.delayed(_retryAfterFailure, () => _memo.remove(key));
-    }
-    return url;
-  }
-
-  /// صور معرض الموقع جوه صفحة سنكسار اليوم ده (كل صورة ومعاها وصفها العربي)، وروابط صفحات سير قديسيه.
-  Future<_TaklaDay> _stTaklaDay(CopticDate c) async {
-    String two(int n) => n.toString().padLeft(2, '0');
-    final month = _taklaMonths[c.month - 1];
-    final page = '$_taklaBase/${two(c.month)}-$month/${two(c.day)}-$month.html';
-    final r = await getRaw(page);
-    if (r.statusCode == 404) return const _TaklaDay([], []);
-    if (r.statusCode >= 400) throw HttpStatusError(r.statusCode);
-    final html = _decode(r.bodyBytes);
-    final base = Uri.parse(page);
-    final stories = <(String, String)>[];
-    for (final m in RegExp(r'<a[^>]+href="([^"]*(?:Coptic-Saints-Story_\d+|Life-of-Coptic-Pope[^"]*))"[^>]*>(.*?)</a>',
-            caseSensitive: false, dotAll: true)
-        .allMatches(html)) {
-      final url = base.resolve(m[1]!).toString();
-      if (stories.every((s) => s.$1 != url)) stories.add((url, stripHtml(m[2]!)));
-    }
-    return _TaklaDay(_images(html, base), stories);
-  }
-
-  /// صور المعرض في صفحة (من غير صور الأسماء المكتوبة)، ومعاها الوصف.
-  static List<(String, String)> _images(String html, Uri base) {
-    final out = <(String, String)>[];
-    for (final m in RegExp('<img[^>]+>', caseSensitive: false).allMatches(html)) {
-      final tag = m[0]!;
-      final src = RegExp('src="([^"]*Gallery/var/(?:resizes|albums)/[^"]+)"', caseSensitive: false).firstMatch(tag)?[1];
-      if (src == null || src.contains('/Words/')) continue; // صور أسماء مكتوبة مش أيقونات
-      final alt = RegExp('alt="([^"]*)"', caseSensitive: false, dotAll: true).firstMatch(tag)?[1] ?? '';
-      out.add((base.resolve(src).toString(), alt));
-    }
-    return out;
-  }
-
-  /// صفحة سيرة قديس: صورها (أول مرة بس، وبعدها من الذاكرة).
-  Future<List<(String, String)>> _storyImages(String url) => _storyMemo.putIfAbsent(url, () async {
-        try {
-          final r = await getRaw(url);
-          if (r.statusCode >= 400) return const [];
-          return _images(_decode(r.bodyBytes), Uri.parse(url));
-        } catch (_) {
-          _storyMemo.remove(url);
-          rethrow;
-        }
-      });
-
-  /// صورة من صفحة سيرة قديس اتذكر في سنكسار اليوم، لو اسمه هو اسم التذكار المعروض ووصف الصورة بيذكره.
-  Future<String?> _pickFromStories(List<(String, String)> stories, String name) async {
-    final keys = nameKeys(name);
-    var tried = 0;
-    for (final (url, text) in stories) {
-      if (!_matches(text, keys)) continue;
-      if (++tried > 3) break;
-      for (final (img, alt) in await _storyImages(url)) {
-        if (_matches(alt, keys)) return img;
-      }
-    }
-    return null;
-  }
-
-  /// صفحات الموقع بترميز windows-1256. بنجرّب UTF-8 الأول لو اتغيّر في يوم.
-  static String _decode(List<int> bytes) {
-    try {
-      return utf8.decode(bytes);
-    } on FormatException {
-      final b = StringBuffer();
-      for (final x in bytes) {
-        b.writeCharCode(switch (x) {
-          < 0x80 => x,
-          >= 0xC1 && <= 0xD6 => 0x0621 + x - 0xC1,
-          >= 0xD8 && <= 0xDB => 0x0637 + x - 0xD8,
-          >= 0xDD && <= 0xDF => 0x0641 + x - 0xDD,
-          0xE1 => 0x0644,
-          >= 0xE3 && <= 0xE6 => 0x0645 + x - 0xE3,
-          0xEC || 0xED => 0x0649 + x - 0xEC,
-          _ => 0x20,
-        });
-      }
-      return b.toString();
-    }
-  }
-
-  /// هيكل الكلمة من غير حروف المد والهمزات، عشان «لنجينوس» تطابق «لونجينوس» و«تيموثاوس» تطابق «تيموثاؤس».
-  static String _skeleton(String w) => normalizeArabic(w).replaceAll(RegExp('[اويءؤئ]'), '');
-
-  /// الصورة اللي وصفها فيه اسم صاحب التذكار المعروض. صفحة اليوم فيها كذا تذكار،
-  /// فمانعرضش صورة قديس تاني من نفس اليوم تحت اسم ده.
-  static String? _pickTakla(List<(String, String)> images, String name) {
-    final keys = nameKeys(name);
-    for (final (url, alt) in images) {
-      if (_matches(alt, keys)) return url;
-    }
-    return null;
-  }
-
-  /// النص بيذكر صاحب التذكار؟ أول كلمة من الاسم لازم تظهر. وأسماء قصيرة شائعة («يوحنا»، «بطرس»، «كيرلس»)
-  /// لازم معاها الكلمة التانية كمان، عشان «يوحنا» ماتطابقش يوحنا تاني. الكلمة اللي هيكلها أقل من ٣ حروف مابتتقبلش.
-  static bool _matches(String text, List<String> keys) {
-    if (keys.isEmpty) return false;
-    final words = normalizeArabic(text).split(RegExp(r'[^ء-ي]+')).map(_skeleton).toSet();
-    bool has(String k) {
-      final s = _skeleton(k);
-      return s.length >= 3 && words.contains(s);
-    }
-
-    if (!has(keys.first)) return false;
-    // الكلمة التانية بتتقارن بس لو صالحة (٣ حروف هيكل على الأقل)
-    final second = keys.skip(1).where((k) => _skeleton(k).length >= 3);
-    return keys.first.length >= 7 || second.isEmpty || has(second.first);
+    return _memo.putIfAbsent(key, () => Future.value(_alias(name)));
   }
 
   /// قديسين وأعياد مشهورين ليهم صورة متراجعة في [verified]، بيتعرفوا من كلمة في عنوان التذكار
@@ -402,11 +245,4 @@ class SaintImages {
     final top = (faceY * shownH - faceAt * boxH).clamp(0.0, overflow);
     return Alignment(0, top / overflow * 2 - 1);
   }
-}
-
-/// صفحة سنكسار اليوم على st-takla: صورها، وروابط سير القديسين المذكورين فيها (الرابط ونصه).
-class _TaklaDay {
-  const _TaklaDay(this.images, this.stories);
-  final List<(String, String)> images;
-  final List<(String, String)> stories;
 }

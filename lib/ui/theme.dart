@@ -30,6 +30,9 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color surface, card, navBar, hairline;
   final Color text, textSoft, textFaint, accent, onAccent, fast, saint, chip;
   final String uiFont;
+
+  /// لون السراج في دراسة الكتاب: عسلي.
+  Color get honey => isDark ? const Color(0xFFE8B04A) : const Color(0xFFB8741A);
   final String headingFont;
 
   factory AppColors.of(bool dark) => dark ? _vigil : _manuscript;
