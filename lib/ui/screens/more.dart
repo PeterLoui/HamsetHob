@@ -181,6 +181,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
           const SizedBox(height: 10),
           _readingSize(),
+          _toggle('القبطي المعرّب', 'يظهر في مربع منفصل تحت العربي في الخولاجي والتسبحة', settings.showCoptic, (v) => settings.showCoptic = v),
           _label('الصوت في الخلفية'),
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),

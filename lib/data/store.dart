@@ -32,6 +32,10 @@ class AppSettings extends ChangeNotifier {
   double get readingScale => _prefs.getDouble('reading_scale') ?? 1.0;
   set readingScale(double v) => _set(() => _prefs.setDouble('reading_scale', v.clamp(0.8, 1.7)));
 
+  /// القبطي المعرّب (بحروف عربية) في الخولاجي والتسبحة، في مربع منفصل تحت العربي.
+  bool get showCoptic => _prefs.getBool('show_coptic') ?? (_prefs.getBool('tasbeha_show_coptic') ?? true);
+  set showCoptic(bool v) => _set(() => _prefs.setBool('show_coptic', v));
+
   bool get lockNotification => _prefs.getBool('lock_notif') ?? true;
   set lockNotification(bool v) => _set(() => _prefs.setBool('lock_notif', v));
 

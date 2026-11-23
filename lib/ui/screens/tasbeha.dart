@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/coptic.dart' show ar;
 import '../../data/store.dart';
 import '../../data/tasbeha.dart';
 import '../../native/native_bridge.dart';
+import '../coptic_box.dart';
 import '../glass.dart';
 import '../theme.dart';
 
@@ -265,8 +265,6 @@ class TasbehaReaderScreen extends StatefulWidget {
 }
 
 class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
-  static const _copticKey = 'tasbeha_show_coptic';
-  static bool? _showCoptic;
   String? _scrub; // اسم اللحن اللي هتوصله وأنت بتسحب الشريط
   Timer? _scrubTimer;
   double _edgeDrag = 0;
@@ -283,11 +281,6 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     super.initState();
     TasbehaRepository.instance.saveLast(_book, _day, _i);
     NativeBridge.keepScreenOn(true);
-    if (_showCoptic == null) {
-      SharedPreferences.getInstance().then((p) {
-        if (mounted) setState(() => _showCoptic = p.getBool(_copticKey) ?? true);
-      });
-    }
   }
 
   void _setScale(double v) {
@@ -353,10 +346,10 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('القبطي المعرّب', style: TextStyle(fontSize: 15, color: c.text)),
-                      Text('تحت كل ربع بخط أصغر', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                      Text('في مربع منفصل تحت كل مقطع من العربي', style: TextStyle(fontSize: 12, color: c.textFaint)),
                     ]),
                   ),
-                  AppSwitch(value: _showCoptic ?? true, label: 'القبطي المعرّب', onChanged: (_) => change(_toggleCoptic)),
+                  AppSwitch(value: AppSettings.instance.showCoptic, label: 'القبطي المعرّب', onChanged: (_) => change(_toggleCoptic)),
                 ]),
                 const SizedBox(height: 12),
                 Align(
@@ -374,20 +367,40 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     );
   }
 
-  void _toggleCoptic() {
-    final v = !(_showCoptic ?? true);
-    setState(() => _showCoptic = v);
-    SharedPreferences.getInstance().then((p) => p.setBool(_copticKey, v));
+  void _toggleCoptic() => setState(() => AppSettings.instance.showCoptic = !AppSettings.instance.showCoptic);
+
+  /// الأسطر مقسّمة لمقاطع: كل ملاحظة طقسية لوحدها، وكل ٤ أسطر عادية مقطع.
+  /// المقطع بيتعرض عربي كامل وتحته القبطي في مربع منفصل، بدل ما سطر عربي يتبعه سطر قبطي.
+  static List<List<TasbehaLine>> _stanzas(List<TasbehaLine> lines) {
+    final out = <List<TasbehaLine>>[];
+    var cur = <TasbehaLine>[];
+    void flush() {
+      if (cur.isNotEmpty) out.add(cur);
+      cur = <TasbehaLine>[];
+    }
+
+    for (final l in lines) {
+      if (l.rubric) {
+        flush();
+        out.add([l]);
+      } else {
+        cur.add(l);
+        if (cur.length == 4) flush();
+      }
+    }
+    flush();
+    return out;
   }
 
-  /// نسخ نص اللحن الحالي (العنوان والعربي، والقبطي المعرّب لو مفعّل).
+  /// نسخ نص اللحن الحالي (العنوان والعربي، والقبطي المعرّب بعد كل مقطع لو مفعّل).
   void _copyCurrent() {
     final p = _pieces[_i];
-    final coptic = _showCoptic ?? true;
-    final body = p.lines.map((l) {
-      if (l.rubric) return l.arabic;
-      return coptic && l.coptic != null ? '${l.arabic}\n${l.coptic}' : l.arabic;
-    }).join('\n');
+    final coptic = AppSettings.instance.showCoptic;
+    final body = _stanzas(p.lines).map((g) {
+      final arabic = g.map((l) => l.arabic).join('\n');
+      final cop = g.map((l) => l.coptic).whereType<String>().join('\n');
+      return coptic && cop.isNotEmpty && !g.first.rubric ? '$arabic\n\n$cop' : arabic;
+    }).join('\n\n');
     Clipboard.setData(ClipboardData(text: '${p.title}\n\n$body'));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ اللحن')));
   }
@@ -444,7 +457,7 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
     final c = context.colors;
     final pad = MediaQuery.paddingOf(context);
     final count = _pieces.length;
-    final coptic = _showCoptic ?? true;
+    final coptic = AppSettings.instance.showCoptic;
     final s = context.readingScale;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return Stack(fit: StackFit.expand, children: [
@@ -513,18 +526,19 @@ class _TasbehaReaderScreenState extends State<TasbehaReaderScreen> {
                 padding: const EdgeInsets.only(bottom: 16),
                 children: [
                   Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(p.title, style: context.heading(size: 21 * s))),
-                  for (final l in p.lines)
+                  for (final g in _stanzas(p.lines))
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: l.rubric
-                          ? Text(l.arabic, style: TextStyle(fontSize: 13 * s, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
-                          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(l.arabic, style: context.scripture(size: 19)),
-                              if (coptic && l.coptic != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(l.coptic!, style: TextStyle(fontSize: 14 * s, height: 1.7, color: c.textFaint)),
-                                ),
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: g.first.rubric
+                          ? Text(g.first.arabic, style: TextStyle(fontSize: 13 * s, height: 1.7, fontWeight: FontWeight.w500, color: c.accent))
+                          : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                              // المقطع بالعربي كامل
+                              Text(g.map((l) => l.arabic).join('\n'), style: context.scripture(size: 19)),
+                              // وتحته القبطي المعرّب في مربع منفصل
+                              if (coptic && g.any((l) => l.coptic != null)) ...[
+                                const SizedBox(height: 8),
+                                CopticBox(g.map((l) => l.coptic).whereType<String>().join('\n')),
+                              ],
                             ]),
                     ),
                   if (i == count - 1) Text('النص: st-takla.org', style: TextStyle(fontSize: 11, color: c.textFaint)),

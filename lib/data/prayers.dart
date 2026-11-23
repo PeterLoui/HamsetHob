@@ -77,10 +77,13 @@ class LiturgyPart {
 }
 
 /// فقرة من القداس. [rubric] = إرشاد طقسي (ما يفعله أو يقوله الكاهن أو الشماس أو الشعب).
+/// [coptic] = نفس الفقرة بالقبطي المكتوب بحروف عربية، لو الموقع عارضه (في عمود جنب العربي).
+/// بيتعرض منفصل تحت العربي مش جواه.
 class LiturgyBlock {
-  const LiturgyBlock(this.text, {this.rubric = false});
+  const LiturgyBlock(this.text, {this.rubric = false, this.coptic});
   final String text;
   final bool rubric;
+  final String? coptic;
 }
 
 /// الخولاجي: القداسات التلاتة محفوظة جوه التطبيق (assets/liturgies.json) فبتتقري من غير نت.
@@ -108,7 +111,8 @@ class LiturgyRepository {
               final part = LiturgyPart(m['t'] as String, m['u'] as String);
               parts.add(part);
               _parts[part.url] = [
-                for (final b in m['b'] as List) LiturgyBlock(b[0] as String, rubric: b[1] == 1),
+                for (final b in m['b'] as List)
+                  LiturgyBlock(b[0] as String, rubric: b[1] == 1, coptic: (b as List).length > 2 ? b[2] as String : null),
               ];
             }
             if (parts.isNotEmpty) _indexes[id] = parts;
@@ -163,6 +167,10 @@ class LiturgyRepository {
   static final _arabic = RegExp(r'[؀-ۿ]');
 
   /// النص بين عنوان الصفحة (<h1>) وروابط الموقع اللي في الآخر.
+  ///
+  /// الصفحات جداول: كل صف فيه أعمدة. الصف العادي «إنجليزي | قبطي بخط خاص | عربي» (العربي لوحده بيتاخد)،
+  /// والصف «عربي | قبطي بحروف عربية» العمودين بيتحفظوا منفصلين: الأول نص والتاني [LiturgyBlock.coptic].
+  /// الفقرات برا الجداول بتتاخد زي ما هي. وسوم <p> غير المقفولة جوه الخلايا (كانت بتدمج العمودين) مش بتأثر.
   static List<LiturgyBlock> parsePart(String html) {
     var body = html;
     final start = body.indexOf('<div id="bodytext"');
@@ -172,20 +180,35 @@ class LiturgyRepository {
     final stop = body.indexOf('الكتاب المقدس (+ بحث');
     if (stop > 0) body = body.substring(0, stop);
 
+    final bold = RegExp(r'^\s*(?:<(?:p|span|font|div)\b[^>]*>\s*)*<(?:b|strong)\b', caseSensitive: false);
+    // صف جدول كامل، أو فقرة برا الجداول (بتقف عند أول وسم يقفلها أو يبدأ حاجة جديدة)
+    final unit = RegExp(
+        r'<tr\b[^>]*>([\s\S]*?)</tr>|<p\b[^>]*>([\s\S]*?)(?=</p>|<p\b|<tr\b|<table\b|</table>|</td>|$)',
+        caseSensitive: false);
+    final cellRe = RegExp(r'<td\b[^>]*>([\s\S]*?)(?=</td>|<td\b|$)', caseSensitive: false);
+
     final blocks = <LiturgyBlock>[];
-    for (final m in RegExp(r'<p\b[^>]*>([\s\S]*?)</p>', caseSensitive: false).allMatches(body)) {
-      final inner = m.group(1)!;
-      final text = _clean(inner);
-      if (text.isEmpty) continue;
-      // سطور الموقع: تقصير الرابط، انظر أيضاً، والترجمة الإنجليزية
-      if (text.contains('tak.la') || text.contains('تقصير الرابط') || text.startsWith('*')) continue;
-      // قايمة روابط الموقع اللي ساعات بتتحشر قبل آخر الصفحة
-      if (text.contains('الكتاب المقدس (+ بحث') || text.contains('| القراءات اليومية |')) continue;
-      final latin = _latin.allMatches(text).length, arabic = _arabic.allMatches(text).length;
-      if (arabic == 0 || latin > arabic) continue;
-      final bold = RegExp(r'^\s*<b\b', caseSensitive: false).hasMatch(inner);
-      final rubric = bold || (!text.startsWith('(') && text.length < 180 && text.endsWith(':'));
-      blocks.add(LiturgyBlock(text, rubric: rubric));
+    for (final m in unit.allMatches(body)) {
+      final isRow = m.group(1) != null;
+      final cells = isRow ? [for (final c in cellRe.allMatches(m.group(1)!)) c.group(1)!] : [m.group(2)!];
+      final items = <(String, bool)>[];
+      var linkOnly = true, anyText = false;
+      for (final inner in cells) {
+        final text = _clean(inner);
+        if (text.isEmpty) continue;
+        anyText = true;
+        if (!(inner.contains(RegExp(r'<a\b', caseSensitive: false)) && text.length < 60)) linkOnly = false;
+        // سطور الموقع: تقصير الرابط، انظر أيضاً، ملاحظات التحرير، وقايمة الروابط اللي في آخر الصفحة
+        if (text.contains('tak.la') || text.contains('تقصير الرابط') || text.startsWith('*') || text.startsWith('←')) continue;
+        if (text.contains('الكتاب المقدس (+ بحث') || text.contains('| القراءات اليومية |')) continue;
+        final latin = _latin.allMatches(text).length, arabic = _arabic.allMatches(text).length;
+        if (arabic == 0 || latin > arabic) continue; // الإنجليزي والقبطي بالخط الخاص
+        items.add((text, bold.hasMatch(inner)));
+      }
+      if (items.isEmpty || (isRow && cells.length > 1 && anyText && linkOnly)) continue; // صف روابط التنقل
+      final (text, isBold) = items.first;
+      final rubric = isBold || (!text.startsWith('(') && text.length < 180 && text.endsWith(':'));
+      blocks.add(LiturgyBlock(text, rubric: rubric, coptic: items.length > 1 ? items[1].$1 : null));
     }
     return blocks;
   }

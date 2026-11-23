@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../core/coptic.dart' show ar;
 import '../../data/prayers.dart';
+import '../../data/store.dart';
+import '../coptic_box.dart';
 import '../glass.dart';
 import '../icons.dart';
 import '../theme.dart';
@@ -276,6 +278,7 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
     _blocks = null;
     final b = await LiturgyRepository.instance.part(widget.parts[_i]);
     _blocks = b;
+    if (mounted) setState(() {}); // زرار القبطي بيظهر بس لو الجزء ده فيه قبطي
     return b;
   }
 
@@ -307,15 +310,26 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
           widget.parts[_i].title,
           subtitle: '${widget.liturgy.title} · ${ar(_i + 1)} من ${ar(widget.parts.length)}',
           onBack: widget.onBack,
-          trailing: IconButton(
-            icon: Icon(Icons.copy_rounded, color: c.text, size: 22),
-            tooltip: 'نسخ',
-            onPressed: () async {
-              final blocks = _blocks ?? await _future.catchError((_) => <LiturgyBlock>[]);
-              if (blocks.isEmpty || !context.mounted) return;
-              copyText(context, '${widget.parts[_i].title}\n\n${blocks.map((b) => b.text).join('\n')}', 'تم نسخ الجزء');
-            },
-          ),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            // القبطي المعرّب بيظهر منفصل تحت العربي، والزرار بيخفيه أو يظهره (لو الجزء ده فيه قبطي)
+            if (_blocks?.any((b) => b.coptic != null) ?? false)
+              IconButton(
+                icon: Icon(Icons.translate, color: AppSettings.instance.showCoptic ? c.accent : c.textFaint, size: 22),
+                tooltip: AppSettings.instance.showCoptic ? 'إخفاء القبطي' : 'إظهار القبطي',
+                onPressed: () => setState(() => AppSettings.instance.showCoptic = !AppSettings.instance.showCoptic),
+              ),
+            IconButton(
+              icon: Icon(Icons.copy_rounded, color: c.text, size: 22),
+              tooltip: 'نسخ',
+              onPressed: () async {
+                final blocks = _blocks ?? await _future.catchError((_) => <LiturgyBlock>[]);
+                if (blocks.isEmpty || !context.mounted) return;
+                final coptic = AppSettings.instance.showCoptic;
+                final body = blocks.map((b) => coptic && b.coptic != null ? '${b.text}\n${b.coptic}' : b.text).join('\n');
+                copyText(context, '${widget.parts[_i].title}\n\n$body', 'تم نسخ الجزء');
+              },
+            ),
+          ]),
         ),
         Expanded(
           child: FutureBuilder<List<LiturgyBlock>>(
@@ -337,9 +351,16 @@ class _LiturgyPartScreenState extends State<LiturgyPartScreen> {
                   for (final b in blocks)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: b.rubric
-                          ? Text(b.text, style: TextStyle(fontSize: 14, height: 1.7, fontWeight: FontWeight.w500, color: c.textFaint))
-                          : Text(b.text, style: context.scripture(size: 19)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        b.rubric
+                            ? Text(b.text, style: TextStyle(fontSize: 14, height: 1.7, fontWeight: FontWeight.w500, color: c.textFaint))
+                            : Text(b.text, style: context.scripture(size: 19)),
+                        // القبطي المعرّب في مربع منفصل تحت العربي
+                        if (AppSettings.instance.showCoptic && b.coptic != null) ...[
+                          const SizedBox(height: 8),
+                          CopticBox(b.coptic!),
+                        ],
+                      ]),
                     ),
                   Text('النص: st-takla.org', style: TextStyle(fontSize: 11, color: c.textFaint)),
                 ],
