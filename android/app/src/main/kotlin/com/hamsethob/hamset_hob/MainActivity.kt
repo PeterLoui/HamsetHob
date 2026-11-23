@@ -113,6 +113,22 @@ class MainActivity : AudioServiceActivity() {
                         result.success(launchUpdate)
                         launchUpdate = false
                     }
+                    "mediaStatus" -> {
+                        // فحص أسباب اختفاء أزرار التشغيل من شاشة القفل وشريط الإشعارات
+                        val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+                        val pm = ctx.getSystemService(android.os.PowerManager::class.java)
+                        val channel = if (Build.VERSION.SDK_INT >= 26) nm.getNotificationChannel("com.hamsethob.radio") else null
+                        result.success(
+                            mapOf(
+                                "notifications" to nm.areNotificationsEnabled(),
+                                // -1: القناة لسه ماتعملتش (ماشتغلش صوت قبل كده)، ٠: مقفولة
+                                "channel" to (channel?.importance ?: -1),
+                                "battery" to pm.isIgnoringBatteryOptimizations(ctx.packageName),
+                                "sdk" to Build.VERSION.SDK_INT,
+                                "maker" to Build.MANUFACTURER,
+                            )
+                        )
+                    }
                     "notificationsEnabled" ->
                         result.success(ctx.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled())
                     "openNotificationSettings" -> {

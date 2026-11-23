@@ -186,6 +186,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
+            _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {
@@ -296,6 +297,45 @@ class _MoreScreenState extends State<MoreScreen> {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(children: children),
       );
+
+  /// يفحص إن أزرار تشغيل الإذاعة والعظات ممكن تظهر في شاشة القفل وشريط الإشعارات، ويقول إيه اللي ناقص.
+  Future<void> _checkMedia() async {
+    final m = await NativeBridge.mediaStatus();
+    if (!mounted) return;
+    final c = context.colors;
+    Widget row(bool ok, String text, {VoidCallback? fix, String fixLabel = 'إصلاح'}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(children: [
+            Icon(ok ? Icons.check_circle : Icons.error_outline, size: 20, color: ok ? Colors.green : c.saint),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text, style: TextStyle(fontSize: 14, height: 1.5, color: c.text))),
+            if (!ok && fix != null) TextButton(onPressed: fix, child: Text(fixLabel)),
+          ]),
+        );
+    final notif = m?['notifications'] == true;
+    final channel = (m?['channel'] as int?) ?? -1;
+    final battery = m?['battery'] == true;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('فحص أزرار التشغيل'),
+        content: m == null
+            ? const Text('الفحص متاح على أندرويد بس')
+            : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                row(notif, notif ? 'الإشعارات مفعّلة للتطبيق' : 'الإشعارات مقفولة: من غيرها مفيش أزرار', fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
+                row(channel != 0, channel == -1 ? 'قناة الإذاعة هتتعمل أول ما تشغّل صوت' : (channel == 0 ? 'قناة «الإذاعة» مقفولة في إعدادات الإشعارات' : 'قناة «الإذاعة» شغالة'),
+                    fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
+                row(battery, battery ? 'توفير البطارية مش بيقيّد التطبيق' : 'توفير البطارية ممكن يقفل الصوت بعد ما تخرج', fix: () => NativeBridge.openBackgroundSettings('battery'), fixLabel: 'فتح'),
+                const SizedBox(height: 8),
+                Text('الجهاز: ${m['maker']} • أندرويد ${m['sdk']}', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                const SizedBox(height: 6),
+                Text('في شاومي وHyperOS: فعّل «التشغيل التلقائي» وثبّت التطبيق في قائمة التطبيقات الأخيرة (قفل)، لأن السحب منها بيقفل التطبيق والإشعار.',
+                    style: TextStyle(fontSize: 12, height: 1.6, color: c.textSoft)),
+              ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تمام'))],
+      ),
+    );
+  }
 
   Widget _item(String title, String subtitle, VoidCallback onTap) {
     final c = context.colors;

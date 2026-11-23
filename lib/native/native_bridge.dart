@@ -107,6 +107,18 @@ class NativeBridge {
     }
   }
 
+  /// حالة الإشعارات والبطارية وقناة الإذاعة، لفحص اختفاء أزرار التشغيل.
+  static Future<Map<String, Object?>?> mediaStatus() async {
+    try {
+      final m = await _channel.invokeMapMethod<String, Object?>('mediaStatus');
+      return m;
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   /// يفتح إعدادات إشعارات التطبيق في النظام.
   static Future<void> openNotificationSettings() => _call('openNotificationSettings', {});
 
