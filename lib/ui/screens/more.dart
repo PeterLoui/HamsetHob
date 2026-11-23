@@ -7,6 +7,7 @@ import '../../data/reminders.dart';
 import '../../data/store.dart';
 import '../../data/updater.dart';
 import '../../native/native_bridge.dart';
+import '../accent_picker.dart';
 import '../glass.dart';
 import '../theme.dart';
 import '../update_dialog.dart';
@@ -166,6 +167,8 @@ class _MoreScreenState extends State<MoreScreen> {
               widget.onSettingsChanged();
             },
           ),
+          const SizedBox(height: 12),
+          AccentPicker(onChanged: widget.onSettingsChanged),
           const SizedBox(height: 10),
           _toggle('ضوء متزامن مع الإيقاع', 'الضوء اللي بيظهر والصوت شغال يتحرك مع الصوت نفسه. أندرويد بيطلب إذن الميكروفون، والتطبيق مابيسجّلش حاجة', settings.syncLight, (v) async {
             if (!v) {

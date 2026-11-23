@@ -35,7 +35,40 @@ class AppColors extends ThemeExtension<AppColors> {
   Color get honey => isDark ? const Color(0xFFE8B04A) : const Color(0xFFB8741A);
   final String headingFont;
 
-  factory AppColors.of(bool dark) => dark ? _vigil : _manuscript;
+  factory AppColors.of(bool dark) {
+    if (dark) return _vigil;
+    final i = AppSettings.instance.lightAccent;
+    return i <= 0 || i >= lightAccents.length ? _manuscript : _manuscript.withAccent(lightAccents[i].$2);
+  }
+
+  /// ألوان التظليل في الوضع الفاتح. الأولى (النبيتي) هي الأصلية، وكلها غامقة كفاية عشان النص يفضل مقروء.
+  static const lightAccents = <(String, Color)>[
+    ('النبيتي', Color(0xFFA3271B)),
+    ('أزرق ملكي', Color(0xFF1F4E8C)),
+    ('أخضر زيتوني', Color(0xFF4D6B2F)),
+    ('بنفسجي', Color(0xFF6B3FA0)),
+    ('عنبري', Color(0xFF9A5B00)),
+    ('تركواز', Color(0xFF0F6B6B)),
+    ('قرميدي', Color(0xFFB4441A)),
+  ];
+
+  AppColors withAccent(Color a) => AppColors(
+        isDark: isDark,
+        surface: surface,
+        card: card,
+        navBar: navBar,
+        hairline: hairline,
+        text: text,
+        textSoft: textSoft,
+        textFaint: textFaint,
+        accent: a,
+        onAccent: onAccent,
+        fast: fast,
+        saint: saint,
+        chip: chip,
+        uiFont: uiFont,
+        headingFont: headingFont,
+      );
 
   /// «مخطوطة»: رقّ فاتح وحبر، والأحمر للتاريخ القبطي وأرقام الآيات.
   static const _manuscript = AppColors(

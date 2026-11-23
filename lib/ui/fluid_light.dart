@@ -129,7 +129,12 @@ class _FluidPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final colors = dark ? _vigil : _manuscript;
+    // الفاتح: الضوء من لون التظليل المختار (النبيتي هو الأصلي) مع درجتين أفتح منه
+    List<Color> colors = _vigil;
+    if (!dark) {
+      final a = AppColors.of(false).accent;
+      colors = a == _manuscript.first ? _manuscript : [a, Color.lerp(a, const Color(0xFFC0852A), .5)!, Color.lerp(a, Colors.white, .45)!];
+    }
     final maxAlpha = (dark ? .9 : .6) * strength * s.fade;
     final levels = [s.b, s.m, s.h];
     // نص قطر البقعة من البعد الأصغر، عشان الضوء يفضل ناعم ويخلص جوه المساحة حتى في المشغّل العريض
