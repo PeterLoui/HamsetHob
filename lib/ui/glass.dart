@@ -230,12 +230,14 @@ class BottomNavBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.card.withValues(alpha: .97),
           borderRadius: BorderRadius.circular(_barHeight / 2),
-          border: Border.all(color: c.hairline),
+          border: Border.all(color: Color.lerp(c.hairline, c.navGlow, .45)!),
           boxShadow: [
+            // وهج خفيف حوالين الكبسولة بلون الشمعة، فوق ظل ناعم
+            BoxShadow(color: c.navGlow.withValues(alpha: c.isDark ? .22 : .16), blurRadius: 24, spreadRadius: -1),
             BoxShadow(
-              color: Colors.black.withValues(alpha: c.isDark ? .5 : .16),
-              blurRadius: 26,
-              offset: const Offset(0, 10),
+              color: Colors.black.withValues(alpha: c.isDark ? .45 : .12),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
