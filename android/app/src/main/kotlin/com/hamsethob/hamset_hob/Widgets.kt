@@ -212,7 +212,11 @@ class DailyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_MIDNIGHT) scheduleMidnight(context)
         val pending = goAsync()
-        refreshIfStale(context) { pending.finish() }
+        refreshIfStale(context) {
+            // فحص التحديثات (بيشتغل مرة كل ١٢ ساعة بس) في نفس الخيط الخلفي
+            try { AppUpdates.maybeNotify(context.applicationContext) } catch (_: Exception) {}
+            pending.finish()
+        }
     }
 
     companion object {

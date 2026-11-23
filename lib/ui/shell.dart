@@ -7,6 +7,7 @@ import '../data/bible.dart';
 import '../data/meditations.dart';
 import '../data/prayers.dart';
 import '../data/reminders.dart';
+import '../data/updater.dart';
 import '../data/store.dart';
 import '../data/tasbeha.dart';
 import '../native/native_bridge.dart';
@@ -21,6 +22,7 @@ import 'screens/home.dart';
 import 'screens/meditation.dart';
 import 'screens/prayers.dart';
 import 'screens/stations.dart';
+import 'update_dialog.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
 import 'screens/reading_plans.dart';
@@ -182,6 +184,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     final s = AppSettings.instance;
     NativeBridge.scheduleMorning(s.morningEnabled, s.morningMinutes);
     Reminders.sync();
+    // تحديث من GitHub: فحص عند فتح التطبيق، وإشعار «نسخة جديدة» بيفتح نفس الشاشة
+    NativeBridge.onOpenUpdate = () => _checkUpdate(force: true);
+    NativeBridge.takeLaunchUpdate().then((yes) {
+      if (yes) _checkUpdate(force: true);
+    });
+    Updater.instance.init().then((_) {
+      if (s.autoUpdate) _checkUpdate();
+    });
   }
 
   @override
@@ -192,6 +202,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     } else {
       RadioPlayer.instance.saveNow(); // مكان العظة يتحفظ لو التطبيق اتقفل
     }
+  }
+
+  bool _updateShowing = false;
+
+  /// يفحص GitHub ويعرض شاشة التحديث لو فيه نسخة أحدث. بعد «لاحقاً» مابيعرضهاش تاني في فتح التطبيق
+  /// (لكن [force]، من الإشعار أو الإعدادات، بيعرضها).
+  Future<void> _checkUpdate({bool force = false}) async {
+    final u = await Updater.instance.check(force: force);
+    if (u == null || !mounted || _updateShowing) return;
+    if (!force && await Updater.instance.dismissedBuild(u.build)) return;
+    if (!mounted) return;
+    _updateShowing = true;
+    await showUpdateDialog(context, u);
+    _updateShowing = false;
   }
 
   Future<void> _openPrayerById(String id) async {

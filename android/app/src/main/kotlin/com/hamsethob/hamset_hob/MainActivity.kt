@@ -18,6 +18,8 @@ class MainActivity : AudioServiceActivity() {
     private var launchRef: Map<String, Int>? = null
     /** الصلاة اللي إشعار التذكير فتح التطبيق عشانها (رقمها في الأجبية). */
     private var launchPrayer: String? = null
+    /** إشعار «نسخة جديدة» اتضغط: التطبيق يعرض شاشة التحديث. */
+    private var launchUpdate = false
     private var levels: AudioLevels? = null
     private var micResult: MethodChannel.Result? = null
     /** اتفتح من زرار التشغيل في ويدجت الإذاعة: Flutter بيسأل عنه أول ما يبدأ. */
@@ -33,6 +35,7 @@ class MainActivity : AudioServiceActivity() {
         super.configureFlutterEngine(flutterEngine)
         launchRef = refFrom(intent)
         launchPrayer = intent?.getStringExtra(Reminders.EXTRA_PRAYER)
+        launchUpdate = intent?.getBooleanExtra(AppUpdates.EXTRA_UPDATE, false) == true
         pendingResume = intent?.action == RadioWidget.ACTION_RESUME
         val lv = AudioLevels(applicationContext).also { levels = it }
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "hamset/levels").setStreamHandler(lv)
@@ -100,6 +103,16 @@ class MainActivity : AudioServiceActivity() {
                         CalendarWidget.save(ctx, call.arguments as Map<*, *>)
                         result.success(null)
                     }
+                    "appBuild" -> result.success(AppUpdates.installedBuild(ctx))
+                    "setUpdateOptions" -> {
+                        AppUpdates.setOptions(ctx, call.argument<Boolean>("enabled") != false, call.argument<Boolean>("beta") != false)
+                        result.success(null)
+                    }
+                    "installApk" -> result.success(AppUpdates.install(this@MainActivity, call.argument<String>("path") ?: ""))
+                    "takeLaunchUpdate" -> {
+                        result.success(launchUpdate)
+                        launchUpdate = false
+                    }
                     "notificationsEnabled" ->
                         result.success(ctx.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled())
                     "openNotificationSettings" -> {
@@ -147,6 +160,7 @@ class MainActivity : AudioServiceActivity() {
         super.onNewIntent(intent)
         refFrom(intent)?.let { channel?.invokeMethod("openRef", it) }
         intent.getStringExtra(Reminders.EXTRA_PRAYER)?.let { channel?.invokeMethod("openPrayer", it) }
+        if (intent.getBooleanExtra(AppUpdates.EXTRA_UPDATE, false)) channel?.invokeMethod("openUpdate", null)
         if (intent.action == RadioWidget.ACTION_RESUME) channel?.invokeMethod("resumeRadio", null)
     }
 

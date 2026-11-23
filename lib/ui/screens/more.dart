@@ -5,9 +5,11 @@ import '../../core/coptic.dart';
 import '../../data/bible.dart';
 import '../../data/reminders.dart';
 import '../../data/store.dart';
+import '../../data/updater.dart';
 import '../../native/native_bridge.dart';
 import '../glass.dart';
 import '../theme.dart';
+import '../update_dialog.dart';
 import 'home.dart' show VerseActions;
 
 /// المزيد: المفضلة والإعدادات وتحميل الكتاب المقدس.
@@ -71,6 +73,38 @@ class _MoreScreenState extends State<MoreScreen> {
   Future<int?> _pickMinutes(int current) async {
     final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60));
     return t == null ? null : t.hour * 60 + t.minute;
+  }
+
+  /// صف التحديث: فحص يدوي، أو النسخة الجديدة لو لقيناها.
+  Widget _updateItem() {
+    final up = Updater.instance;
+    return ListenableBuilder(
+      listenable: up,
+      builder: (context, _) {
+        final u = up.available;
+        if (up.checking) return _item('جارٍ فحص التحديثات…', 'لحظة', () {});
+        if (u != null) {
+          return _item('نسخة جديدة ${ar(u.version)}', 'اضغط للتحديث', () => showUpdateDialog(context, u));
+        }
+        return _item(
+          up.failed ? 'تعذّر فحص التحديثات' : 'فحص التحديثات الآن',
+          up.failed
+              ? 'تأكد من الاتصال بالإنترنت، واضغط للمحاولة تاني'
+              : up.installed > 0
+                  ? 'النسخة الحالية ${ar('2.1.${up.installed}')}'
+                  : 'غير متاح على الجهاز ده',
+          () async {
+            final found = await up.check(force: true);
+            if (!context.mounted) return;
+            if (found != null) {
+              showUpdateDialog(context, found);
+            } else if (!up.failed) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أنت على آخر نسخة')));
+            }
+          },
+        );
+      },
+    );
   }
 
   Widget _hourRow(PrayerHour h) {
@@ -162,6 +196,18 @@ class _MoreScreenState extends State<MoreScreen> {
             settings.lockNotification = v;
             widget.onSettingsChanged();
           }),
+          _label('التحديثات'),
+          _toggle('تحديث تلقائي من GitHub', 'يفحص النسخ الجديدة ويعلّمك بيها. التركيب بيتم بموافقتك', settings.autoUpdate, (v) {
+            settings.autoUpdate = v;
+            NativeBridge.setUpdateOptions(v, settings.betaUpdates);
+          }),
+          if (settings.autoUpdate)
+            _toggle('تضمين النسخ التجريبية', 'نسخ من فروع التطوير قبل ما تتدمج في الرئيسية', settings.betaUpdates, (v) {
+              settings.betaUpdates = v;
+              NativeBridge.setUpdateOptions(settings.autoUpdate, v);
+              Updater.instance.check(force: true);
+            }),
+          _group(null, [_updateItem()]),
           _label('تذكير الصلاة'),
           for (final h in prayerHours) _hourRow(h),
           Padding(

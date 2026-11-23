@@ -45,6 +45,14 @@ class AppSettings extends ChangeNotifier {
   int get morningMinutes => _prefs.getInt('morning_at') ?? 7 * 60;
   set morningMinutes(int v) => _set(() => _prefs.setInt('morning_at', v));
 
+  /// فحص إصدارات GitHub وتعريف المستخدم بالنسخة الجديدة.
+  bool get autoUpdate => _prefs.getBool('auto_update') ?? true;
+  set autoUpdate(bool v) => _set(() => _prefs.setBool('auto_update', v));
+
+  /// تضمين الإصدارات التجريبية (بناء الفروع قيد التطوير، مش بس main).
+  bool get betaUpdates => _prefs.getBool('beta_updates') ?? true;
+  set betaUpdates(bool v) => _set(() => _prefs.setBool('beta_updates', v));
+
   // ── تذكيرات الصلاة والأعياد ──
   bool hourOn(String id) => _prefs.getBool('rem_$id') ?? false;
   void setHourOn(String id, bool v) => _set(() => _prefs.setBool('rem_$id', v));

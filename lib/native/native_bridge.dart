@@ -67,6 +67,35 @@ class NativeBridge {
   /// إشعار تذكير اتضغط والتطبيق مفتوح.
   static void Function(String prayerId)? onOpenPrayer;
 
+  /// رقم بناء النسخة المركّبة (versionCode). ٠ لو مش أندرويد.
+  static Future<int> appBuild() async {
+    try {
+      return (await _channel.invokeMethod<num>('appBuild'))?.toInt() ?? 0;
+    } on MissingPluginException {
+      return 0;
+    } on PlatformException {
+      return 0;
+    }
+  }
+
+  /// إعدادات فحص التحديثات للإشعار اللي بيطلع والتطبيق مقفول.
+  static Future<void> setUpdateOptions(bool enabled, bool beta) => _call('setUpdateOptions', {'enabled': enabled, 'beta': beta});
+
+  /// يسلّم الـ APK للنظام يركّبه: 'started' أو 'needs_permission' أو 'error:…'.
+  static Future<String> installApk(String path) async {
+    try {
+      return await _channel.invokeMethod<String>('installApk', {'path': path}) ?? 'error:';
+    } on MissingPluginException {
+      return 'error:unsupported';
+    } on PlatformException catch (e) {
+      return 'error:${e.message}';
+    }
+  }
+
+  /// فتح التطبيق من إشعار «نسخة جديدة».
+  static Future<bool> takeLaunchUpdate() => _ask('takeLaunchUpdate', {});
+  static void Function()? onOpenUpdate;
+
   /// الإشعارات مفعّلة للتطبيق؟ (من غيرها أزرار التشغيل في شاشة القفل مش بتظهر). true لو مش أندرويد.
   static Future<bool> notificationsEnabled() async {
     try {
@@ -101,6 +130,7 @@ class NativeBridge {
   static void onLaunchRef(void Function(VerseRef) handler) {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'resumeRadio') onResumeRadio?.call();
+      if (call.method == 'openUpdate') onOpenUpdate?.call();
       if (call.method == 'openPrayer') onOpenPrayer?.call(call.arguments as String);
       if (call.method == 'openRef') {
         final m = (call.arguments as Map).cast<String, int>();
