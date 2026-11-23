@@ -29,6 +29,9 @@ import 'screens/radio.dart';
 import 'screens/reading_plans.dart';
 import 'screens/readings.dart';
 import 'screens/tasbeha.dart';
+import 'screens/study.dart';
+import '../data/study.dart';
+import '../data/quiz.dart';
 import '../data/reading_plans.dart';
 
 /// شاشات فرعية تُفتح فوق التبويبات.
@@ -116,6 +119,29 @@ class ReadingPlanOverlay extends SubScreen {
   final ReadingPlan plan;
 }
 
+class StudyBookOverlay extends SubScreen {
+  const StudyBookOverlay(this.book);
+  final StudyBook book;
+}
+
+class StudyGuideOverlay extends SubScreen {
+  const StudyGuideOverlay(this.guide);
+  final StudyGuide guide;
+}
+
+class StudyReaderOverlay extends SubScreen {
+  const StudyReaderOverlay(this.docs, this.index, this.book);
+  final List<StudyDoc> docs;
+  final int index;
+  final StudyBook? book;
+}
+
+class QuizSessionOverlay extends SubScreen {
+  const QuizSessionOverlay(this.title, this.questions);
+  final String title;
+  final List<QuizQuestion> questions;
+}
+
 class TasbehaOverlay extends SubScreen {
   const TasbehaOverlay();
 }
@@ -158,6 +184,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     NavTab(label: 'الكتاب', icon: AppIconView(AppIcon.bible)),
     NavTab(label: 'القراءات', icon: AppIconView(AppIcon.readings)),
     NavTab(label: 'النتيجة', icon: AppIconView(AppIcon.calendar)),
+    NavTab(label: 'دراسة', icon: AppIconView(AppIcon.study)),
     NavTab(label: 'المزيد', icon: AppIconView(AppIcon.more)),
   ];
 
@@ -287,6 +314,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
         3 => CalendarScreen(today: _today),
+        4 => StudyScreen(
+            onOpenBook: (b) => _open(StudyBookOverlay(b)),
+            onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b)),
+            onOpenGuide: (g) => _open(StudyGuideOverlay(g)),
+            onOpenQuiz: (t, q) => _open(QuizSessionOverlay(t, q)),
+          ),
         _ => MoreScreen(
             onOpenFavorites: () => _open(const FavoritesOverlay()),
             onOpenReadingPlans: () => _open(const ReadingPlansOverlay()),
@@ -341,6 +374,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        StudyBookOverlay(:final book) => StudyBookScreen(
+            book: book,
+            onBack: _back,
+            onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b)),
+            onOpenQuiz: (t, q) => _open(QuizSessionOverlay(t, q)),
+          ),
+        StudyGuideOverlay(:final guide) =>
+          StudyGuideScreen(guide: guide, onBack: _back, onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b))),
+        StudyReaderOverlay(:final docs, :final index, :final book) =>
+          StudyReaderScreen(docs: docs, index: index, book: book, onBack: _back),
+        QuizSessionOverlay(:final title, :final questions) => QuizSessionScreen(title: title, questions: questions, onBack: _back),
         TasbehaOverlay() => TasbehaScreen(
             onBack: _back,
             onOpenBook: (b) => _open(TasbehaBookOverlay(b)),

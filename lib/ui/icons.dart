@@ -1,7 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// أيقونات مرسومة خصيصاً (شبكة 24×24) — منها الكتاب الذي في وسطه صليب.
-enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna, tasbeha }
+enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna, tasbeha, study }
 
 /// صورة البابا شنوده الثالث من شعار مئوية ميلاده، مقصوصة للرأس والكتفين وبتتلوّن بلون الأيقونات.
 class PopeIcon extends StatelessWidget {
@@ -119,6 +121,14 @@ class _IconPainter extends CustomPainter {
         canvas.drawArc(const Rect.fromLTRB(5.5, 6.5, 18.5, 19.5), 0, 3.14159, false, stroke);
         canvas.drawLine(const Offset(10, 19.2), const Offset(9, 21.5), stroke);
         canvas.drawLine(const Offset(14, 19.2), const Offset(15, 21.5), stroke);
+      case AppIcon.study:
+        // عجلة: حلقة وفي وسطها صليب صغير
+        canvas.drawCircle(const Offset(12, 12), 8.5, stroke);
+        canvas.drawCircle(const Offset(12, 12), 3.2, stroke);
+        for (final a in const [0.0, 1.5708, 3.14159, 4.71239]) {
+          canvas.drawLine(Offset(12 + 3.2 * math.cos(a + .785), 12 + 3.2 * math.sin(a + .785)),
+              Offset(12 + 8.5 * math.cos(a + .785), 12 + 8.5 * math.sin(a + .785)), stroke);
+        }
       case AppIcon.antenna:
         // برج إذاعة وموجتين
         canvas.drawCircle(const Offset(12, 9), 1.6, fill);

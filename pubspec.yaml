@@ -25,6 +25,7 @@ dependencies:
   pdfrx: 2.11.0
   just_audio: any
   just_audio_background: any
+  html: ^0.15.4
 
 flutter:
   uses-material-design: true
@@ -35,3 +36,5 @@ flutter:
     - assets/coptic_cross.png
     - assets/tasbeha.json
     - assets/liturgies.json
+    - assets/study_fekry.json
+    - assets/study_quiz.json
