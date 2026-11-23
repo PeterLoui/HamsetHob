@@ -6,6 +6,7 @@ import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
 import '../../data/sermon_downloads.dart';
 import '../../data/sermons.dart';
+import '../../native/native_bridge.dart';
 import '../fluid_light.dart';
 import '../glass.dart';
 import '../icons.dart';
@@ -232,6 +233,20 @@ class _NowPlaying extends StatelessWidget {
                   onTap: player.radioOn ? player.stopRadio : onStartRadio),
               Pill(sleepLabel(player), filled: player.sleepOn, onTap: () => showSleepTimer(context)),
             ]),
+            if (player.notificationsOff && now != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(children: [
+                  Expanded(
+                    child: Text('الإشعارات مقفولة، فمش هتظهر أزرار التشغيل والإيقاف في شاشة القفل وشريط الإشعارات',
+                        style: TextStyle(fontSize: 12, height: 1.5, color: c.textSoft)),
+                  ),
+                  TextButton(
+                    onPressed: NativeBridge.openNotificationSettings,
+                    child: Text('فتح الإعدادات', style: TextStyle(color: c.live)),
+                  ),
+                ]),
+              ),
             if (player.error != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(player.error!, style: TextStyle(fontSize: 12, color: c.saint))),
           ]);

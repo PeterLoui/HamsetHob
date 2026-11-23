@@ -67,6 +67,20 @@ class NativeBridge {
   /// إشعار تذكير اتضغط والتطبيق مفتوح.
   static void Function(String prayerId)? onOpenPrayer;
 
+  /// الإشعارات مفعّلة للتطبيق؟ (من غيرها أزرار التشغيل في شاشة القفل مش بتظهر). true لو مش أندرويد.
+  static Future<bool> notificationsEnabled() async {
+    try {
+      return await _channel.invokeMethod<bool>('notificationsEnabled') ?? true;
+    } on MissingPluginException {
+      return true;
+    } on PlatformException {
+      return true;
+    }
+  }
+
+  /// يفتح إعدادات إشعارات التطبيق في النظام.
+  static Future<void> openNotificationSettings() => _call('openNotificationSettings', {});
+
   /// الآية التي فُتح بها التطبيق من الويدجت أو الإشعار، إن وُجدت.
   static Future<VerseRef?> takeLaunchRef() async {
     final m = await _channel.invokeMapMethod<String, int>('takeLaunchRef');

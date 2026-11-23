@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -30,6 +31,8 @@ class RadioPlayer extends ChangeNotifier {
     _player.playbackEventStream.listen((_) {}, onError: (Object e, StackTrace _) => _recover());
     _player.playerStateStream.listen((s) {
       if (s.processingState == ProcessingState.completed) {
+        position = Duration.zero;
+        _persist(force: true); // العظة خلصت: المرة الجاية من الأول
         if (sleepAtEnd) {
           // مؤقت النوم «آخر العظة»: العظة خلصت، فمانكملش للي بعدها
           sleepAtEnd = false;
@@ -51,6 +54,9 @@ class RadioPlayer extends ChangeNotifier {
       // المستخدم وقّف من الإشعار أو سماعة البلوتوث (كان شغال ووقف وهو جاهز): مانرجّعش الصوت لوحدنا.
       // التحميل نفسه بيعدّي على «جاهز ومش شغال» قبل التشغيل، فده مش إيقاف.
       if (_wasPlaying && !s.playing && s.processingState == ProcessingState.ready) _intent = false;
+      // وقف مؤقت: نحفظ المكان فوراً (آخر مكان يرجّع منه لو التطبيق اتقفل)
+      if (_wasPlaying && !s.playing) _persist(force: true);
+      if (s.playing && !_wasPlaying) refreshNotificationState();
       _wasPlaying = s.playing;
       if (s.processingState == ProcessingState.buffering) {
         _bufferingSince ??= DateTime.now();
@@ -70,6 +76,7 @@ class RadioPlayer extends ChangeNotifier {
     });
     _player.positionStream.listen((p) {
       position = p;
+      _persist();
       notifyListeners();
     });
     _player.androidAudioSessionIdStream.listen((_) => notifyListeners());
@@ -107,6 +114,10 @@ class RadioPlayer extends ChangeNotifier {
   /// زرار التشغيل في الويدجت: يكمّل اللي كان شغال، أو آخر محطة، أو البث المتواصل.
   Future<void> resumeLast() async {
     if (isPlaying) return;
+    if (hasPending) {
+      toggle();
+      return;
+    }
     if (_source != null) {
       toggle();
       return;
@@ -236,6 +247,106 @@ class RadioPlayer extends ChangeNotifier {
     return t;
   }
 
+  // ─── آخر حاجة اتسمعت ───
+
+  Sermon? _sermon;
+  Station? _station;
+
+  /// آخر عظة أو محطة (محفوظة من تشغيل قبل كده) لسه ماتحمّلتش: بتتحمّل أول ما المستخدم يدوس تشغيل.
+  Sermon? _pendingSermon;
+  Station? _pendingStation;
+  Duration _pendingAt = Duration.zero;
+  DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
+
+  bool get hasPending => _pendingSermon != null || _pendingStation != null;
+
+  /// يحفظ اللي شغال ومكانه كل ٥ ثواني (ولما يقف، أو لما التطبيق يروح للخلفية بـ [force]).
+  void _persist({bool force = false}) {
+    final now = DateTime.now();
+    if (!force && now.difference(_lastSave) < const Duration(seconds: 5)) return;
+    final s = _sermon, st = _station;
+    if (s == null && st == null) return;
+    _lastSave = now;
+    final data = <String, Object?>{
+      if (s != null) ...{
+        'kind': 'sermon',
+        'id': s.id,
+        't': s.title,
+        's': s.summary,
+        'l': s.link,
+        'c': s.categoryId,
+        'pos': position.inMilliseconds,
+        'dur': duration.inMilliseconds,
+      } else ...{
+        'kind': 'station',
+        'station': st!.id,
+      },
+      'radio': radioOn,
+      'rcat': radioCategory,
+    };
+    SharedPreferences.getInstance().then((p) => p.setString('last_play', jsonEncode(data)));
+  }
+
+  /// يحفظ فوراً (التطبيق رايح للخلفية أو بيتقفل).
+  void saveNow() => _persist(force: true);
+
+  /// يرجّع آخر عظة أو محطة اتسمعت، واقفة على نفس المكان، من غير ما يشغّل حاجة أو يحتاج نت.
+  Future<void> restoreLast() async {
+    if (nowPlaying != null) return;
+    try {
+      final raw = (await SharedPreferences.getInstance()).getString('last_play');
+      if (raw == null) return;
+      final o = jsonDecode(raw) as Map<String, dynamic>;
+      radioOn = o['radio'] as bool? ?? false;
+      radioCategory = o['rcat'] as int? ?? 0;
+      if (o['kind'] == 'station') {
+        final st = stations.where((s) => s.id == o['station']).firstOrNull;
+        if (st == null) return;
+        _pendingStation = st;
+        live = true;
+        stationId = st.id;
+        nowPlaying = NowPlaying(-1, st.name, 'بث مباشر');
+      } else {
+        final s = Sermon(o['id'] as int, o['t'] as String, o['s'] as String? ?? '', o['l'] as String, o['c'] as int? ?? 0);
+        var at = Duration(milliseconds: o['pos'] as int? ?? 0);
+        final dur = Duration(milliseconds: o['dur'] as int? ?? 0);
+        // اللي قرب يخلص (آخر ١٠ ثواني) يبدأ من الأول
+        if (dur > Duration.zero && at >= dur - const Duration(seconds: 10)) at = Duration.zero;
+        _pendingSermon = s;
+        _pendingAt = at;
+        live = false;
+        position = at;
+        duration = dur;
+        nowPlaying = NowPlaying(s.id, s.title, categoryName(s.categoryId));
+      }
+      notifyListeners();
+    } catch (_) {
+      // بيانات تالفة: نبدأ من غير استكمال
+    }
+  }
+
+  Future<void> _resumePending() async {
+    final s = _pendingSermon, st = _pendingStation, at = _pendingAt;
+    if (s != null) {
+      await _start(s, at: at > Duration.zero ? at : null);
+    } else if (st != null) {
+      await playStation(st);
+    }
+  }
+
+  // ─── إشعار أزرار التحكم ───
+
+  /// الإشعارات مقفولة من إعدادات النظام: أزرار التشغيل والإيقاف مش هتظهر في شاشة القفل ولا شريط الإشعارات.
+  bool notificationsOff = false;
+
+  Future<void> refreshNotificationState() async {
+    final off = !(await NativeBridge.notificationsEnabled());
+    if (off != notificationsOff) {
+      notificationsOff = off;
+      notifyListeners();
+    }
+  }
+
   // ─── مؤقت النوم ───
   Timer? _sleep;
 
@@ -293,6 +404,8 @@ class RadioPlayer extends ChangeNotifier {
   /// تشغيل محطة إذاعة مسيحية بث مباشر.
   Future<void> playStation(Station st) async {
     SharedPreferences.getInstance().then((p) => p.setString('last_station', st.id));
+    _pendingSermon = null;
+    _pendingStation = null;
     streamTitle = null;
     radioOn = false;
     live = true;
@@ -307,8 +420,12 @@ class RadioPlayer extends ChangeNotifier {
         tag: MediaItem(id: 'station_${st.id}', title: st.name, artist: 'بث مباشر', album: 'إذاعات'),
       ));
       nowPlaying = NowPlaying(-1, st.name, 'بث مباشر');
+      _station = st;
+      _sermon = null;
+      _persist(force: true);
     } catch (_) {
       _intent = false;
+      _pendingStation = st; // زرار التشغيل يعيد المحاولة
       error = 'تعذّر تشغيل الإذاعة، تأكد من الاتصال بالإنترنت';
     }
     loadingId = null;
@@ -346,7 +463,9 @@ class RadioPlayer extends ChangeNotifier {
     }
   }
 
-  Future<void> _start(Sermon s) async {
+  Future<void> _start(Sermon s, {Duration? at}) async {
+    _pendingSermon = null;
+    _pendingStation = null;
     live = false;
     streamTitle = null;
     stationId = null;
@@ -367,10 +486,18 @@ class RadioPlayer extends ChangeNotifier {
           album: categoryName(s.categoryId),
           artUri: Uri.parse(SermonRepository.artwork),
         ),
-      ));
+      ), at: at);
       nowPlaying = NowPlaying(s.id, s.title, categoryName(s.categoryId));
+      _sermon = s;
+      _station = null;
+      _persist(force: true);
     } catch (e) {
       _intent = false;
+      if (at != null) {
+        // فشل الاستكمال (مافيش نت مثلاً): العظة والمكان يفضلوا، وزرار التشغيل يعيد المحاولة
+        _pendingSermon = s;
+        _pendingAt = at;
+      }
       error = e is StateError ? e.message : 'تعذّر تشغيل العظة';
     }
     loadingId = null;
@@ -378,6 +505,13 @@ class RadioPlayer extends ChangeNotifier {
   }
 
   void toggle() {
+    // آخر حاجة اتسمعت (اتسجّلت قبل ما التطبيق يتقفل) لسه ماتحمّلتش: أول ضغطة بتحمّلها وتكمّل من مكانها
+    if (hasPending) {
+      _intent = true;
+      _attempts = 0;
+      unawaited(_resumePending());
+      return;
+    }
     if (_player.playing) {
       _intent = false;
       _player.pause();
@@ -394,9 +528,17 @@ class RadioPlayer extends ChangeNotifier {
   }
   void seekBy(int seconds) {
     final target = position + Duration(seconds: seconds);
-    _player.seek(target < Duration.zero ? Duration.zero : target);
+    seekTo(target < Duration.zero ? Duration.zero : target);
   }
 
-  void seekTo(Duration d) => _player.seek(d);
+  void seekTo(Duration d) {
+    if (_pendingSermon != null) {
+      _pendingAt = d;
+      position = d;
+      notifyListeners();
+      return;
+    }
+    _player.seek(d);
+  }
   void next() => _playRandom();
 }

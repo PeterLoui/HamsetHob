@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import 'audio/radio_player.dart';
 import 'data/books.dart';
 import 'data/sermon_downloads.dart';
 import 'data/store.dart';
@@ -21,13 +22,22 @@ Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.hamsethob.radio',
     androidNotificationChannelName: 'الإذاعة',
-    androidNotificationOngoing: true,
+    androidNotificationChannelDescription: 'زرار التشغيل والإيقاف على شاشة القفل وفي شريط الإشعارات',
+    // أيقونة الإشعار لازم تكون رسمة أحادية اللون: أيقونة التطبيق (adaptive) مش صالحة كأيقونة إشعار
+    androidNotificationIcon: 'drawable/ic_stat_cross',
+    // الإشعار يفضل ظاهر وأنت موقّف مؤقتاً، عشان زرار التشغيل يفضل في شاشة القفل وشريط الإشعارات
+    // (لو الخدمة خرجت من الواجهة وقت الإيقاف النظام ممكن يقفلها ويشيل الإشعار)
+    androidStopForegroundOnPause: false,
+    androidNotificationOngoing: false,
+    fastForwardInterval: const Duration(seconds: 30),
+    rewindInterval: const Duration(seconds: 30),
   );
   await AppSettings.load();
   await Favorites.load();
   await BibleMarks.load();
   await ReadingProgress.load();
   await SermonDownloads.load();
+  await RadioPlayer.instance.restoreLast();
   await BooksRepository.instance.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const HamsetApp());

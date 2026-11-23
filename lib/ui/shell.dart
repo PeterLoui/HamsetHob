@@ -186,7 +186,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkDay();
+    if (state == AppLifecycleState.resumed) {
+      _checkDay();
+      if (RadioPlayer.instance.isPlaying) RadioPlayer.instance.refreshNotificationState(); // ممكن يكون فعّلها من الإعدادات
+    } else {
+      RadioPlayer.instance.saveNow(); // مكان العظة يتحفظ لو التطبيق اتقفل
+    }
   }
 
   Future<void> _openPrayerById(String id) async {

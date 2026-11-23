@@ -100,6 +100,18 @@ class MainActivity : AudioServiceActivity() {
                         CalendarWidget.save(ctx, call.arguments as Map<*, *>)
                         result.success(null)
                     }
+                    "notificationsEnabled" ->
+                        result.success(ctx.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled())
+                    "openNotificationSettings" -> {
+                        try {
+                            startActivity(
+                                Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName),
+                            )
+                        } catch (_: Exception) {
+                        }
+                        result.success(null)
+                    }
                     "scheduleReminders" -> {
                         Reminders.save(ctx, call.argument<List<*>>("list") ?: emptyList<Any>())
                         result.success(null)
