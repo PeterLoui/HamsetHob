@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'google_images.dart';
+import 'image_search.dart';
 
 import 'net.dart' show normalizeArabic;
 
@@ -162,12 +162,12 @@ class SaintImages {
     if (fuzzy != null) return _galleryUrl(fuzzy);
     // صورة ويكيميديا المتراجعة: نتأكد إنها بتتحمّل فعلاً (ويكيميديا بتحجب كتير)
     final wm = id == null ? null : verified[id];
-    if (!GoogleImageSearch.configured) return wm;
+    if (!ImageSearch.configured) return wm;
     if (wm != null && (await loadBytes(wm)) != null) return wm;
-    // آخر حل: بحث صور جوجل بالاسم (لو المستخدم فعّله بمفتاحه)، وأول نتيجة بتتحمّل
+    // آخر حل: بحث الصور بالاسم (Brave، لو المستخدم فعّله بمفتاحه)، وأول نتيجة بتتحمّل
     {
       try {
-        for (final link in await GoogleImageSearch.forName(name)) {
+        for (final link in await ImageSearch.forName(name)) {
           if ((await loadBytes(link)) != null) return link;
         }
       } catch (_) {/* الحصة خلصت أو المفتاح غلط: نكمّل من غير صورة */}
@@ -175,7 +175,7 @@ class SaintImages {
     return wm; // لو ويكيميديا ماتحمّلتش دلوقتي، نسيبها تتجرّب تاني من الواجهة
   }
 
-  /// بعد تغيير إعدادات جوجل: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
+  /// بعد تغيير إعدادات البحث: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
   void resetMemo() {
     _memo.clear();
     _bytesMemo.clear();

@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
-import '../../data/google_images.dart';
+import '../../data/image_search.dart';
 import '../../data/reminders.dart';
 import '../../data/store.dart';
 import '../../data/updater.dart';
@@ -196,7 +196,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
-            _item('صور جوجل (احتياطي لصور التذكار)', settings.googleKey.isEmpty ? 'مش مفعّل: محتاج مفتاح API مجاني من حسابك' : (settings.googleFallback ? 'مفعّل' : 'متوقف'), _googleSetup),
+            _item('البحث في الصور (احتياطي لصور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح Brave Search مجاني' : (settings.searchFallback ? 'مفعّل' : 'متوقف'), _searchSetup),
             _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
@@ -310,31 +310,28 @@ class _MoreScreenState extends State<MoreScreen> {
         child: Column(children: children),
       );
 
-  /// إعداد البحث في صور جوجل: مفتاح الـAPI ومعرّف محرك البحث (من حساب المستخدم، وبيتحفظوا على جهازه بس).
-  Future<void> _googleSetup() async {
-    final key = TextEditingController(text: settings.googleKey);
-    final cx = TextEditingController(text: settings.googleCx);
-    var on = settings.googleFallback;
+  /// إعداد البحث في الصور (Brave): مفتاح الـAPI من حساب المستخدم، وبيتحفظ على جهازه بس.
+  Future<void> _searchSetup() async {
+    final key = TextEditingController(text: settings.searchKey);
+    var on = settings.searchFallback;
     String? result;
     final c = context.colors;
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => AlertDialog(
-          title: const Text('صور جوجل كاحتياطي'),
+          title: const Text('البحث في الصور كاحتياطي'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
-                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في صور جوجل وياخد أول صورة بتتحمّل. '
-                'لازم أول صورة تتراجع بنفسك لأنها ممكن ماتكونش للقديس الصح.\n\n'
-                '١) في console.cloud.google.com فعّل «Custom Search API» وأنشئ مفتاح API.\n'
-                '٢) في programmablesearchengine.google.com أنشئ محرك بحث، وفعّل «Image search» و«Search the entire web»، وانسخ «Search engine ID».\n'
-                'المجاني ١٠٠ بحث في اليوم، والتطبيق بيحفظ النتيجة ٣٠ يوم.',
+                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في صور Brave وياخد أول صورة بتتحمّل. '
+                'الصورة الأولى ممكن ماتكونش للقديس الصح، فراجعها.\n\n'
+                'اعمل حساب مجاني في api-dashboard.search.brave.com، واختار خطة بحث الصور المجانية، وأنشئ «API key» وحطه هنا. '
+                'المفتاح بيتحفظ على موبايلك بس، والنتيجة بتتحفظ ٣٠ يوم عشان نوفّر الحصة.',
                 style: TextStyle(fontSize: 12, height: 1.7, color: c.textSoft),
               ),
               const SizedBox(height: 12),
               TextField(controller: key, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'مفتاح API')),
-              TextField(controller: cx, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'معرّف محرك البحث (cx)')),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('استخدامه كاحتياطي'), value: on, onChanged: (v) => set(() => on = v)),
               if (result != null) SelectableText(result!, style: TextStyle(fontSize: 12, height: 1.6, color: c.text)),
             ]),
@@ -343,7 +340,7 @@ class _MoreScreenState extends State<MoreScreen> {
             TextButton(
               onPressed: () async {
                 try {
-                  final links = await GoogleImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), cx: cx.text.trim(), num: 1);
+                  final links = await ImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), count: 1);
                   set(() => result = links.isEmpty ? 'اشتغل، بس مفيش نتايج' : 'اشتغل ✓\n${links.first}');
                 } catch (e) {
                   set(() => result = 'فشل: $e');
@@ -354,9 +351,8 @@ class _MoreScreenState extends State<MoreScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
             TextButton(
               onPressed: () {
-                settings.googleKey = key.text;
-                settings.googleCx = cx.text;
-                settings.googleFallback = on;
+                settings.searchKey = key.text;
+                settings.searchFallback = on;
                 SaintImages.instance.resetMemo();
                 Navigator.pop(ctx);
               },
