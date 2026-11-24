@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
@@ -8,6 +11,8 @@ import '../../data/store.dart';
 import '../../data/updater.dart';
 import '../../native/native_bridge.dart';
 import '../accent_picker.dart';
+import '../../core/synaxarium.dart';
+import '../../data/saint_images.dart';
 import '../glass.dart';
 import '../theme.dart';
 import '../update_dialog.dart';
@@ -189,6 +194,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
+            _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
           _label('الإشعارات'),
@@ -300,6 +306,44 @@ class _MoreScreenState extends State<MoreScreen> {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(children: children),
       );
+
+  /// يجرّب تحميل صورة تذكار النهارده بنفس الطريقة وبنفس اسم التطبيق، ويعرض النتيجة (كود الرد، الحجم، أو سبب الفشل).
+  Future<void> _checkImage() async {
+    final com = Synaxarium.forDate(DateTime.now());
+    final url = com.wiki == null ? null : SaintImages.verified[com.wiki];
+    final c = context.colors;
+    String report;
+    if (url == null) {
+      report = 'تذكار النهارده (${com.title}) مالوش صورة مؤكدة في الجدول، فبيظهر الصليب.';
+    } else {
+      final sw = Stopwatch()..start();
+      try {
+        final r = await http.get(Uri.parse(url), headers: SaintImages.imageHeaders).timeout(const Duration(seconds: 40));
+        var decoded = 'غير مفحوصة';
+        if (r.statusCode == 200) {
+          try {
+            final codec = await ui.instantiateImageCodec(r.bodyBytes);
+            final f = (await codec.getNextFrame()).image;
+            decoded = '${f.width}×${f.height} بكسل';
+          } catch (e) {
+            decoded = 'الملف مش صورة صالحة ($e)';
+          }
+        }
+        report = 'الرد: ${r.statusCode}\nالنوع: ${r.headers['content-type']}\nالحجم: ${(r.bodyBytes.length / 1024).round()} ك.ب\nالزمن: ${sw.elapsedMilliseconds} م.ث\nالصورة: $decoded';
+      } catch (e) {
+        report = 'فشل الاتصال بعد ${sw.elapsedMilliseconds} م.ث\n$e';
+      }
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('فحص صورة التذكار'),
+        content: SelectableText('${com.title}\n${url ?? ''}\n\n$report', style: TextStyle(fontSize: 13, height: 1.6, color: c.text)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تمام'))],
+      ),
+    );
+  }
 
   /// يفحص إن أزرار تشغيل الإذاعة والعظات ممكن تظهر في شاشة القفل وشريط الإشعارات، ويقول إيه اللي ناقص.
   Future<void> _checkMedia() async {
