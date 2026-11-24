@@ -43,6 +43,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenLent,
     required this.onOpenMemory,
     required this.onOpenSearch,
+    required this.onOpenNeeds,
   });
 
   final DateTime today;
@@ -51,7 +52,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
-  final VoidCallback onOpenNativity, onOpenLent, onOpenMemory, onOpenSearch;
+  final VoidCallback onOpenNativity, onOpenLent, onOpenMemory, onOpenSearch, onOpenNeeds;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -296,6 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SayingCard(saying: _saying!, onNext: () => _loadSaying(next: true)),
         ],
         const SizedBox(height: 14),
+        _PageRow(icon: AppIcon.prayer, title: 'أنا محتاج…', subtitle: 'قلقان؟ حزين؟ شاكر؟ اختار حالتك وهنطلّعلك كلمة وصلاة', onTap: widget.onOpenNeeds),
         ListenableBuilder(
           listenable: MemoryStore.instance ?? ChangeNotifier(),
           builder: (context, _) {

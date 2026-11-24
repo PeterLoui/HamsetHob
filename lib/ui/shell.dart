@@ -34,6 +34,8 @@ import 'screens/nativity.dart';
 import 'screens/lent.dart';
 import 'screens/memory.dart';
 import 'screens/search.dart';
+import 'screens/needs.dart';
+import '../data/needs.dart';
 import '../data/memory.dart';
 import '../core/season.dart';
 import '../data/study.dart';
@@ -126,7 +128,17 @@ class ReadingPlanOverlay extends SubScreen {
 }
 
 class SearchOverlay extends SubScreen {
-  const SearchOverlay();
+  const SearchOverlay([this.query = '']);
+  final String query;
+}
+
+class NeedsOverlay extends SubScreen {
+  const NeedsOverlay();
+}
+
+class NeedOverlay extends SubScreen {
+  const NeedOverlay(this.need);
+  final Need need;
 }
 
 class MemoryOverlay extends SubScreen {
@@ -354,6 +366,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenLent: () => _open(const LentOverlay()),
             onOpenMemory: () => _open(const MemoryOverlay()),
             onOpenSearch: () => _open(const SearchOverlay()),
+            onOpenNeeds: () => _open(const NeedsOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -418,7 +431,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
-        SearchOverlay() => SearchScreen(
+        NeedsOverlay() => NeedsScreen(onBack: _back, onOpen: (n) => _open(NeedOverlay(n))),
+        NeedOverlay(:final need) => NeedScreen(
+            need: need,
+            onBack: _back,
+            onVerse: (r) => _open(ChapterOverlay(r)),
+            onPrayer: _openPrayerById,
+            onSermons: (q) => _open(SearchOverlay(q)),
+          ),
+        SearchOverlay(:final query) => SearchScreen(
+            initialQuery: query,
             onBack: _back,
             today: _today,
             actions: SearchActions(

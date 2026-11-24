@@ -327,9 +327,10 @@ class AppSegmented extends StatelessWidget {
 
 /// خانة البحث.
 class AppSearchBar extends StatelessWidget {
-  const AppSearchBar({super.key, required this.placeholder, required this.onChanged});
+  const AppSearchBar({super.key, required this.placeholder, required this.onChanged, this.controller});
   final String placeholder;
   final ValueChanged<String> onChanged;
+  final TextEditingController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -338,6 +339,7 @@ class AppSearchBar extends StatelessWidget {
     return SizedBox(
       height: 48,
       child: TextField(
+        controller: controller,
         onChanged: onChanged,
         style: TextStyle(color: c.text, fontSize: 15),
         cursorColor: c.accent,

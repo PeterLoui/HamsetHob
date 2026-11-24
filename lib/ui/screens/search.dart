@@ -50,7 +50,8 @@ class _Section {
 
 /// بحث واحد في التطبيق كله: الكتاب، والأجبية، والتسبحة، والسنكسار، والعظات، والدراسة، والمسابقات.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.onBack, required this.today, required this.actions});
+  const SearchScreen({super.key, required this.onBack, required this.today, required this.actions, this.initialQuery = ''});
+  final String initialQuery;
   final VoidCallback onBack;
   final DateTime today;
   final SearchActions actions;
@@ -60,7 +61,13 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.initialQuery);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuery.trim().length >= 2) WidgetsBinding.instance.addPostFrameCallback((_) => _run(widget.initialQuery));
+  }
   Timer? _debounce;
   int _gen = 0;
   String _q = '';
@@ -154,7 +161,7 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: EdgeInsets.fromLTRB(24, pad.top, 24, pad.bottom + 40),
       children: [
         ScreenHeader('بحث', subtitle: 'في الكتاب والصلوات والتسبحة والسنكسار والعظات والدراسة والمسابقات', onBack: widget.onBack),
-        AppSearchBar(placeholder: 'اكتب كلمة أو اسم قديس أو لحن', onChanged: _onChanged),
+        AppSearchBar(placeholder: 'اكتب كلمة أو اسم قديس أو لحن', controller: _controller, onChanged: _onChanged),
         const SizedBox(height: 14),
         if (_q.length < 2)
           Padding(padding: const EdgeInsets.only(top: 24), child: Center(child: Text('اكتب حرفين على الأقل', style: TextStyle(color: c.textFaint))))
