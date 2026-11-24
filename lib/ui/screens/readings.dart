@@ -409,6 +409,7 @@ class SaintFrame extends StatelessWidget {
                     : LayoutBuilder(
                         builder: (context, box) => CachedNetworkImage(
                           imageUrl: url,
+                          httpHeaders: SaintImages.imageHeaders,
                           fit: BoxFit.cover,
                           width: box.maxWidth,
                           height: box.maxHeight,

@@ -377,6 +377,7 @@ class _SaintBackdrop extends StatelessWidget {
                           ? const _CrossBackdrop()
                           : CachedNetworkImage(
                               imageUrl: url,
+                              httpHeaders: SaintImages.imageHeaders,
                               fit: BoxFit.cover,
                               alignment: SaintImages.focus(wiki, img.maxWidth, img.maxHeight),
                               fadeInDuration: const Duration(milliseconds: 300),

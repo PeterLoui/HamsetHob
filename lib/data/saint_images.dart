@@ -10,6 +10,9 @@ class SaintImages {
   SaintImages._();
   static final instance = SaintImages._();
 
+  /// ويكيميديا بتحجب أو بتبطّئ الطلبات اللي من غير User-Agent واضح (مكتبة الصور بتبعت اسم Dart العام)، فنبعت اسم التطبيق.
+  static const imageHeaders = {'User-Agent': 'HamsetHob/2.0 (Android)'};
+
   /// كلمات مش جزء من اسم القديس.
   static const _titles = {
     'نياحه', 'استشهاد', 'تذكار', 'عيد', 'القديس', 'القديسه', 'القديسين', 'القديسان', 'البابا', 'الانبا', 'انبا',
