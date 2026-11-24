@@ -1,45 +1,49 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'image_search.dart';
-
 import 'net.dart' show normalizeArabic;
 
-/// صورة تذكار اليوم من ويكيميديا كومنز فقط، من جدول متراجع [verified] بمفتاح اليوم أو بكلمة في عنوان التذكار.
-/// مافيش بحث بالاسم في ويكيبيديا: كان بيجيب لوحات غربية أو شخص تاني، والقاعدة إن الصورة الغلط أسوأ من الصليب.
-/// لو مافيش صورة مؤكدة الواجهة بتعرض الصليب القبطي.
+/// صورة تذكار اليوم: من البحث في الصور بالاسم (SerpApi أو Brave) بمفتاح المستخدم، وأول نتيجة بتتحمّل.
+/// من غير مفتاح مافيش صورة والواجهة بتعرض الصليب القبطي. الصور بتتحفظ على الجهاز.
 class SaintImages {
   SaintImages._();
   static final instance = SaintImages._();
 
-  /// ويكيميديا بتحجب أو بتبطّئ الطلبات اللي من غير User-Agent واضح (مكتبة الصور بتبعت اسم Dart العام)، فنبعت اسم التطبيق.
   static const imageHeaders = {'User-Agent': 'HamsetHob/2.0 (Android)'};
 
-  /// ملفات ويكيميديا الأصلية بترجع ٤٢٩ كتير (كبيرة)، لكن النسخ المصغّرة بأحجام قياسية بتتحمّل.
-  /// فبنجرّب ٥٠٠ ثم ٣٣٠ ثم ٩٦٠ (بيرفضه ٤٢٩ لو أكبر من الأصلي)، والأصلي آخر حاجة.
-  static List<String> candidates(String url) {
-    final m = RegExp(r'/commons/(?:thumb/)?([0-9a-f])/([0-9a-f]{2})/([^/]+)').firstMatch(url);
-    if (m == null) return [url];
-    final (a, ab, name) = (m[1]!, m[2]!, m[3]!);
-    final ext = name.split('.').last.toLowerCase();
-    final suffix = const {'jpg', 'jpeg', 'png'}.contains(ext) ? '' : '.png';
-    return [
-      for (final w in const [500, 330, 960]) 'https://upload.wikimedia.org/wikipedia/commons/thumb/$a/$ab/$name/${w}px-$name$suffix',
-      'https://upload.wikimedia.org/wikipedia/commons/$a/$ab/$name',
-    ];
-  }
-
+  final _memo = <String, Future<String?>>{};
   final _bytesMemo = <String, Future<Uint8List?>>{};
 
-  /// الصورة كـbytes: من الملف المحفوظ على الجهاز لو اتحمّلت قبل كده، وإلا بتتحمّل من ويكيميديا
-  /// (مع إعادة المحاولة لما يرد ٤٢٩، لأن أول طلب لحجم جديد بيخلّي ويكيميديا تجهّزه). [log] بيسجّل كل محاولة.
+  /// رابط الصورة لاسم التذكار (أو null). نفس الطلب بيرجّع نفس الـ Future، فالصورة ماتتحمّلش من جديد مع كل إعادة رسم.
+  /// [wikiTitle] و[date] متبقيين عشان الاستدعاءات القديمة، والبحث بالاسم بس.
+  Future<String?> imageUrl(String? wikiTitle, String name, DateTime date) {
+    if (!ImageSearch.configured) return Future.value(null);
+    final key = normalizeArabic(name);
+    return _memo.putIfAbsent(key, () async {
+      try {
+        for (final link in await ImageSearch.forName(name)) {
+          if ((await loadBytes(link)) != null) return link;
+        }
+      } catch (_) {/* الحصة خلصت أو المفتاح غلط أو مفيش نت: من غير صورة */}
+      _memo.remove(key); // نجرّب تاني المرة الجاية
+      return null;
+    });
+  }
+
+  /// بعد تغيير إعدادات البحث: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
+  void resetMemo() {
+    _memo.clear();
+    _bytesMemo.clear();
+  }
+
+  /// الصورة كـbytes: من الملف المحفوظ على الجهاز لو اتحمّلت قبل كده، وإلا من الرابط.
+  /// [log] بيسجّل كل محاولة، و[fresh] بيتخطى الذاكرة (للفحص).
   Future<Uint8List?> loadBytes(String url, {List<String>? log, bool fresh = false}) {
     final hit = fresh ? null : _bytesMemo[url];
     if (hit != null) return hit;
@@ -52,382 +56,26 @@ class SaintImages {
 
   Future<Uint8List?> _fetch(String url, List<String>? log) async {
     final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'saint_imgs'));
-    final file = File(p.join(dir.path, '${url.hashCode.toUnsigned(32).toRadixString(16)}_${candidates(url).last.split('/').last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}'));
+    final file = File(p.join(dir.path, url.hashCode.toUnsigned(32).toRadixString(16)));
     if (await file.exists()) {
       final b = await file.readAsBytes();
       if (b.isNotEmpty) return b;
     }
-    for (final u in candidates(url)) {
-      for (var attempt = 0; attempt < 2; attempt++) {
-        try {
-          final r = await http.get(Uri.parse(u), headers: imageHeaders).timeout(const Duration(seconds: 30));
-          log?.add('${r.statusCode}  ${u.split('/').last}  ${(r.bodyBytes.length / 1024).round()} ك.ب');
-          final isImage = (r.headers['content-type'] ?? '').startsWith('image');
-          if (r.statusCode == 200 && isImage && r.bodyBytes.isNotEmpty) {
-            await dir.create(recursive: true);
-            await file.writeAsBytes(r.bodyBytes, flush: true);
-            return r.bodyBytes;
-          }
-          if (r.statusCode != 429) break; // حجم تاني
-          await Future<void>.delayed(Duration(seconds: 2 << attempt));
-        } catch (e) {
-          log?.add('خطأ  ${u.split('/').last}  $e');
-          break;
-        }
-      }
-    }
-    return null;
-  }
-
-  /// كلمات مش جزء من اسم القديس.
-  static const _titles = {
-    'نياحه', 'استشهاد', 'تذكار', 'عيد', 'القديس', 'القديسه', 'القديسين', 'القديسان', 'البابا', 'الانبا', 'انبا',
-    'مار', 'ماري', 'العظيم', 'الجليل', 'الشهيد', 'الشهيده', 'الشهداء', 'رئيس', 'الملائكه', 'الملاك', 'السيده', 'ابي', 'ابو', 'ابينا', 'البطريرك',
-    'الكبير', 'الرسول', 'الرسولين', 'الانجيلي', 'بطاركه', 'الكرازه', 'المرقسيه', 'اسقف', 'الاسقف', 'اسقفي',
-    'التذكار', 'الشهري', 'سنكسار', 'اليوم', 'دخول', 'بدايه', 'صوم', 'المجيد', 'ظهور', 'نقل', 'جسد', 'راس',
-    'تكريس', 'كنيسه', 'الاب', 'الراهب', 'القمص', 'القس', 'الامير', 'الي', 'من', 'في', 'علي', 'اهل', 'بلده',
-    'والده', 'اخته', 'اخيه', 'امه', 'بجبل', 'مدينه', 'الرسل', 'الصوم', 'الاعياد', 'المسيح', 'السيد', 'يسوع', 'الرب', 'الصليب', 'الميلاد', 'القيامه',
-  };
-
-  final _memo = <String, Future<String?>>{};
-
-  /// ألبومات معرض الأنبا تكلا (assets/saint_albums.json): [مسار الألبوم، عنوانه العربي، اسم أول صورة].
-  static List<List<String>>? _albums;
-
-  static Future<List<List<String>>> _loadAlbums() async {
-    if (_albums != null) return _albums!;
     try {
-      final raw = jsonDecode(await rootBundle.loadString('assets/saint_albums.json')) as List;
-      return _albums = [for (final e in raw) [for (final x in e as List) x as String]];
-    } catch (_) {
-      return _albums = const [];
-    }
-  }
-
-  static String _galleryUrl(List<String> album) =>
-      'https://st-takla.org/Gallery/var/albums/${album[0].split('/').map(Uri.encodeComponent).join('/')}/${Uri.encodeComponent(album[2])}';
-
-  /// الأعياد والقديسين المعروفين (بمفتاح الجدول) ← ألبومهم في معرض الأنبا تكلا.
-  static const taklaAlbums = <String, String>{
-    'Annunciation': 'Saint-Mary/01-The-Annunciation-of-the-Blessed-Virgin-Mary',
-    'Anthony_the_Great': 'Saints-and-Figures/01-Alef-A-E-I-O/Saint-Anthony-the-Great',
-    'Ascension_of_Jesus': 'Jesus-Christ/25-Ascension-of-Jesus',
-    'Assumption_of_Mary': 'Saint-Mary/12-Assumption-of-Virgin-Mariam',
-    'Baptism_of_Jesus': 'Jesus-Christ/02-Baptizm-of-Jesus',
-    'Crucifixion_of_Jesus': 'Jesus-Christ/20-Jesus-on-the-Cross',
-    'Dormition_of_the_Mother_of_God': 'Saint-Mary/11-Departure-of-El-3adra-Maryam',
-    'Flight_into_Egypt': 'Saint-Mary/04-The-Flight-to-Egypt',
-    'Gabriel': 'Angels-and-Archangels/Archangel-Gabriel',
-    'John_Chrysostom': 'Saints-and-Figures/28-Yeh/Saint-John-Chrysostom',
-    'John_the_Apostle': 'Saints-and-Figures/Twelve-Disciples/04-John-son-of-Zebedee-the-Beloved',
-    'John_the_Baptist': 'Saints-and-Figures/28-Yeh/Saint-John-the-Baptist',
-    'John_the_Dwarf': 'Saints-and-Figures/28-Yeh/Saint-Youhanna-the-Short',
-    'Last_Supper': 'Jesus-Christ/12-The-Last-Supper',
-    'Luke_the_Evangelist': 'Saints-and-Figures/23-Laam/Saint-Luke-the-Evangelist',
-    'Mark_the_Evangelist': 'Saints-and-Figures/24-Meem/Saint-Mark-The-Evangelist',
-    'Matthew_the_Apostle': 'Saints-and-Figures/Twelve-Disciples/08-Matthew',
-    'Mercurius': 'Saints-and-Figures/20-Feh/Saint-Philopatir-Markorios',
-    'Michael_(archangel)': 'Angels-and-Archangels/Archangel-Michael',
-    'Nativity_of_Jesus': 'Saint-Mary/02-Nativity-of-Jesus-Christmas-Images',
-    'Pentecost': 'Saint-Mary/10-Feast-of-Penticost',
-    'Presentation_of_Jesus': 'Saint-Mary/03-The-Presentation-to-the-Temple',
-    'Raphael_(archangel)': 'Angels-and-Archangels/Archangel-Raphael',
-    'Resurrection_of_Jesus': 'Jesus-Christ/22-Resurrection-of-Jesus',
-    'Saint_George_and_the_Dragon': 'Saints-and-Figures/05-Geem/Saint-George',
-    'Saint_Menas': 'Saints-and-Figures/24-Meem/Saint-Mina',
-    'Saints_Cosmas_and_Damian': 'Saints-and-Figures/21-Kaaf/Saint-Kozman-and-Demian',
-    'Temptation_of_Christ': 'Jesus-Christ/34-Temptation-of-Christ',
-    'Theotokos': 'Saint-Mary/07-Mother-of-God-Theotokos',
-    'Transfiguration_of_Jesus': 'Jesus-Christ/08-Jesus-Transfiguration',
-    'Triumphal_entry_into_Jerusalem': 'Jesus-Christ/11-Palm-Sunday',
-  };
-
-  /// صورة تذكار اليوم، بالترتيب: ألبوم معروف في معرض الأنبا تكلا، ثم بحث بالاسم في عناوين الألبومات
-  /// (لازم الاسم كله يطابق، مش اسم واحد قصير)، ثم صورة ويكيميديا المتراجعة لو موجودة. لو مافيش: الصليب.
-  /// [wikiTitle] مفتاح الجدول، [name] عنوان التذكار، [date] اليوم الميلادي. نفس الطلب بيرجّع نفس الـ Future.
-  Future<String?> imageUrl(String? wikiTitle, String name, DateTime date) {
-    final key = '${wikiTitle ?? ''}|${normalizeArabic(name)}';
-    return _memo.putIfAbsent(key, () => _resolve(wikiTitle, name));
-  }
-
-  Future<String?> _resolve(String? wikiTitle, String name) async {
-    final albums = await _loadAlbums();
-    final id = wikiTitle ?? _aliasKey(name);
-    if (id != null) {
-      final path = taklaAlbums[id];
-      final hit = path == null ? null : albums.where((a) => a[0] == path).firstOrNull;
-      if (hit != null) return _galleryUrl(hit);
-    }
-    final fuzzy = _fuzzy(albums, name);
-    if (fuzzy != null) return _galleryUrl(fuzzy);
-    // صورة ويكيميديا المتراجعة: نتأكد إنها بتتحمّل فعلاً (ويكيميديا بتحجب كتير)
-    final wm = id == null ? null : verified[id];
-    if (!ImageSearch.configured) return wm;
-    if (wm != null && (await loadBytes(wm)) != null) return wm;
-    // آخر حل: بحث الصور بالاسم (Brave، لو المستخدم فعّله بمفتاحه)، وأول نتيجة بتتحمّل
-    {
-      try {
-        for (final link in await ImageSearch.forName(name)) {
-          if ((await loadBytes(link)) != null) return link;
-        }
-      } catch (_) {/* الحصة خلصت أو المفتاح غلط: نكمّل من غير صورة */}
-    }
-    return wm; // لو ويكيميديا ماتحمّلتش دلوقتي، نسيبها تتجرّب تاني من الواجهة
-  }
-
-  /// بعد تغيير إعدادات البحث: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
-  void resetMemo() {
-    _memo.clear();
-    _bytesMemo.clear();
-  }
-
-  /// ألبوم قديس عنوانه بيطابق اسم صاحب التذكار.
-  static List<String>? _fuzzy(List<List<String>> albums, String name) {
-    final keys = nameKeys(name);
-    if (keys.isEmpty) return null;
-    for (final a in albums) {
-      if (!(a[0].startsWith('Saints-and-Figures/') || a[0].startsWith('Angels-and-Archangels/'))) continue;
-      if (!_matches(a[1], keys)) continue;
-      // اسم واحد («بطرس»، «مقاريوس»): الألبوم لازم يكون لقديس بنفس الاسم وبس، مش «بيشاي وبطرس» ولا «مقاريوس السكندري»
-      if (keys.length == 1 && nameKeys(a[1]).length > 1) continue;
-      return a;
+      final r = await http.get(Uri.parse(url), headers: imageHeaders).timeout(const Duration(seconds: 25));
+      final isImage = (r.headers['content-type'] ?? '').startsWith('image');
+      log?.add('${r.statusCode}  ${Uri.parse(url).host}  ${(r.bodyBytes.length / 1024).round()} ك.ب${isImage ? '' : '  (مش صورة)'}');
+      if (r.statusCode == 200 && isImage && r.bodyBytes.isNotEmpty && r.bodyBytes.length < 8 * 1024 * 1024) {
+        await dir.create(recursive: true);
+        await file.writeAsBytes(r.bodyBytes, flush: true);
+        return r.bodyBytes;
+      }
+    } catch (e) {
+      log?.add('خطأ  ${Uri.parse(url).host}  $e');
     }
     return null;
   }
 
-  /// هيكل الكلمة من غير حروف المد والهمزات، عشان «لنجينوس» تطابق «لونجينوس».
-  static String _skeleton(String w) => normalizeArabic(w).replaceAll(RegExp('[اويءؤئ]'), '');
-
-  /// العنوان بيذكر صاحب التذكار؟ أول كلمة من الاسم لازم تظهر (و«مارمينا» بتطابق «مينا»)، وأسماء قصيرة شائعة
-  /// («يوحنا»، «بطرس») لازم معاها الكلمة التانية كمان، عشان «يوحنا» ماتطابقش يوحنا تاني.
-  static bool _matches(String text, List<String> keys) {
-    final words = <String>{};
-    for (final w in normalizeArabic(text).split(RegExp(r'[^ء-ي]+'))) {
-      words.add(_skeleton(w));
-      if (w.startsWith('مار') && w.length > 5) words.add(_skeleton(w.substring(3)));
-    }
-    bool has(String k) {
-      final s = _skeleton(k);
-      return s.length >= 3 && words.contains(s);
-    }
-
-    if (!has(keys.first)) return false;
-    final second = keys.skip(1).where((k) => _skeleton(k).length >= 3);
-    return keys.first.length >= 7 || second.isEmpty || has(second.first);
-  }
-
-  /// قديسين وأعياد مشهورين ليهم صورة متراجعة في [verified]، بيتعرفوا من كلمة في عنوان التذكار
-  /// (تكريس كنيسة، نقل جسد، تذكار شهري…). الترتيب مهم: الأكثر تحديداً الأول.
-  static const _aliases = <(List<String>, String)>[
-    (['مينا', 'العجايبي'], 'Saint_Menas'),
-    (['جرجس', 'الروماني'], 'Saint_George_and_the_Dragon'),
-    (['ابي', 'سيفين'], 'Mercurius'),
-    (['مرقوريوس'], 'Mercurius'),
-    (['يوحنا', 'المعمدان'], 'John_the_Baptist'),
-    (['يوحنا', 'ذهبي'], 'John_Chrysostom'),
-    (['مرقس', 'الرسول'], 'Mark_the_Evangelist'),
-    (['انطونيوس', 'اب'], 'Anthony_the_Great'),
-    (['اثناسيوس', 'الرسولي'], 'Athanasius_of_Alexandria'),
-    (['كيرلس', 'السادس'], 'Pope_Cyril_VI_of_Alexandria'),
-    (['شنوده', 'الثالث'], 'Pope_Shenouda_III_of_Alexandria'),
-    (['موسي', 'الاسود'], 'Moses_the_Black'),
-    (['قزمان', 'دميان'], 'Saints_Cosmas_and_Damian'),
-    (['بطرس', 'بولس'], 'Saints_Peter_and_Paul'),
-    (['الملائكه', 'ميخائيل'], 'Michael_(archangel)'),
-    (['الملاك', 'ميخائيل'], 'Michael_(archangel)'),
-    (['جبرائيل'], 'Gabriel'),
-    (['غبريال', 'الملاك'], 'Gabriel'),
-    (['غبريال', 'الملائكه'], 'Gabriel'),
-    (['روفائيل'], 'Raphael_(archangel)'),
-    (['الاعياد', 'السيديه'], 'Annunciation'),
-    (['رافائيل'], 'Raphael_(archangel)'),
-  ];
-
-  /// مفتاح الجدول لتذكار معروف من كلمات في اسمه (تكريس كنيسة، نقل جسد، تذكار شهري…).
-  static String? _aliasKey(String name) {
-    final words = normalizeArabic(name).split(RegExp(r'[^ء-ي]+')).toSet();
-    for (final (need, wiki) in _aliases) {
-      if (need.every(words.contains)) return wiki;
-    }
-    // كنايس ومعجزات السيدة العذراء، بس مش تذكار والديها (حنة ويواقيم)
-    if (words.contains('العذراء') && !words.contains('حنه') && !words.contains('يواقيم') && !words.contains('العذاري')) {
-      return 'Theotokos';
-    }
-    return null;
-  }
-
-  /// كلمات الاسم بعد شيل الألقاب («نياحة القديس…»).
-  static List<String> nameKeys(String name) => normalizeArabic(name)
-      .split(RegExp(r'[\s،,()\-–]+'))
-      .map((w) => w.startsWith('و') && w.length > 4 ? w.substring(1) : w)
-      .where((w) => w.length >= 3 && !_titles.contains(w))
-      .toList();
-
-  static const verified = <String, String>{
-  // عيد النيروز · Nayrouz icon.jpg
-  'Nayrouz': 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Nayrouz_icon.jpg',
-  // استشهاد يوحنا المعمدان · John baptist coptic.jpg
-  'John_the_Baptist': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/John_baptist_coptic.jpg',
-  // عيد الصليب · Konstantin & Helena.jpg
-  'True_Cross': 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Konstantin_%26_Helena.jpg',
-  // متى الإنجيلي · Matthew the Evangelist - icon.jpeg
-  'Matthew_the_Apostle': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Matthew_the_Evangelist_-_icon.jpeg',
-  // يحنس القصير · Saint John the Dwarf. Coptic icon.jpg
-  'John_the_Dwarf': 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Saint_John_the_Dwarf._Coptic_icon.jpg',
-  // لوقا الإنجيلي · Saint Luke the Evangelist - icon.jpeg
-  'Luke_the_Evangelist': 'https://upload.wikimedia.org/wikipedia/commons/e/e6/Saint_Luke_the_Evangelist_-_icon.jpeg',
-  // مجمع نيقية · First Council of Nicaea Michael Damaskinos.png
-  'First_Council_of_Nicaea': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/First_Council_of_Nicaea_Michael_Damaskinos.png/1280px-First_Council_of_Nicaea_Michael_Damaskinos.png',
-  // رئيس الملائكة ميخائيل · Coptic Icon of the Archangel Michael.jpg
-  'Michael_(archangel)': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Coptic_Icon_of_the_Archangel_Michael.jpg/1280px-Coptic_Icon_of_the_Archangel_Michael.jpg',
-  // مار مينا العجايبي · Saint Menas Icon in Saint Mary Church in Kumanichevo.jpg
-  'Saint_Menas': 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Saint_Menas_Icon_in_Saint_Mary_Church_in_Kumanichevo.jpg',
-  // الميلاد المجيد · Nativity (15th c., Annunciation Cathedral in Moscow).jpg
-  'Nativity_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Nativity_%2815th_c.%2C_Annunciation_Cathedral_in_Moscow%29.jpg/1280px-Nativity_%2815th_c.%2C_Annunciation_Cathedral_in_Moscow%29.jpg',
-  // يوحنا ذهبي الفم · Semen Spiridonov Kholmogorets. John Chrysostom. 1670-1680th.jpg
-  'John_Chrysostom': 'https://upload.wikimedia.org/wikipedia/commons/1/12/Semen_Spiridonov_Kholmogorets._John_Chrysostom._1670-1680th.jpg',
-  // قزمان ودميان · Saints Cosmas and Damian icon, Syria (1778).jpg
-  'Saints_Cosmas_and_Damian': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Saints_Cosmas_and_Damian_icon%2C_Syria_%281778%29.jpg/1280px-Saints_Cosmas_and_Damian_icon%2C_Syria_%281778%29.jpg',
-  // أبو سيفين · Saint Mercurius killing Iulian.jpg
-  'Mercurius': 'https://upload.wikimedia.org/wikipedia/commons/6/63/Saint_Mercurius_killing_Iulian.jpg',
-  // دخول العذراء الهيكل · Presentation of Mary, II Half of XIV Century, St Mary Perivleptos Church, Ohrid Icon Gallery.jpg
-  'Presentation_of_Mary': 'https://upload.wikimedia.org/wikipedia/commons/9/98/Presentation_of_Mary%2C_II_Half_of_XIV_Century%2C_St_Mary_Perivleptos_Church%2C_Ohrid_Icon_Gallery.jpg',
-  // الملاك غبريال · Archangel Gabriel Icon in Blue and Red.png
-  'Gabriel': 'https://upload.wikimedia.org/wikipedia/commons/6/62/Archangel_Gabriel_Icon_in_Blue_and_Red.png',
-  // أطفال بيت لحم · Massacre of the Innocents (Ionian, 17th c., Byzantine museum).jpg
-  'Massacre_of_the_Innocents': 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Massacre_of_the_Innocents_%28Ionian%2C_17th_c.%2C_Byzantine_museum%29.jpg',
-  // يوحنا الإنجيلي · Holy Apostle and Evangelist John the Theologian. Icon. Greece, 16th century.jpg
-  'John_the_Apostle': 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Holy_Apostle_and_Evangelist_John_the_Theologian._Icon._Greece%2C_16th_century.jpg',
-  // الختان · Icon of the circumcision of Christ.jpg
-  'Circumcision_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Icon_of_the_circumcision_of_Christ.jpg/1280px-Icon_of_the_circumcision_of_Christ.jpg',
-  // الغطاس (أيقونة قبطية) · Baptism (coptic icon).jpg
-  'Baptism_of_Jesus': 'https://upload.wikimedia.org/wikipedia/commons/5/5f/Baptism_%28coptic_icon%29.jpg',
-  // نياحة العذراء (أيقونة قبطية) · Coptic icon of the Dormition of Virgin Mary.jpg
-  'Dormition_of_the_Mother_of_God': 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Coptic_icon_of_the_Dormition_of_Virgin_Mary.jpg',
-  // الأنبا أنطونيوس (أيقونة قبطية) · Anthony the Great (coptic icon, 19-20 c., priv. coll).jpg
-  'Anthony_the_Great': 'https://upload.wikimedia.org/wikipedia/commons/2/28/Anthony_the_Great_%28coptic_icon%2C_19-20_c.%2C_priv._coll%29.jpg',
-  // دخول المسيح الهيكل · Presentation of Christ in the Temple (10335749684).jpg
-  'Presentation_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Presentation_of_Christ_in_the_Temple_%2810335749684%29.jpg/1280px-Presentation_of_Christ_in_the_Temple_%2810335749684%29.jpg',
-  // البابا كيرلس السادس · Cyril VI of Alexandria.jpg
-  'Pope_Cyril_VI_of_Alexandria': 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Cyril_VI_of_Alexandria.jpg',
-  // البابا شنوده الثالث · Pope Shenouda III of Alexandria by Chuck Kennedy (Official White House Photostream).jpg
-  'Pope_Shenouda_III_of_Alexandria': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Pope_Shenouda_III_of_Alexandria_by_Chuck_Kennedy_%28Official_White_House_Photostream%29.jpg/1280px-Pope_Shenouda_III_of_Alexandria_by_Chuck_Kennedy_%28Official_White_House_Photostream%29.jpg',
-  // مقاريوس الكبير · Icon of Saint Macarius the Great.jpg
-  'Macarius_of_Egypt': 'https://upload.wikimedia.org/wikipedia/commons/6/65/Icon_of_Saint_Macarius_the_Great.jpg',
-  // البشارة · The Annunciation, Gladzor.jpg
-  'Annunciation': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/The_Annunciation%2C_Gladzor.jpg/1280px-The_Annunciation%2C_Gladzor.jpg',
-  // مار جرجس · Icon of Saint George and the youth of Mytilene.jpg
-  'Saint_George_and_the_Dragon': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Icon_of_Saint_George_and_the_youth_of_Mytilene.jpg/1280px-Icon_of_Saint_George_and_the_youth_of_Mytilene.jpg',
-  // مار مرقس الرسول · 087 Mark the Evangelist Icon from Saint Paraskevi Church in Langadas.jpg
-  'Mark_the_Evangelist': 'https://upload.wikimedia.org/wikipedia/commons/3/3d/087_Mark_the_Evangelist_Icon_from_Saint_Paraskevi_Church_in_Langadas.jpg',
-  // أثناسيوس الرسولي · Saint-Athanasius-of-Alexandria-icon-Sozopol-Bulgaria-17century.jpg
-  'Athanasius_of_Alexandria': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Saint-Athanasius-of-Alexandria-icon-Sozopol-Bulgaria-17century.jpg/1280px-Saint-Athanasius-of-Alexandria-icon-Sozopol-Bulgaria-17century.jpg',
-  // دخول المسيح مصر (أيقونة قبطية) · Flight into Egypt (coptic icon).jpg
-  'Flight_into_Egypt': 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Flight_into_Egypt_%28coptic_icon%29.jpg',
-  // موسى الأسود · St Moses the Black.jpg
-  'Moses_the_Black': 'https://upload.wikimedia.org/wikipedia/commons/3/3b/St_Moses_the_Black.jpg',
-  // ميلاد يوحنا المعمدان · 052 Nativity of Saint John the Baptist Icon from Saint Paraskevi Church in Langadas.jpg
-  'Nativity_of_St_John_the_Baptist': 'https://upload.wikimedia.org/wikipedia/commons/c/c5/052_Nativity_of_Saint_John_the_Baptist_Icon_from_Saint_Paraskevi_Church_in_Langadas.jpg',
-  // كيرلس عمود الدين · Chora-Kirche 2013-03-21zh (cropped).jpg
-  'Cyril_of_Alexandria': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Chora-Kirche_2013-03-21zh_%28cropped%29.jpg/1280px-Chora-Kirche_2013-03-21zh_%28cropped%29.jpg',
-  // بطرس وبولس · The Holy Apostles Peter and Paul. Novgorod School of Icon Painting, 12th-13th centuries. Belozersk.jpg
-  'Saints_Peter_and_Paul': 'https://upload.wikimedia.org/wikipedia/commons/e/ec/The_Holy_Apostles_Peter_and_Paul._Novgorod_School_of_Icon_Painting%2C_12th-13th_centuries._Belozersk.jpg',
-  // الأنبا شنوده رئيس المتوحدين · Shenoute of Atripe.jpg
-  'Shenoute': 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Shenoute_of_Atripe.jpg',
-  // الأنبا بيشوي (بائيسيوس الكبير) · Saint Paisiy the Great.jpg
-  'Monastery_of_Saint_Pishoy': 'https://upload.wikimedia.org/wikipedia/commons/7/7e/Saint_Paisiy_the_Great.jpg',
-  // السيدة العذراء · Ethiopia Madonna and Child.jpg
-  'Theotokos': 'https://upload.wikimedia.org/wikipedia/commons/9/92/Ethiopia_Madonna_and_Child.jpg',
-  // التجلي · Transfiguration by Feofan Grek from Spaso-Preobrazhensky Cathedral in Pereslavl-Zalessky (15th c, Tretyakov gallery).jpeg
-  'Transfiguration_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Transfiguration_by_Feofan_Grek_from_Spaso-Preobrazhensky_Cathedral_in_Pereslavl-Zalessky_%2815th_c%2C_Tretyakov_gallery%29.jpeg/1280px-Transfiguration_by_Feofan_Grek_from_Spaso-Preobrazhensky_Cathedral_in_Pereslavl-Zalessky_%2815th_c%2C_Tretyakov_gallery%29.jpeg',
-  // صعود جسد العذراء · The Dormition and Assumption of the Virgin (Moskos).jpg
-  'Assumption_of_Mary': 'https://upload.wikimedia.org/wikipedia/commons/1/16/The_Dormition_and_Assumption_of_the_Virgin_%28Moskos%29.jpg',
-  // الملاك رافائيل · Georgios Kortezas The Archangels Michael, Gabriel and Raphael.png
-  'Raphael_(archangel)': 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Georgios_Kortezas_The_Archangels_Michael%2C_Gabriel_and_Raphael.png',
-  // صوم يونان · Jonah.jpg
-  'Jonah': 'https://upload.wikimedia.org/wikipedia/commons/2/27/Jonah.jpg',
-  // الصوم الكبير · Temptation icon.jpg
-  'Temptation_of_Christ': 'https://upload.wikimedia.org/wikipedia/commons/f/f6/Temptation_icon.jpg',
-  // أحد الشعانين · Entry into Jerusalem (Afon icon).jpg
-  'Triumphal_entry_into_Jerusalem': 'https://upload.wikimedia.org/wikipedia/commons/a/af/Entry_into_Jerusalem_%28Afon_icon%29.jpg',
-  // خميس العهد · Icon last supper.jpg
-  'Last_Supper': 'https://upload.wikimedia.org/wikipedia/commons/0/03/Icon_last_supper.jpg',
-  // الجمعة العظيمة · Double-side icon with Crucifixion and Hodegetria (14th century, Byzantine museum)-.jpg
-  'Crucifixion_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Double-side_icon_with_Crucifixion_and_Hodegetria_%2814th_century%2C_Byzantine_museum%29-.jpg/1280px-Double-side_icon_with_Crucifixion_and_Hodegetria_%2814th_century%2C_Byzantine_museum%29-.jpg',
-  // عيد القيامة · Harrowing of hell (Pskov, 14th c.).jpg
-  'Resurrection_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Harrowing_of_hell_%28Pskov%2C_14th_c.%29.jpg/1280px-Harrowing_of_hell_%28Pskov%2C_14th_c.%29.jpg',
-  // الصعود · Ascension of Jesus icon, Lattakia (1667).jpg
-  'Ascension_of_Jesus': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/Ascension_of_Jesus_icon%2C_Lattakia_%281667%29.jpg/1280px-Ascension_of_Jesus_icon%2C_Lattakia_%281667%29.jpg',
-  // العنصرة · Pentecost icon.jpg
-  'Pentecost': 'https://upload.wikimedia.org/wikipedia/commons/d/db/Pentecost_icon.jpg',
-  // صوم الرسل · Synaxis of the Twelve Apostles by Constantinople master (early 14th c., Pushkin museum).jpg
-  'Twelve_Apostles': 'https://upload.wikimedia.org/wikipedia/commons/8/81/Synaxis_of_the_Twelve_Apostles_by_Constantinople_master_%28early_14th_c.%2C_Pushkin_museum%29.jpg',
-  };
-
-  /// لكل صورة: نسبة الارتفاع للعرض، ومكان وش القديس الأساسي من فوق (كسر من ارتفاع الصورة).
-  /// اتقاست بالعين على كل صورة، عشان القص يتوسّط على الوش بدل ما يقطعه.
-  static const framing = <String, (double, double)>{
-    'Nayrouz': (1.448, 0.23),
-    'John_the_Baptist': (1.090, 0.2),
-    'True_Cross': (0.779, 0.15),
-    'Matthew_the_Apostle': (1.333, 0.25),
-    'John_the_Dwarf': (1.606, 0.25),
-    'Luke_the_Evangelist': (1.169, 0.25),
-    'First_Council_of_Nicaea': (1.276, 0.3),
-    'Michael_(archangel)': (1.451, 0.15),
-    'Saint_Menas': (1.541, 0.15),
-    'Nativity_of_Jesus': (1.327, 0.4),
-    'John_Chrysostom': (2.334, 0.25),
-    'Saints_Cosmas_and_Damian': (1.250, 0.12),
-    'Mercurius': (1.278, 0.25),
-    'Presentation_of_Mary': (1.304, 0.35),
-    'Gabriel': (1.427, 0.3),
-    'Massacre_of_the_Innocents': (0.648, 0.4),
-    'John_the_Apostle': (1.371, 0.2),
-    'Circumcision_of_Jesus': (0.498, 0.4),
-    'Baptism_of_Jesus': (1.444, 0.42),
-    'Dormition_of_the_Mother_of_God': (1.421, 0.12),
-    'Anthony_the_Great': (1.412, 0.2),
-    'Presentation_of_Jesus': (1.061, 0.35),
-    'Pope_Cyril_VI_of_Alexandria': (1.598, 0.3),
-    'Pope_Shenouda_III_of_Alexandria': (1.500, 0.35),
-    'Macarius_of_Egypt': (1.210, 0.3),
-    'Annunciation': (1.302, 0.38),
-    'Saint_George_and_the_Dragon': (1.307, 0.27),
-    'Mark_the_Evangelist': (1.255, 0.25),
-    'Athanasius_of_Alexandria': (1.392, 0.3),
-    'Flight_into_Egypt': (1.353, 0.18),
-    'Moses_the_Black': (1.849, 0.1),
-    'Nativity_of_St_John_the_Baptist': (1.381, 0.35),
-    'Cyril_of_Alexandria': (1.334, 0.2),
-    'Saints_Peter_and_Paul': (1.538, 0.12),
-    'Shenoute': (1.624, 0.2),
-    'Monastery_of_Saint_Pishoy': (1.124, 0.32),
-    'Theotokos': (1.108, 0.25),
-    'Transfiguration_of_Jesus': (1.388, 0.2),
-    'Assumption_of_Mary': (1.988, 0.1),
-    'Raphael_(archangel)': (0.853, 0.25),
-    'Jonah': (1.245, 0.25),
-    'Temptation_of_Christ': (1.203, 0.45),
-    'Triumphal_entry_into_Jerusalem': (1.347, 0.3),
-    'Last_Supper': (1.375, 0.3),
-    'Crucifixion_of_Jesus': (1.279, 0.2),
-    'Resurrection_of_Jesus': (1.249, 0.42),
-    'Ascension_of_Jesus': (1.276, 0.2),
-    'Pentecost': (1.214, 0.25),
-    'Twelve_Apostles': (1.160, 0.3),
-  };
-
-  /// المحاذاة اللي بتخلي الوش ظاهر جوه صندوق بالمقاس ده مع BoxFit.cover.
-  /// [faceAt] مكان الوش المطلوب من فوق الصندوق (٠٫٤ يعني فوق النص شوية).
-  static Alignment focus(String? wikiTitle, double boxW, double boxH, {double faceAt = .4}) {
-    final f = wikiTitle == null ? null : framing[wikiTitle];
-    if (f == null || boxW <= 0 || boxH <= 0) return const Alignment(0, -.6);
-    final (aspect, faceY) = f;
-    final shownH = boxW * aspect; // الصورة بعرض الصندوق
-    if (shownH <= boxH) return Alignment.center; // صورة عريضة: بتتقص من الجناب مش من فوق وتحت
-    final overflow = shownH - boxH;
-    final top = (faceY * shownH - faceAt * boxH).clamp(0.0, overflow);
-    return Alignment(0, top / overflow * 2 - 1);
-  }
+  /// محاذاة الصورة جوه الصندوق: الوش غالباً في الثلث العلوي، فبنميل للأعلى.
+  static Alignment focus(String? wikiTitle, double boxW, double boxH) => const Alignment(0, -.6);
 }

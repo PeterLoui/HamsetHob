@@ -98,7 +98,7 @@ class ImageSearch {
         return [for (final x in o['links'] as List) x as String];
       }
     }
-    final links = await search('$name أيقونة قديس');
+    final links = await search('$name أيقونة قبطية');
     if (links.isNotEmpty) await prefs.setString(cacheKey, jsonEncode({'at': DateTime.now().millisecondsSinceEpoch, 'links': links}));
     return links;
   }

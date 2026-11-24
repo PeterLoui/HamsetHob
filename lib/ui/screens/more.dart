@@ -196,7 +196,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
-            _item('البحث في الصور (احتياطي لصور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح SerpApi أو Brave مجاني' : (settings.searchFallback ? 'مفعّل (${ImageSearch.providers[settings.searchProvider]})' : 'متوقف'), _searchSetup),
+            _item('البحث في الصور (مصدر صور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح SerpApi أو Brave مجاني' : (settings.searchFallback ? 'مفعّل (${ImageSearch.providers[settings.searchProvider]})' : 'متوقف'), _searchSetup),
             _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
@@ -321,11 +321,11 @@ class _MoreScreenState extends State<MoreScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => AlertDialog(
-          title: const Text('البحث في الصور كاحتياطي'),
+          title: const Text('البحث في الصور (مصدر صور التذكار)'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
-                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في الصور وياخد أول صورة بتتحمّل. '
+                'صور التذكار بتيجي من البحث في الصور بالاسم (ده الوحيد المصدر)، وبتاخد أول صورة بتتحمّل. '
                 'الصورة الأولى ممكن ماتكونش للقديس الصح، فراجعها.\n\n'
                 'SerpApi: اعمل حساب مجاني في serpapi.com وانسخ «API key» من الـDashboard (الخطة المجانية فيها بحوث محدودة في الشهر).\n'
                 'Brave: api-dashboard.search.brave.com، خطة بحث الصور المجانية.\n'
@@ -339,7 +339,7 @@ class _MoreScreenState extends State<MoreScreen> {
               ]),
               const SizedBox(height: 12),
               TextField(controller: key, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'مفتاح API')),
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('استخدامه كاحتياطي'), value: on, onChanged: (v) => set(() => on = v)),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('تفعيل'), value: on, onChanged: (v) => set(() => on = v)),
               if (result != null) SelectableText(result!, style: TextStyle(fontSize: 12, height: 1.6, color: c.text)),
             ]),
           ),
@@ -379,7 +379,7 @@ class _MoreScreenState extends State<MoreScreen> {
     final c = context.colors;
     String report;
     if (url == null) {
-      report = 'ملقيناش صورة لتذكار النهارده (${com.title}) لا في معرض الأنبا تكلا ولا في الجدول، فبيظهر الصليب.';
+      report = 'مفيش صورة لتذكار النهارده (${com.title}): ${ImageSearch.configured ? 'البحث ماطلّعش صورة بتتحمّل' : 'مفعّلش البحث في الصور (محتاج مفتاح SerpApi أو Brave)'}، فبيظهر الصليب.';
     } else {
       final sw = Stopwatch()..start();
       final log = <String>[];
