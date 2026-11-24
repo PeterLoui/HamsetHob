@@ -418,7 +418,8 @@ class MiniPlayer extends StatelessWidget {
       listenable: player,
       builder: (context, _) {
         final now = player.nowPlaying;
-        if (now == null) return const SizedBox.shrink();
+        // مفيش حاجة شغالة دلوقتي: آخر محطة أو عظة اتسجّلت بس لسه ماتشغّلتش في الجلسة دي، فنخفي المشغّل
+        if (now == null || player.hasPending) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           // ضوء سائل حوالين المشغّل الصغير طول ما الصوت شغال
