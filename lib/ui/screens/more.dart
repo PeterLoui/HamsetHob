@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../audio/audio_levels.dart';
+import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
 import '../../data/image_search.dart';
@@ -437,6 +438,8 @@ class _MoreScreenState extends State<MoreScreen> {
     final notif = m?['notifications'] == true;
     final channel = (m?['channel'] as int?) ?? -1;
     final battery = m?['battery'] == true;
+    final playing = RadioPlayer.instance.isPlaying;
+    final mediaNotif = m?['mediaNotification'] == true;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -447,6 +450,14 @@ class _MoreScreenState extends State<MoreScreen> {
                 row(notif, notif ? 'الإشعارات مفعّلة للتطبيق' : 'الإشعارات مقفولة: من غيرها مفيش أزرار', fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
                 row(channel != 0, channel == -1 ? 'قناة الإذاعة هتتعمل أول ما تشغّل صوت' : (channel == 0 ? 'قناة «الإذاعة» مقفولة في إعدادات الإشعارات' : 'قناة «الإذاعة» شغالة'),
                     fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
+                row(
+                  mediaNotif || !playing,
+                  mediaNotif
+                      ? 'إشعار التشغيل ظاهر دلوقتي (فيه أزرار التحكم)'
+                      : (playing ? 'الصوت شغال لكن إشعار التحكم مش ظاهر! ابعتلي النتيجة دي مع موديل الموبايل' : 'شغّل إذاعة أو عظة وافتح الفحص تاني عشان نتأكد إن إشعار التحكم بيظهر'),
+                  fix: NativeBridge.openNotificationSettings,
+                  fixLabel: 'فتح',
+                ),
                 row(battery, battery ? 'توفير البطارية مش بيقيّد التطبيق' : 'توفير البطارية ممكن يقفل الصوت بعد ما تخرج', fix: () => NativeBridge.openBackgroundSettings('battery'), fixLabel: 'فتح'),
                 const SizedBox(height: 8),
                 Text('الجهاز: ${m['maker']} • أندرويد ${m['sdk']}', style: TextStyle(fontSize: 12, color: c.textFaint)),

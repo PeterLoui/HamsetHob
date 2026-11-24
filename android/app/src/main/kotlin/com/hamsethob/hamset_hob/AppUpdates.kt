@@ -21,17 +21,17 @@ import java.net.URL
 /**
  * التحديث من إصدارات GitHub.
  *
- * - الفحص والإشعار: بنفحص كل ١٢ ساعة (من المنبّه اللي بيشتغل كل ٣ ساعات أصلاً)، ولو فيه نسخة أحدث من المركّبة
- *   بنعمل إشعار واحد لكل نسخة. الإعدادات (شغّال ولا لأ، وهل النسخ التجريبية) بتجي من التطبيق.
+ * - الفحص والإشعار: بنفحص كل ساعة تقريباً (منبّه بيجدد نفسه ويشتغل حتى في وضع السكون، وبيتجدد بعد إعادة التشغيل)،
+ *   ولو فيه نسخة أحدث من المركّبة بنعمل إشعار واحد لكل نسخة. الإعدادات (شغّال ولا لأ، وهل النسخ التجريبية) بتجي من التطبيق.
  * - التركيب: التطبيق بينزّل الـ APK، وهنا بنسلّمه لـ PackageInstaller. أندرويد بيطلب موافقة المستخدم،
  *   وبيرفض أي نسخة مش متوقّعة بنفس مفتاح التوقيع، فمفيش تركيب لنسخة غريبة.
  */
 object AppUpdates {
     private const val PREFS = "hamset_update"
     private const val REPO = "PeterLoui/HamsetHob"
-    private const val CHANNEL = "updates"
+    private const val CHANNEL = "updates_v2"
     private const val NOTIFICATION_ID = 30
-    private const val CHECK_EVERY_MS = 12L * 60 * 60 * 1000
+    private const val CHECK_EVERY_MS = 50L * 60 * 1000
     const val EXTRA_UPDATE = "open_update"
     const val INSTALL_ACTION = "com.hamsethob.hamset_hob.INSTALL_RESULT"
 
@@ -49,6 +49,19 @@ object AppUpdates {
     }
 
     // ─── الفحص والإشعار ───
+
+    /** منبّه كل ساعة تقريباً (setAndAllowWhileIdle: بيشتغل حتى في وضع السكون ومن غير إذن منبّهات دقيقة)، بيجدد نفسه. */
+    fun schedule(ctx: Context) {
+        val am = ctx.getSystemService(android.app.AlarmManager::class.java)
+        val pi = PendingIntent.getBroadcast(
+            ctx, 32, Intent(ctx, UpdateCheckReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        try {
+            am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 60L * 60 * 1000, pi)
+        } catch (_: Exception) {
+        }
+    }
 
     /** من خيط خلفي. مرة كل ١٢ ساعة، وإشعار واحد لكل نسخة. */
     fun maybeNotify(ctx: Context) {
@@ -93,7 +106,7 @@ object AppUpdates {
     private fun notifyAvailable(ctx: Context, version: String) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 33 && !nm.areNotificationsEnabled()) return
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "تحديثات التطبيق", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "تحديثات التطبيق", NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(
             ctx, 31,
             Intent(ctx, MainActivity::class.java).apply {
@@ -106,6 +119,8 @@ object AppUpdates {
             .setSmallIcon(R.drawable.ic_stat_cross)
             .setContentTitle("نسخة جديدة من همسة حب")
             .setContentText("النسخة $version متاحة، اضغط للتحديث")
+            .setStyle(Notification.BigTextStyle().bigText("النسخة $version متاحة. اضغط لفتح التطبيق واختيار «تحديث الآن»."))
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_cross), "تحديث الآن", open).build())
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
@@ -179,5 +194,23 @@ class InstallReceiver : BroadcastReceiver() {
                 Toast.LENGTH_LONG,
             ).show()
         }
+    }
+}
+
+
+/** يشتغل كل ساعة: يفحص إصدارات GitHub ويعمل إشعار لو فيه نسخة جديدة، ويجدّد المنبّه. */
+class UpdateCheckReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        AppUpdates.schedule(app) // الدورة الجاية
+        val pending = goAsync()
+        Thread {
+            try {
+                AppUpdates.maybeNotify(app)
+            } catch (_: Exception) {
+            } finally {
+                pending.finish()
+            }
+        }.start()
     }
 }

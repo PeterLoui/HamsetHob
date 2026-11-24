@@ -29,6 +29,7 @@ class MainActivity : AudioServiceActivity() {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         DailyReceiver.schedule(this)
+        AppUpdates.schedule(this)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -124,6 +125,10 @@ class MainActivity : AudioServiceActivity() {
                                 // -1: القناة لسه ماتعملتش (ماشتغلش صوت قبل كده)، ٠: مقفولة
                                 "channel" to (channel?.importance ?: -1),
                                 "battery" to pm.isIgnoringBatteryOptimizations(ctx.packageName),
+                                // الإشعارات الظاهرة دلوقتي من التطبيق: هل فيه إشعار تشغيل صوت (MediaStyle) فعلاً؟
+                                "mediaNotification" to (if (Build.VERSION.SDK_INT >= 23) nm.activeNotifications.any {
+                                    it.notification.extras.getString(android.app.Notification.EXTRA_TEMPLATE)?.contains("MediaStyle") == true
+                                } else false),
                                 "sdk" to Build.VERSION.SDK_INT,
                                 "maker" to Build.MANUFACTURER,
                             )

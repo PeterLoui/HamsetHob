@@ -402,6 +402,7 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         DailyReceiver.schedule(context)
+        AppUpdates.schedule(context)
         MorningReceiver.reschedule(context)
         Reminders.scheduleAll(context)
         Widgets.render(context)
