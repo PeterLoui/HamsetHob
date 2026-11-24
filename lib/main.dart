@@ -5,6 +5,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'audio/radio_player.dart';
 import 'data/books.dart';
+import 'data/memory.dart';
 import 'data/sermon_downloads.dart';
 import 'data/store.dart';
 import 'ui/shell.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
   await BibleMarks.load();
   await ReadingProgress.load();
   await SermonDownloads.load();
+  await MemoryStore.load();
   await RadioPlayer.instance.restoreLast();
   await BooksRepository.instance.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

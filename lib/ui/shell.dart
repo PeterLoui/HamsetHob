@@ -32,6 +32,8 @@ import 'screens/tasbeha.dart';
 import 'screens/study.dart';
 import 'screens/nativity.dart';
 import 'screens/lent.dart';
+import 'screens/memory.dart';
+import '../data/memory.dart';
 import '../core/season.dart';
 import '../data/study.dart';
 import '../data/quiz.dart';
@@ -120,6 +122,15 @@ class ReadingPlansOverlay extends SubScreen {
 class ReadingPlanOverlay extends SubScreen {
   const ReadingPlanOverlay(this.plan);
   final ReadingPlan plan;
+}
+
+class MemoryOverlay extends SubScreen {
+  const MemoryOverlay();
+}
+
+class MemoryReviewOverlay extends SubScreen {
+  const MemoryReviewOverlay(this.queue);
+  final List<MemoryVerse> queue;
 }
 
 class LentOverlay extends SubScreen {
@@ -328,6 +339,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onVerseLoaded: _syncWidgets,
             onOpenNativity: () => _open(const NativityOverlay()),
             onOpenLent: () => _open(const LentOverlay()),
+            onOpenMemory: () => _open(const MemoryOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -392,6 +404,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        MemoryOverlay() => MemoryScreen(onBack: _back, onReview: (q) => _open(MemoryReviewOverlay(q))),
+        MemoryReviewOverlay(:final queue) => MemoryReviewScreen(queue: queue, onBack: _back),
         LentOverlay() => LentScreen(
             today: _today,
             onBack: _back,

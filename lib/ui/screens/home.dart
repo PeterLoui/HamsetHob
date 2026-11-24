@@ -10,6 +10,7 @@ import '../../data/katameros.dart';
 import '../../data/meditations.dart';
 import '../../core/season.dart';
 import '../../data/demiana.dart';
+import '../../data/memory.dart';
 import '../saint_photo.dart';
 import '../season_widgets.dart';
 import '../../data/saint_images.dart';
@@ -40,6 +41,7 @@ class HomeScreen extends StatefulWidget {
     required this.onVerseLoaded,
     required this.onOpenNativity,
     required this.onOpenLent,
+    required this.onOpenMemory,
   });
 
   final DateTime today;
@@ -48,7 +50,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
-  final VoidCallback onOpenNativity, onOpenLent;
+  final VoidCallback onOpenNativity, onOpenLent, onOpenMemory;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -286,6 +288,22 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 18),
           _SayingCard(saying: _saying!, onNext: () => _loadSaying(next: true)),
         ],
+        const SizedBox(height: 14),
+        ListenableBuilder(
+          listenable: MemoryStore.instance ?? ChangeNotifier(),
+          builder: (context, _) {
+            final store = MemoryStore.instance;
+            final due = store?.due().length ?? 0;
+            final total = store?.items.length ?? 0;
+            return _PageRow(
+              icon: AppIcon.bible,
+              title: 'حفظ الآيات',
+              subtitle: total == 0 ? 'ابدأ بآية الأسبوع' : (due > 0 ? '${ar(due)} للمراجعة النهارده' : '${ar(total)} آية محفوظة'),
+              onTap: widget.onOpenMemory,
+              last: true,
+            );
+          },
+        ),
         const SizedBox(height: 20),
         MeditationCard(today: today, onOpen: widget.onOpenMeditation),
         const SizedBox(height: 16),
@@ -595,6 +613,26 @@ class VerseActions extends StatelessWidget {
             onTap: () => Favorites.instance.toggle(ref, text),
             tooltip: 'حفظ في المفضلة',
           ),
+          const SizedBox(width: 8),
+          if (MemoryStore.instance != null)
+            ListenableBuilder(
+              listenable: MemoryStore.instance!,
+              builder: (context, _) {
+                final mem = MemoryStore.instance!.contains(ref);
+                return RoundAction(
+                  icon: Icon(mem ? Icons.school : Icons.school_outlined, color: mem ? c.navGlow : c.textFaint, size: 19),
+                  onTap: () {
+                    if (mem) {
+                      MemoryStore.instance!.remove(ref);
+                    } else {
+                      MemoryStore.instance!.add(ref, text);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اتضافت لحفظ الآيات، هتراجعها من الرئيسية')));
+                    }
+                  },
+                  tooltip: mem ? 'شيل من حفظ الآيات' : 'احفظها للمراجعة',
+                );
+              },
+            ),
           const SizedBox(width: 8),
           RoundAction(
             icon: Icon(Icons.ios_share, color: c.textFaint, size: 18),
