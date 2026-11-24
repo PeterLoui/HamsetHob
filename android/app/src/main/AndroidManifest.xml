@@ -43,6 +43,16 @@
         <service
             android:name="com.ryanheise.audioservice.AudioService"
             android:foregroundServiceType="mediaPlayback"
+            android:exported="true" />
+
+        <!-- أندرويد أوتو: تصفّح المحطات وتشغيلها من شاشة العربية (خدمة تصفّح واحدة بس للتطبيق) -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <service
+            android:name=".AutoService"
+            android:foregroundServiceType="mediaPlayback"
+            android:label="همسة حب"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />

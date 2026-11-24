@@ -104,6 +104,11 @@ class MainActivity : AudioServiceActivity() {
                         CalendarWidget.save(ctx, call.arguments as Map<*, *>)
                         result.success(null)
                     }
+                    "autoStations" -> {
+                        @Suppress("UNCHECKED_CAST")
+                        AutoService.saveStations(ctx, (call.argument<List<Map<*, *>>>("list") ?: emptyList()))
+                        result.success(null)
+                    }
                     "appBuild" -> result.success(AppUpdates.installedBuild(ctx))
                     "setUpdateOptions" -> {
                         AppUpdates.setOptions(ctx, call.argument<Boolean>("enabled") != false, call.argument<Boolean>("beta") != false)

@@ -133,6 +133,9 @@ class NativeBridge {
   }) =>
       _call('mediaUpdate', {'title': title, 'subtitle': subtitle, 'playing': playing, 'live': live, 'pos': positionMs, 'dur': durationMs});
 
+  /// قايمة المحطات لأندرويد أوتو (id, name, url).
+  static Future<void> autoStations(List<Map<String, String>> list) => _call('autoStations', {'list': list});
+
   static Future<void> mediaHide() => _call('mediaHide', {});
 
   /// فيه إشعار تحكم ظاهر (من audio_service)؟ true لو مش أندرويد.
