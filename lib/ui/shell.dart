@@ -553,16 +553,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         key: ValueKey('tab$_tab'),
                         listenable: RadioPlayer.instance,
                         builder: (context, _) {
-                          final mini = RadioPlayer.instance.nowPlaying != null ? 68.0 : 0.0;
+                          final p = RadioPlayer.instance;
+                          final mini = p.nowPlaying != null && !p.hasPending ? 68.0 : 0.0;
                           return Padding(
-                            padding: EdgeInsets.only(bottom: barArea + mini),
+                            // المحتوى بيدخل شوية تحت الكبسولة العائمة (التلاشي بيغطي الحافة)، فمفيش فراغ كبير فوقها
+                            padding: EdgeInsets.only(bottom: barArea + mini - 22),
                             child: ShaderMask(
                               // تلاشي الحافة السفلية للمحتوى
                               shaderCallback: (r) => const LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [Colors.black, Colors.black, Colors.transparent],
-                                stops: [0, .95, 1],
+                                stops: [0, .96, 1],
                               ).createShader(r),
                               blendMode: BlendMode.dstIn,
                               child: _tabBody(),
