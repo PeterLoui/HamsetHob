@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'store.dart';
 
-/// البحث في الصور بالـAPI الرسمي لـBrave Search. المفتاح بيدخّله المستخدم في الإعدادات وبيتحفظ على جهازه بس
-/// (مش في الكود)، وبيتجرّب أول نتايج البحث لحد ما تلاقي صورة بتتحمّل.
+/// البحث في الصور بـAPI من مزوّد: SerpApi (نتايج صور جوجل) أو Brave Search. المفتاح بيدخّله المستخدم في الإعدادات
+/// وبيتحفظ على جهازه بس (مش في الكود)، وبيتجرّب أول نتايج البحث لحد ما تلاقي صورة بتتحمّل.
 class ImageSearch {
   ImageSearch._();
 
@@ -19,7 +19,25 @@ class ImageSearch {
     }
   }
 
-  /// روابط الصور من رد الـAPI: الأصلية ثم المصغّرة اللي بتتحمّل عن طريق Brave (أضمن لو الموقع الأصلي بيمنع).
+  static const providers = ['SerpApi (صور جوجل)', 'Brave Search'];
+
+  /// روابط الصور من رد SerpApi (engine=google_images): الأصلية ثم المصغّرة اللي على خوادم جوجل (أضمن لو الموقع الأصلي بيمنع).
+  static List<String> parseSerpApi(String body, {int count = 3}) {
+    final j = jsonDecode(body) as Map<String, dynamic>;
+    if (j['error'] is String) throw StateError(j['error'] as String);
+    final results = j['images_results'];
+    final out = <String>[];
+    if (results is List) {
+      for (final r in results.whereType<Map>().take(count)) {
+        for (final u in [r['original'], r['thumbnail']]) {
+          if (u is String && u.startsWith('https://') && !out.contains(u)) out.add(u);
+        }
+      }
+    }
+    return out;
+  }
+
+  /// روابط الصور من رد Brave: الأصلية ثم المصغّرة اللي بتتحمّل عن طريق Brave.
   static List<String> parseLinks(String body) {
     final j = jsonDecode(body) as Map<String, dynamic>;
     final err = j['error'];
@@ -38,17 +56,31 @@ class ImageSearch {
     return out;
   }
 
-  static Future<List<String>> search(String query, {String? key, int count = 3}) async {
+  static Future<List<String>> search(String query, {String? key, int? provider, int count = 3}) async {
+    final st = AppSettings.instance;
+    final k = key ?? st.searchKey;
+    final pr = provider ?? st.searchProvider;
+    if (pr == 0) {
+      final r = await http.get(Uri.https('serpapi.com', '/search.json', {
+        'engine': 'google_images',
+        'q': query,
+        'api_key': k,
+        'hl': 'ar',
+        'safe': 'active',
+      })).timeout(const Duration(seconds: 40));
+      final body = utf8.decode(r.bodyBytes);
+      if (r.statusCode == 401) throw StateError('المفتاح مش مقبول (٤٠١)');
+      if (r.statusCode == 429) throw StateError('الحصة المجانية خلصت (٤٢٩)');
+      if (r.statusCode >= 400 && !body.contains('"error"')) throw StateError('رد ${r.statusCode}');
+      return parseSerpApi(body, count: count);
+    }
     final uri = Uri.https('api.search.brave.com', '/res/v1/images/search', {
       'q': query,
       'count': '$count',
       'safesearch': 'strict',
       'search_lang': 'ar',
     });
-    final r = await http.get(uri, headers: {
-      'Accept': 'application/json',
-      'X-Subscription-Token': key ?? AppSettings.instance.searchKey,
-    }).timeout(const Duration(seconds: 20));
+    final r = await http.get(uri, headers: {'Accept': 'application/json', 'X-Subscription-Token': k}).timeout(const Duration(seconds: 20));
     if (r.statusCode == 401 || r.statusCode == 403) throw StateError('المفتاح مش مقبول (${r.statusCode})');
     if (r.statusCode == 429) throw StateError('الحصة المجانية خلصت أو الطلبات كتير (٤٢٩)');
     if (r.statusCode >= 400) throw StateError('رد ${r.statusCode}');

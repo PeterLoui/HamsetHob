@@ -196,7 +196,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
-            _item('البحث في الصور (احتياطي لصور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح Brave Search مجاني' : (settings.searchFallback ? 'مفعّل' : 'متوقف'), _searchSetup),
+            _item('البحث في الصور (احتياطي لصور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح SerpApi أو Brave مجاني' : (settings.searchFallback ? 'مفعّل (${ImageSearch.providers[settings.searchProvider]})' : 'متوقف'), _searchSetup),
             _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
@@ -314,6 +314,7 @@ class _MoreScreenState extends State<MoreScreen> {
   Future<void> _searchSetup() async {
     final key = TextEditingController(text: settings.searchKey);
     var on = settings.searchFallback;
+    var provider = settings.searchProvider;
     String? result;
     final c = context.colors;
     await showDialog<void>(
@@ -324,12 +325,18 @@ class _MoreScreenState extends State<MoreScreen> {
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
-                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في صور Brave وياخد أول صورة بتتحمّل. '
+                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في الصور وياخد أول صورة بتتحمّل. '
                 'الصورة الأولى ممكن ماتكونش للقديس الصح، فراجعها.\n\n'
-                'اعمل حساب مجاني في api-dashboard.search.brave.com، واختار خطة بحث الصور المجانية، وأنشئ «API key» وحطه هنا. '
+                'SerpApi: اعمل حساب مجاني في serpapi.com وانسخ «API key» من الـDashboard (الخطة المجانية فيها بحوث محدودة في الشهر).\n'
+                'Brave: api-dashboard.search.brave.com، خطة بحث الصور المجانية.\n'
                 'المفتاح بيتحفظ على موبايلك بس، والنتيجة بتتحفظ ٣٠ يوم عشان نوفّر الحصة.',
                 style: TextStyle(fontSize: 12, height: 1.7, color: c.textSoft),
               ),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, children: [
+                for (var i = 0; i < ImageSearch.providers.length; i++)
+                  ChoiceChip(label: Text(ImageSearch.providers[i]), selected: provider == i, onSelected: (_) => set(() => provider = i)),
+              ]),
               const SizedBox(height: 12),
               TextField(controller: key, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'مفتاح API')),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('استخدامه كاحتياطي'), value: on, onChanged: (v) => set(() => on = v)),
@@ -340,7 +347,7 @@ class _MoreScreenState extends State<MoreScreen> {
             TextButton(
               onPressed: () async {
                 try {
-                  final links = await ImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), count: 1);
+                  final links = await ImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), provider: provider, count: 1);
                   set(() => result = links.isEmpty ? 'اشتغل، بس مفيش نتايج' : 'اشتغل ✓\n${links.first}');
                 } catch (e) {
                   set(() => result = 'فشل: $e');
@@ -353,6 +360,7 @@ class _MoreScreenState extends State<MoreScreen> {
               onPressed: () {
                 settings.searchKey = key.text;
                 settings.searchFallback = on;
+                settings.searchProvider = provider;
                 SaintImages.instance.resetMemo();
                 Navigator.pop(ctx);
               },

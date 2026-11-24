@@ -56,6 +56,9 @@ class AppSettings extends ChangeNotifier {
   /// البحث في الصور (Brave) كاحتياطي لصور التذكار: مفتاح الـAPI من حساب المستخدم، ومحفوظ على جهازه بس.
   String get searchKey => _prefs.getString('br_key') ?? '';
   set searchKey(String v) => _set(() => _prefs.setString('br_key', v.trim()));
+  /// ٠ SerpApi (صور جوجل)، ١ Brave Search.
+  int get searchProvider => (_prefs.getInt('sr_provider') ?? 0).clamp(0, 1);
+  set searchProvider(int v) => _set(() => _prefs.setInt('sr_provider', v));
   bool get searchFallback => _prefs.getBool('br_on') ?? true;
   set searchFallback(bool v) => _set(() => _prefs.setBool('br_on', v));
 
