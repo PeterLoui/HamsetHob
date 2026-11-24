@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../core/coptic.dart';
 import 'net.dart' show normalizeArabic;
 
 /// صورة تذكار اليوم من ويكيميديا كومنز فقط، من جدول متراجع [verified] بمفتاح اليوم أو بكلمة في عنوان التذكار.
@@ -48,27 +48,9 @@ class SaintImages {
     return _bytesMemo[url] = f;
   }
 
-  /// اسم ملف الصورة المضمّنة في التطبيق (assets/saints) للرابط ده، لو الصورة من الجدول.
-  static String? assetOf(String url) {
-    for (final e in verified.entries) {
-      if (e.value == url) return 'assets/saints/${e.key.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_')}.jpg';
-    }
-    return null;
-  }
-
   Future<Uint8List?> _fetch(String url, List<String>? log) async {
-    // الصور المؤكدة متضمّنة جوه التطبيق: بتظهر فوراً ومن غير نت ومن غير ما نعتمد على ويكيميديا
-    final asset = assetOf(url);
-    if (asset != null) {
-      try {
-        final d = await rootBundle.load(asset);
-        log?.add('من داخل التطبيق: ${asset.split('/').last}  ${(d.lengthInBytes / 1024).round()} ك.ب');
-        return d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes);
-      } catch (_) {/* مش متضمّنة: نحمّلها من الشبكة */}
-    }
     final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'saint_imgs'));
-    final name = candidates(url).last.split('/').last;
-    final file = File(p.join(dir.path, name));
+    final file = File(p.join(dir.path, '${url.hashCode.toUnsigned(32).toRadixString(16)}_${candidates(url).last.split('/').last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}'));
     if (await file.exists()) {
       final b = await file.readAsBytes();
       if (b.isNotEmpty) return b;
@@ -102,19 +84,116 @@ class SaintImages {
     'الكبير', 'الرسول', 'الرسولين', 'الانجيلي', 'بطاركه', 'الكرازه', 'المرقسيه', 'اسقف', 'الاسقف', 'اسقفي',
     'التذكار', 'الشهري', 'سنكسار', 'اليوم', 'دخول', 'بدايه', 'صوم', 'المجيد', 'ظهور', 'نقل', 'جسد', 'راس',
     'تكريس', 'كنيسه', 'الاب', 'الراهب', 'القمص', 'القس', 'الامير', 'الي', 'من', 'في', 'علي', 'اهل', 'بلده',
-    'والده', 'اخته', 'اخيه', 'امه', 'بجبل', 'مدينه',
+    'والده', 'اخته', 'اخيه', 'امه', 'بجبل', 'مدينه', 'الرسل', 'الصوم', 'الاعياد', 'المسيح', 'السيد', 'يسوع', 'الرب', 'الصليب', 'الميلاد', 'القيامه',
   };
 
   final _memo = <String, Future<String?>>{};
 
-  /// نفس الطلب بيرجّع نفس الـ Future، فالصورة ماتتحمّلش من جديد مع كل إعادة رسم.
-  /// [wikiTitle] مفتاح الجدول المتراجع، [name] عنوان التذكار، [date] اليوم الميلادي.
+  /// ألبومات معرض الأنبا تكلا (assets/saint_albums.json): [مسار الألبوم، عنوانه العربي، اسم أول صورة].
+  static List<List<String>>? _albums;
+
+  static Future<List<List<String>>> _loadAlbums() async {
+    if (_albums != null) return _albums!;
+    try {
+      final raw = jsonDecode(await rootBundle.loadString('assets/saint_albums.json')) as List;
+      return _albums = [for (final e in raw) [for (final x in e as List) x as String]];
+    } catch (_) {
+      return _albums = const [];
+    }
+  }
+
+  static String _galleryUrl(List<String> album) =>
+      'https://st-takla.org/Gallery/var/albums/${album[0].split('/').map(Uri.encodeComponent).join('/')}/${Uri.encodeComponent(album[2])}';
+
+  /// الأعياد والقديسين المعروفين (بمفتاح الجدول) ← ألبومهم في معرض الأنبا تكلا.
+  static const taklaAlbums = <String, String>{
+    'Annunciation': 'Saint-Mary/01-The-Annunciation-of-the-Blessed-Virgin-Mary',
+    'Anthony_the_Great': 'Saints-and-Figures/01-Alef-A-E-I-O/Saint-Anthony-the-Great',
+    'Ascension_of_Jesus': 'Jesus-Christ/25-Ascension-of-Jesus',
+    'Assumption_of_Mary': 'Saint-Mary/12-Assumption-of-Virgin-Mariam',
+    'Baptism_of_Jesus': 'Jesus-Christ/02-Baptizm-of-Jesus',
+    'Crucifixion_of_Jesus': 'Jesus-Christ/20-Jesus-on-the-Cross',
+    'Dormition_of_the_Mother_of_God': 'Saint-Mary/11-Departure-of-El-3adra-Maryam',
+    'Flight_into_Egypt': 'Saint-Mary/04-The-Flight-to-Egypt',
+    'Gabriel': 'Angels-and-Archangels/Archangel-Gabriel',
+    'John_Chrysostom': 'Saints-and-Figures/28-Yeh/Saint-John-Chrysostom',
+    'John_the_Apostle': 'Saints-and-Figures/Twelve-Disciples/04-John-son-of-Zebedee-the-Beloved',
+    'John_the_Baptist': 'Saints-and-Figures/28-Yeh/Saint-John-the-Baptist',
+    'John_the_Dwarf': 'Saints-and-Figures/28-Yeh/Saint-Youhanna-the-Short',
+    'Last_Supper': 'Jesus-Christ/12-The-Last-Supper',
+    'Luke_the_Evangelist': 'Saints-and-Figures/23-Laam/Saint-Luke-the-Evangelist',
+    'Mark_the_Evangelist': 'Saints-and-Figures/24-Meem/Saint-Mark-The-Evangelist',
+    'Matthew_the_Apostle': 'Saints-and-Figures/Twelve-Disciples/08-Matthew',
+    'Mercurius': 'Saints-and-Figures/20-Feh/Saint-Philopatir-Markorios',
+    'Michael_(archangel)': 'Angels-and-Archangels/Archangel-Michael',
+    'Nativity_of_Jesus': 'Saint-Mary/02-Nativity-of-Jesus-Christmas-Images',
+    'Pentecost': 'Saint-Mary/10-Feast-of-Penticost',
+    'Presentation_of_Jesus': 'Saint-Mary/03-The-Presentation-to-the-Temple',
+    'Raphael_(archangel)': 'Angels-and-Archangels/Archangel-Raphael',
+    'Resurrection_of_Jesus': 'Jesus-Christ/22-Resurrection-of-Jesus',
+    'Saint_George_and_the_Dragon': 'Saints-and-Figures/05-Geem/Saint-George',
+    'Saint_Menas': 'Saints-and-Figures/24-Meem/Saint-Mina',
+    'Saints_Cosmas_and_Damian': 'Saints-and-Figures/21-Kaaf/Saint-Kozman-and-Demian',
+    'Temptation_of_Christ': 'Jesus-Christ/34-Temptation-of-Christ',
+    'Theotokos': 'Saint-Mary/07-Mother-of-God-Theotokos',
+    'Transfiguration_of_Jesus': 'Jesus-Christ/08-Jesus-Transfiguration',
+    'Triumphal_entry_into_Jerusalem': 'Jesus-Christ/11-Palm-Sunday',
+  };
+
+  /// صورة تذكار اليوم، بالترتيب: ألبوم معروف في معرض الأنبا تكلا، ثم بحث بالاسم في عناوين الألبومات
+  /// (لازم الاسم كله يطابق، مش اسم واحد قصير)، ثم صورة ويكيميديا المتراجعة لو موجودة. لو مافيش: الصليب.
+  /// [wikiTitle] مفتاح الجدول، [name] عنوان التذكار، [date] اليوم الميلادي. نفس الطلب بيرجّع نفس الـ Future.
   Future<String?> imageUrl(String? wikiTitle, String name, DateTime date) {
-    final fixed = wikiTitle == null ? null : verified[wikiTitle];
-    if (fixed != null) return _memo.putIfAbsent('v|$wikiTitle', () => Future.value(fixed));
-    final c = CopticDate.fromGregorian(date);
-    final key = '${c.month}-${c.day}|${normalizeArabic(name)}';
-    return _memo.putIfAbsent(key, () => Future.value(_alias(name)));
+    final key = '${wikiTitle ?? ''}|${normalizeArabic(name)}';
+    return _memo.putIfAbsent(key, () => _resolve(wikiTitle, name));
+  }
+
+  Future<String?> _resolve(String? wikiTitle, String name) async {
+    final albums = await _loadAlbums();
+    final id = wikiTitle ?? _aliasKey(name);
+    if (id != null) {
+      final path = taklaAlbums[id];
+      final hit = path == null ? null : albums.where((a) => a[0] == path).firstOrNull;
+      if (hit != null) return _galleryUrl(hit);
+    }
+    final fuzzy = _fuzzy(albums, name);
+    if (fuzzy != null) return _galleryUrl(fuzzy);
+    return id == null ? null : verified[id];
+  }
+
+  /// ألبوم قديس عنوانه بيطابق اسم صاحب التذكار.
+  static List<String>? _fuzzy(List<List<String>> albums, String name) {
+    final keys = nameKeys(name);
+    if (keys.isEmpty) return null;
+    for (final a in albums) {
+      if (!(a[0].startsWith('Saints-and-Figures/') || a[0].startsWith('Angels-and-Archangels/'))) continue;
+      if (!_matches(a[1], keys)) continue;
+      // اسم واحد («بطرس»، «مقاريوس»): الألبوم لازم يكون لقديس بنفس الاسم وبس، مش «بيشاي وبطرس» ولا «مقاريوس السكندري»
+      if (keys.length == 1 && nameKeys(a[1]).length > 1) continue;
+      return a;
+    }
+    return null;
+  }
+
+  /// هيكل الكلمة من غير حروف المد والهمزات، عشان «لنجينوس» تطابق «لونجينوس».
+  static String _skeleton(String w) => normalizeArabic(w).replaceAll(RegExp('[اويءؤئ]'), '');
+
+  /// العنوان بيذكر صاحب التذكار؟ أول كلمة من الاسم لازم تظهر (و«مارمينا» بتطابق «مينا»)، وأسماء قصيرة شائعة
+  /// («يوحنا»، «بطرس») لازم معاها الكلمة التانية كمان، عشان «يوحنا» ماتطابقش يوحنا تاني.
+  static bool _matches(String text, List<String> keys) {
+    final words = <String>{};
+    for (final w in normalizeArabic(text).split(RegExp(r'[^ء-ي]+'))) {
+      words.add(_skeleton(w));
+      if (w.startsWith('مار') && w.length > 5) words.add(_skeleton(w.substring(3)));
+    }
+    bool has(String k) {
+      final s = _skeleton(k);
+      return s.length >= 3 && words.contains(s);
+    }
+
+    if (!has(keys.first)) return false;
+    final second = keys.skip(1).where((k) => _skeleton(k).length >= 3);
+    return keys.first.length >= 7 || second.isEmpty || has(second.first);
   }
 
   /// قديسين وأعياد مشهورين ليهم صورة متراجعة في [verified]، بيتعرفوا من كلمة في عنوان التذكار
@@ -144,14 +223,15 @@ class SaintImages {
     (['رافائيل'], 'Raphael_(archangel)'),
   ];
 
-  static String? _alias(String name) {
+  /// مفتاح الجدول لتذكار معروف من كلمات في اسمه (تكريس كنيسة، نقل جسد، تذكار شهري…).
+  static String? _aliasKey(String name) {
     final words = normalizeArabic(name).split(RegExp(r'[^ء-ي]+')).toSet();
     for (final (need, wiki) in _aliases) {
-      if (need.every(words.contains)) return verified[wiki];
+      if (need.every(words.contains)) return wiki;
     }
     // كنايس ومعجزات السيدة العذراء، بس مش تذكار والديها (حنة ويواقيم)
     if (words.contains('العذراء') && !words.contains('حنه') && !words.contains('يواقيم') && !words.contains('العذاري')) {
-      return verified['Theotokos'];
+      return 'Theotokos';
     }
     return null;
   }

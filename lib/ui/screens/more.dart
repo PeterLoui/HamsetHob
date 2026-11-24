@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 
 import '../../audio/audio_levels.dart';
@@ -197,7 +195,6 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
-            _item('حقوق صور التذكار', 'المصوّرون والتراخيص (ويكيميديا كومنز)', _showCredits),
             _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
@@ -311,60 +308,29 @@ class _MoreScreenState extends State<MoreScreen> {
         child: Column(children: children),
       );
 
-  /// حقوق الصور المضمّنة: اسم الملف على ويكيميديا كومنز، والمصوّر أو الرسّام، والرخصة.
-  Future<void> _showCredits() async {
-    final c = context.colors;
-    List<dynamic> items = const [];
-    try {
-      items = jsonDecode(await rootBundle.loadString('assets/saints/credits.json')) as List;
-    } catch (_) {/* القائمة فاضية */}
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حقوق صور التذكار'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(shrinkWrap: true, children: [
-            Text('الصور من ويكيميديا كومنز، وأغلبها ملك عام. اللي له رخصة بيذكر صاحبها هنا.', style: TextStyle(fontSize: 12, height: 1.6, color: c.textSoft)),
-            for (final e in items)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(e['file'] as String, textDirection: TextDirection.ltr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.text)),
-                  Text('${e['artist']} — ${e['license']}', textDirection: TextDirection.ltr, style: TextStyle(fontSize: 11, color: c.textSoft)),
-                ]),
-              ),
-          ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تمام'))],
-      ),
-    );
-  }
-
   /// يجرّب تحميل صورة تذكار النهارده بنفس الطريقة وبنفس اسم التطبيق، ويعرض النتيجة (كود الرد، الحجم، أو سبب الفشل).
   Future<void> _checkImage() async {
     final com = Synaxarium.forDate(DateTime.now());
-    final url = com.wiki == null ? null : SaintImages.verified[com.wiki];
+    final url = await SaintImages.instance.imageUrl(com.wiki, com.title, DateTime.now());
     final c = context.colors;
     String report;
     if (url == null) {
-      report = 'تذكار النهارده (${com.title}) مالوش صورة مؤكدة في الجدول، فبيظهر الصليب.';
+      report = 'ملقيناش صورة لتذكار النهارده (${com.title}) لا في معرض الأنبا تكلا ولا في الجدول، فبيظهر الصليب.';
     } else {
       final sw = Stopwatch()..start();
       final log = <String>[];
       // فحص الشبكة نفسها: هل ويكيميديا بتتفتح من الجهاز أصلاً؟
       try {
-        final ips = await InternetAddress.lookup('upload.wikimedia.org').timeout(const Duration(seconds: 10));
-        log.add('DNS: ${ips.map((e) => e.address).take(2).join(', ')}');
+        final ips = await InternetAddress.lookup(Uri.parse(url).host).timeout(const Duration(seconds: 10));
+        log.add('DNS ${Uri.parse(url).host}: ${ips.map((e) => e.address).take(2).join(', ')}');
       } catch (e) {
         log.add('DNS فشل: $e');
       }
       try {
-        final r = await http.get(Uri.parse('https://en.wikipedia.org/static/images/project-logos/enwiki.png'), headers: SaintImages.imageHeaders).timeout(const Duration(seconds: 15));
-        log.add('شعار ويكيبيديا: ${r.statusCode}');
+        final r = await http.get(Uri.parse('https://st-takla.org/Gallery/lib/images/logo.png'), headers: SaintImages.imageHeaders).timeout(const Duration(seconds: 15));
+        log.add('شعار st-takla: ${r.statusCode}');
       } catch (e) {
-        log.add('شعار ويكيبيديا فشل: $e');
+        log.add('شعار st-takla فشل: $e');
       }
       final bytes = await SaintImages.instance.loadBytes(url, log: log, fresh: true);
       var decoded = 'لم تتحمّل';
