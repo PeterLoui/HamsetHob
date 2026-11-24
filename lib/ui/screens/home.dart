@@ -12,6 +12,7 @@ import '../../data/meditations.dart';
 import '../../core/season.dart';
 import '../../data/demiana.dart';
 import '../season_widgets.dart';
+import '../wird_widgets.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
 import '../../native/calendar_widget.dart';
@@ -39,6 +40,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenTasbeha,
     required this.onVerseLoaded,
     required this.onOpenNativity,
+    required this.onOpenWird,
   });
 
   final DateTime today;
@@ -47,7 +49,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
-  final VoidCallback onOpenNativity;
+  final VoidCallback onOpenNativity, onOpenWird;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -231,6 +233,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ]),
         ),
+        WirdStrip(onTap: widget.onOpenWird),
+        const SizedBox(height: 12),
         if (season.active || season.comingSoon) ...[
           NativityCard(season: season, onTap: widget.onOpenNativity),
           const SizedBox(height: 4),

@@ -31,6 +31,8 @@ import 'screens/readings.dart';
 import 'screens/tasbeha.dart';
 import 'screens/study.dart';
 import 'screens/nativity.dart';
+import 'screens/wird.dart';
+import '../data/wird.dart';
 import '../core/season.dart';
 import '../data/study.dart';
 import '../data/quiz.dart';
@@ -119,6 +121,10 @@ class ReadingPlansOverlay extends SubScreen {
 class ReadingPlanOverlay extends SubScreen {
   const ReadingPlanOverlay(this.plan);
   final ReadingPlan plan;
+}
+
+class WirdOverlay extends SubScreen {
+  const WirdOverlay();
 }
 
 class NativityOverlay extends SubScreen {
@@ -282,10 +288,43 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     AppSettings.instance.removeListener(_onSettings);
     WidgetsBinding.instance.removeObserver(this);
     _dayTicker?.cancel();
+    _wirdPrayerTimer?.cancel();
     super.dispose();
   }
 
-  void _open(SubScreen o) => setState(() => _overlays.add(o));
+  Timer? _wirdPrayerTimer;
+
+  void _open(SubScreen o) {
+    setState(() => _overlays.add(o));
+    // ورد اليوم: القعدة مع الصلاة ٤٥ ثانية تعلّم البند
+    if (o is AgpeyaPrayerOverlay) {
+      _wirdPrayerTimer?.cancel();
+      _wirdPrayerTimer = Timer(const Duration(seconds: 45), () {
+        if (mounted && _overlays.isNotEmpty && identical(_overlays.last, o)) WirdStore.markIf(WirdItem.prayer);
+      });
+    }
+  }
+
+  Future<void> _openWirdChapter() async {
+    final n = await nextStudyChapter();
+    if (n != null && mounted) {
+      _open(StudyReaderOverlay(n.docs, n.index, n.book));
+    } else if (mounted) {
+      setState(() {
+        _overlays.clear();
+        _tab = 4;
+      });
+    }
+  }
+
+  Future<void> _openWirdQuiz() async {
+    final bank = await QuizBank.load();
+    final qprog = await QuizProgress.load();
+    final last = StudyProgress.instance?.last?.split(':').first;
+    var pool = last == null ? <QuizQuestion>[] : bank.inBook(last);
+    if (pool.isEmpty) pool = bank.questions;
+    if (mounted) _open(QuizSessionOverlay('سؤال اليوم', buildSession(pool, qprog, size: 1)));
+  }
   void _back() => setState(() => _overlays.removeLast());
 
   /// تحديث الويدجتس وإشعار القفل برسالة اليوم نفسها.
@@ -318,6 +357,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenTasbeha: () => _open(const TasbehaOverlay()),
             onVerseLoaded: _syncWidgets,
             onOpenNativity: () => _open(const NativityOverlay()),
+            onOpenWird: () => _open(const WirdOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -382,6 +422,23 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        WirdOverlay() => ListenableBuilder(
+          listenable: RadioPlayer.instance,
+          builder: (context, _) => WirdScreen(
+            today: _today,
+            sermonLine: RadioPlayer.instance.lastIsSermon && RadioPlayer.instance.lastTitle != null
+                ? 'كمّل: «${RadioPlayer.instance.lastTitle}»'
+                : 'اختار عظة وسمّع دقيقة',
+            onBack: _back,
+            onPrayer: () => _openPrayerById(WirdStore.hourFor(DateTime.now()).prayerId),
+            onChapter: _openWirdChapter,
+            onSermon: () {
+              RadioPlayer.instance.resumeLast();
+              _open(const RadioOverlay());
+            },
+            onQuiz: _openWirdQuiz,
+          ),
+        ),
         NativityOverlay() => NativityScreen(
             today: _today,
             onBack: _back,
