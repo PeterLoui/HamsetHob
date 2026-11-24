@@ -33,6 +33,7 @@ import 'screens/study.dart';
 import 'screens/nativity.dart';
 import 'screens/lent.dart';
 import 'screens/memory.dart';
+import 'screens/search.dart';
 import '../data/memory.dart';
 import '../core/season.dart';
 import '../data/study.dart';
@@ -122,6 +123,10 @@ class ReadingPlansOverlay extends SubScreen {
 class ReadingPlanOverlay extends SubScreen {
   const ReadingPlanOverlay(this.plan);
   final ReadingPlan plan;
+}
+
+class SearchOverlay extends SubScreen {
+  const SearchOverlay();
 }
 
 class MemoryOverlay extends SubScreen {
@@ -340,6 +345,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenNativity: () => _open(const NativityOverlay()),
             onOpenLent: () => _open(const LentOverlay()),
             onOpenMemory: () => _open(const MemoryOverlay()),
+            onOpenSearch: () => _open(const SearchOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -404,6 +410,22 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        SearchOverlay() => SearchScreen(
+            onBack: _back,
+            today: _today,
+            actions: SearchActions(
+              onVerse: (r) => _open(ChapterOverlay(r)),
+              onPrayer: (p) => _open(AgpeyaPrayerOverlay(p)),
+              onTasbeha: (h) => _open(TasbehaReaderOverlay(h.book, h.day, h.index)),
+              onFeast: (d) => _open(SynaxariumOverlay(d)),
+              onSermon: (sm) {
+                RadioPlayer.instance.play(sm);
+                _open(const RadioOverlay());
+              },
+              onStudyBook: (b) => _open(StudyBookOverlay(b)),
+              onQuestion: (q) => _open(QuizSessionOverlay('سؤال من نتيجة البحث', [q])),
+            ),
+          ),
         MemoryOverlay() => MemoryScreen(onBack: _back, onReview: (q) => _open(MemoryReviewOverlay(q))),
         MemoryReviewOverlay(:final queue) => MemoryReviewScreen(queue: queue, onBack: _back),
         LentOverlay() => LentScreen(

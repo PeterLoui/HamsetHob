@@ -42,6 +42,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenNativity,
     required this.onOpenLent,
     required this.onOpenMemory,
+    required this.onOpenSearch,
   });
 
   final DateTime today;
@@ -50,7 +51,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
-  final VoidCallback onOpenNativity, onOpenLent, onOpenMemory;
+  final VoidCallback onOpenNativity, onOpenLent, onOpenMemory, onOpenSearch;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -195,6 +196,12 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(children: [
           Expanded(child: Text('همسة حب', style: context.heading(size: 20))),
+          RoundAction(
+            icon: Icon(Icons.search, color: c.textFaint, size: 24),
+            onTap: widget.onOpenSearch,
+            tooltip: 'بحث',
+            size: 44,
+          ),
           RoundAction(
             icon: Icon(Icons.favorite_border, color: c.textFaint, size: 22),
             onTap: widget.onOpenFavorites,
