@@ -31,6 +31,7 @@ import 'screens/readings.dart';
 import 'screens/tasbeha.dart';
 import 'screens/study.dart';
 import 'screens/nativity.dart';
+import 'screens/lent.dart';
 import '../core/season.dart';
 import '../data/study.dart';
 import '../data/quiz.dart';
@@ -119,6 +120,14 @@ class ReadingPlansOverlay extends SubScreen {
 class ReadingPlanOverlay extends SubScreen {
   const ReadingPlanOverlay(this.plan);
   final ReadingPlan plan;
+}
+
+class LentOverlay extends SubScreen {
+  const LentOverlay();
+}
+
+class HolyWeekOverlay extends SubScreen {
+  const HolyWeekOverlay();
 }
 
 class NativityOverlay extends SubScreen {
@@ -318,6 +327,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenTasbeha: () => _open(const TasbehaOverlay()),
             onVerseLoaded: _syncWidgets,
             onOpenNativity: () => _open(const NativityOverlay()),
+            onOpenLent: () => _open(const LentOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
         2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
@@ -382,6 +392,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        LentOverlay() => LentScreen(
+            today: _today,
+            onBack: _back,
+            onOpenReadings: () {
+              _overlays.clear();
+              setState(() => _tab = 2);
+            },
+            onOpenHolyWeek: () => _open(const HolyWeekOverlay()),
+            onOpenVerse: () {
+              final v = LentSeason.verseFor(LentSeason.of(_today));
+              if (v != null) _open(ChapterOverlay(v));
+            },
+          ),
+        HolyWeekOverlay() => HolyWeekScreen(today: _today, onBack: _back),
         NativityOverlay() => NativityScreen(
             today: _today,
             onBack: _back,

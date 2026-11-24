@@ -129,6 +129,22 @@ class BibleRepository {
       }
     }
     // في صوم الميلاد رسالة اليوم من نبوات الميلاد وبشارته (وزرار «رسالة أخرى» بيتنقّل بينها)
+    final lent = LentSeason.of(today);
+    final lentVerse = LentSeason.verseFor(lent);
+    if (lentVerse != null) {
+      // الصوم الكبير والبصخة والقيامة: رسالة اليوم من آيات الموسم (والزرار بيجيب آية تانية من نفس المجموعة)
+      final pool = lent.holyWeek ? passionVerses : (lent.easterWeek ? resurrectionVerses : lentVerses);
+      final r = forceNew ? pool[Random().nextInt(pool.length)] : lentVerse;
+      try {
+        final verses = await chapter(r.book, r.chapter);
+        final v = verses.firstWhere((x) => x.number == r.verse);
+        await prefs.setString(
+          dailyVerseKey,
+          jsonEncode({'date': day, 'book': r.book, 'chapter': r.chapter, 'verse': v.number, 'text': v.text}),
+        );
+        return DailyVerse(r, v.text);
+      } catch (_) {/* نكمّل بالعشوائية */}
+    }
     final season = NativitySeason.of(today);
     if (season.inFast) {
       final shift = forceNew ? 1 + Random().nextInt(nativityVerses.length - 1) : 0;

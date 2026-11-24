@@ -19,10 +19,16 @@ Path starPath(Offset c, double outer, double inner) {
   return p..close();
 }
 
+enum SkyKind { nativity, lent, passion, easter }
+
 /// سماء الموسم ورا الرئيسية: نجوم صغيرة بتلمع ببطء، ونجمة بيت لحم بوهج في الركن اليمين فوق.
 class SeasonSky extends StatefulWidget {
-  const SeasonSky({super.key, required this.height, this.starX = .5, this.starY = 62});
+  const SeasonSky({super.key, required this.height, this.starX = .5, this.starY = 62, this.kind = SkyKind.nativity, this.tint});
   final double height;
+  final SkyKind kind;
+
+  /// لون الموسم (لو مش محدد: لون الشمعة).
+  final Color? tint;
 
   /// موضع نجمة بيت لحم: نسبة من العرض، وبعد من فوق.
   final double starX, starY;
@@ -60,7 +66,7 @@ class _SeasonSkyState extends State<SeasonSky> with SingleTickerProviderStateMix
         width: double.infinity,
         child: AnimatedBuilder(
           animation: _c,
-          builder: (context, _) => CustomPaint(painter: _SkyPainter(_stars, c.navGlow, c.isDark, _c.value, widget.starX, widget.starY)),
+          builder: (context, _) => CustomPaint(painter: _SkyPainter(_stars, widget.tint ?? c.navGlow, c.isDark, _c.value, widget.starX, widget.starY, widget.kind)),
         ),
       ),
     );
@@ -68,8 +74,9 @@ class _SeasonSkyState extends State<SeasonSky> with SingleTickerProviderStateMix
 }
 
 class _SkyPainter extends CustomPainter {
-  _SkyPainter(this.stars, this.color, this.dark, this.t, this.starX, this.starY);
+  _SkyPainter(this.stars, this.color, this.dark, this.t, this.starX, this.starY, this.kind);
   final double starX, starY;
+  final SkyKind kind;
   final List<(double, double, double, double)> stars;
   final Color color;
   final bool dark;
@@ -86,6 +93,18 @@ class _SkyPainter extends CustomPainter {
         ..shader = RadialGradient(colors: [color.withValues(alpha: dark ? .26 : .16), color.withValues(alpha: 0)])
             .createShader(Rect.fromCircle(center: star, radius: size.width * .6)),
     );
+    if (kind == SkyKind.lent || kind == SkyKind.passion) {
+      // الصوم والبصخة: من غير نجوم، حبيبات هادية بتتنفّس وصليب خافت
+      for (final (x, y, r, ph) in stars.take(18)) {
+        final tw = .5 + .5 * math.sin((t + ph) * math.pi * 2);
+        canvas.drawCircle(Offset(x * size.width, y * size.height), r * .9, Paint()..color = color.withValues(alpha: (dark ? .12 : .1) + .18 * tw));
+      }
+      final cross = Paint()..color = color.withValues(alpha: kind == SkyKind.passion ? .55 : .42)..strokeWidth = 3..strokeCap = StrokeCap.round;
+      final glow = 1 + .05 * math.sin(t * math.pi * 2);
+      canvas.drawLine(star.translate(0, -20 * glow), star.translate(0, 26 * glow), cross);
+      canvas.drawLine(star.translate(-14 * glow, -6), star.translate(14 * glow, -6), cross);
+      return;
+    }
     for (final (x, y, r, ph) in stars) {
       final tw = .5 + .5 * math.sin((t + ph) * math.pi * 2);
       canvas.drawCircle(
@@ -95,12 +114,13 @@ class _SkyPainter extends CustomPainter {
       );
     }
     final glow = 1 + .08 * math.sin(t * math.pi * 2);
-    canvas.drawPath(starPath(star, 19 * glow, 5), Paint()..color = color.withValues(alpha: .95));
+    final big = kind == SkyKind.easter ? 1.5 : 1.0;
+    canvas.drawPath(starPath(star, 19 * glow * big, 5 * big), Paint()..color = color.withValues(alpha: .95));
     canvas.drawLine(star, star.translate(0, -38), Paint()..color = color.withValues(alpha: .35));
   }
 
   @override
-  bool shouldRepaint(_SkyPainter old) => old.t != t || old.color != color || old.dark != dark;
+  bool shouldRepaint(_SkyPainter old) => old.t != t || old.color != color || old.dark != dark || old.kind != kind;
 }
 
 /// كارت الصوم في الرئيسية: حلقة بتتملي بأيام الصوم، وفي العيد نجمة وتهنئة.
@@ -217,4 +237,107 @@ class _LanternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LanternPainter o) => o.state != state || o.color != color;
+}
+
+
+/// لون أسبوع من أسابيع الصوم: تدرّج بنفسجي لحد الأسبوع السادس، وأسبوع البصخة قرمزي.
+Color lentWeekColor(int week, bool dark) {
+  const hues = [262.0, 268.0, 276.0, 284.0, 292.0, 300.0, 310.0, 352.0];
+  final i = week.clamp(0, 7);
+  return HSLColor.fromAHSL(1, hues[i], i == 7 ? .62 : .46, dark ? (i == 7 ? .6 : .68) : (i == 7 ? .42 : .42)).toColor();
+}
+
+/// كارت الصوم الكبير والقيامة في الرئيسية: حلقة من ثمانية أقواس (الأسابيع) بتتملي، ونجمة في القيامة.
+class LentCard extends StatelessWidget {
+  const LentCard({super.key, required this.season, required this.onTap});
+  final LentSeason season;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final easter = season.easterWeek;
+    final col = easter ? c.navGlow : lentWeekColor(season.inLent ? season.week : 0, c.isDark);
+    final String title, line1, line2;
+    if (easter) {
+      title = 'عيد القيامة المجيد';
+      line1 = 'المسيح قام! بالحقيقة قام';
+      line2 = 'خريستوس آنستي — آليثوس آنستي';
+    } else if (season.inLent) {
+      title = season.holyWeek ? (LentSeason.holyDayNames[season.offset] ?? 'أسبوع البصخة') : 'الصوم الكبير';
+      line1 = 'اليوم ${ar(season.dayOfLent)} من ${ar(LentSeason.length)} — ${season.isSunday ? season.sundayName : season.weekName}';
+      line2 = season.daysToEaster == 1 ? 'بكرة القيامة' : 'باقي ${ar(season.daysToEaster)} يوم على القيامة';
+    } else {
+      title = 'الصوم الكبير';
+      line1 = 'بيبدأ ${season.daysToStart == 1 ? 'بكرة' : 'بعد ${ar(season.daysToStart)} أيام'}';
+      line2 = 'استعد بالصلاة والتوبة';
+    }
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: col.withValues(alpha: c.isDark ? .18 : .12), blurRadius: 26, spreadRadius: -2)],
+      ),
+      child: GlassPanel(
+        onTap: onTap,
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: CustomPaint(painter: _LentRingPainter(season.dayOfLent, easter, c.isDark, c.hairline, col)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: c.text)),
+              const SizedBox(height: 2),
+              Text(line1, style: TextStyle(fontSize: 13.5, color: c.textSoft)),
+              const SizedBox(height: 4),
+              Text(line2, style: TextStyle(fontSize: 13, color: col, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+          Icon(Icons.chevron_left, color: c.textFaint),
+        ]),
+      ),
+    );
+  }
+}
+
+class _LentRingPainter extends CustomPainter {
+  _LentRingPainter(this.day, this.easter, this.dark, this.track, this.accent);
+  final int day;
+  final bool easter, dark;
+  final Color track, accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2 - 5;
+    final rect = Rect.fromCircle(center: c, radius: r);
+    var passed = 0;
+    var start = -math.pi / 2;
+    const gap = .09;
+    for (var w = 0; w < LentSeason.weekDays.length; w++) {
+      final n = LentSeason.weekDays[w];
+      final sweep = 2 * math.pi * n / LentSeason.length - gap;
+      canvas.drawArc(rect, start, sweep, false, Paint()..style = PaintingStyle.stroke..strokeWidth = 5..color = track);
+      final done = easter ? 1.0 : ((day - passed) / n).clamp(0.0, 1.0);
+      if (done > 0) {
+        canvas.drawArc(rect, start, sweep * done, false,
+            Paint()..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round..color = lentWeekColor(w, dark));
+      }
+      passed += n;
+      start += sweep + gap;
+    }
+    if (easter) {
+      canvas.drawPath(starPath(c, 14, 4), Paint()..color = accent);
+    } else {
+      final p = Paint()..color = accent..strokeWidth = 3..strokeCap = StrokeCap.round;
+      canvas.drawLine(c.translate(0, -11), c.translate(0, 13), p);
+      canvas.drawLine(c.translate(-8, -4), c.translate(8, -4), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LentRingPainter o) => o.day != day || o.easter != easter || o.dark != dark;
 }

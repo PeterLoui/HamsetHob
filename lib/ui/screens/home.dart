@@ -39,6 +39,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenTasbeha,
     required this.onVerseLoaded,
     required this.onOpenNativity,
+    required this.onOpenLent,
   });
 
   final DateTime today;
@@ -47,7 +48,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Meditation> onOpenMeditation;
   final VoidCallback onOpenPrayers, onOpenStations, onOpenBooks, onOpenTasbeha;
   final ValueChanged<DailyVerse> onVerseLoaded;
-  final VoidCallback onOpenNativity;
+  final VoidCallback onOpenNativity, onOpenLent;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -185,6 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final gospel = _readings?.liturgyGospel;
 
     final season = NativitySeason.of(today);
+    final lent = LentSeason.of(today);
+    final lentOn = lent.active || lent.comingSoon;
     final list = ListView(
       padding: EdgeInsets.fromLTRB(24, MediaQuery.paddingOf(context).top + 8, 24, 24),
       children: [
@@ -231,7 +234,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ]),
         ),
-        if (season.active || season.comingSoon) ...[
+        if (lentOn) ...[
+          LentCard(season: lent, onTap: widget.onOpenLent),
+          const SizedBox(height: 4),
+        ] else if (season.active || season.comingSoon) ...[
           NativityCard(season: season, onTap: widget.onOpenNativity),
           const SizedBox(height: 4),
         ],
@@ -297,10 +303,21 @@ class _HomeScreenState extends State<HomeScreen> {
         _NowPlayingCard(onOpen: widget.onOpenRadio),
       ],
     );
-    if (!season.active && !season.comingSoon) return list;
+    if (!season.active && !season.comingSoon && !lentOn) return list;
     // موسم الميلاد: سماء بنجوم ورا المحتوى
     return Stack(children: [
-      Positioned(left: 0, right: 0, top: 0, child: SeasonSky(height: MediaQuery.paddingOf(context).top + 330)),
+      Positioned(
+        left: 0,
+        right: 0,
+        top: 0,
+        child: lentOn
+            ? SeasonSky(
+                height: MediaQuery.paddingOf(context).top + 330,
+                kind: lent.easterWeek ? SkyKind.easter : (lent.holyWeek ? SkyKind.passion : SkyKind.lent),
+                tint: lent.easterWeek ? context.colors.navGlow : lentWeekColor(lent.inLent ? lent.week : 0, context.colors.isDark),
+              )
+            : SeasonSky(height: MediaQuery.paddingOf(context).top + 330),
+      ),
       list,
     ]);
   }

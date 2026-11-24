@@ -74,3 +74,130 @@ const nativityVerses = <VerseRef>[
   VerseRef(56, 2, 11), // ظهرت نعمة الله
   VerseRef(54, 3, 16), // الله ظهر في الجسد
 ];
+
+/// الصوم الكبير ٥٥ يوم: من اثنين قبل القيامة بـ٥٥ يوم لحد سبت النور. الأسبوع التمهيدي (٦ أيام) ثم ستة أسابيع
+/// (كل أسبوع من الأحد للسبت، وأحده له اسمه وإنجيله)، وآخرها أسبوع البصخة اللي بيبدأ بأحد الشعانين.
+class LentSeason {
+  const LentSeason._(this.offset);
+
+  /// الأيام من عيد القيامة: سالب قبله، وصفر يوم القيامة.
+  final int offset;
+
+  static const length = 55;
+
+  /// أسماء الأسابيع، وأسماء أحادها (الأحد الأول بيبدأ الأسبوع الأول).
+  static const weekNames = ['الأسبوع التمهيدي', 'الأسبوع الأول', 'الأسبوع الثاني', 'الأسبوع الثالث', 'الأسبوع الرابع', 'الأسبوع الخامس', 'الأسبوع السادس', 'أسبوع البصخة'];
+  static const sundayNames = ['', 'أحد الكنوز', 'أحد التجربة', 'أحد الابن الضال', 'أحد السامرية', 'أحد المخلع', 'أحد المولود أعمى', 'أحد الشعانين'];
+  static const weekDays = [6, 7, 7, 7, 7, 7, 7, 7];
+
+  /// ١–٥٥ أثناء الصوم، وإلا ٠.
+  int get dayOfLent => offset >= -55 && offset <= -1 ? offset + 56 : 0;
+  bool get inLent => dayOfLent > 0;
+
+  /// أسبوع الصوم (٠ تمهيدي … ٧ البصخة)، أو -1 خارج الصوم.
+  int get week => !inLent ? -1 : (offset < -49 ? 0 : (offset + 49) ~/ 7 + 1);
+
+  /// اليوم داخل الأسبوع (١…).
+  int get dayInWeek => !inLent ? 0 : (week == 0 ? offset + 56 : (offset + 49) % 7 + 1);
+
+  bool get holyWeek => offset >= -7 && offset <= -1;
+  bool get lazarusSaturday => offset == -8;
+  bool get isSunday => week >= 1 && dayInWeek == 1;
+
+  /// أسبوع القيامة: من يوم القيامة لسبت الفرح.
+  bool get easterWeek => offset >= 0 && offset <= 6;
+
+  bool get active => inLent || easterWeek;
+
+  /// قبل بداية الصوم بأسبوع: عدّاد.
+  int get daysToStart => offset >= -62 && offset < -55 ? -55 - offset : 0;
+  bool get comingSoon => daysToStart > 0;
+
+  int get daysToEaster => offset < 0 ? -offset : 0;
+
+  String get weekName => week < 0 ? '' : weekNames[week];
+  String get sundayName => week < 0 ? '' : sundayNames[week];
+
+  /// اسم اليوم في أسبوع البصخة وسبت لعازر.
+  static const holyDayNames = {
+    -8: 'سبت لعازر',
+    -7: 'أحد الشعانين',
+    -6: 'اثنين البصخة',
+    -5: 'ثلاثاء البصخة',
+    -4: 'أربعاء البصخة',
+    -3: 'خميس العهد',
+    -2: 'الجمعة العظيمة',
+    -1: 'سبت النور',
+  };
+
+  factory LentSeason.of(DateTime date) {
+    final easter = copticEaster(date.year);
+    return LentSeason._(daysBetween(easter, date));
+  }
+
+  /// تاريخ يوم من أيام البصخة (offset من -8 لـ ٠).
+  static DateTime dateOfOffset(int year, int off) => copticEaster(year).add(Duration(days: off));
+
+  /// آية اليوم: صوم وتوبة، وفي البصخة آلام، وفي القيامة قيامة.
+  static VerseRef? verseFor(LentSeason s) {
+    if (s.holyWeek) return passionVerses[s.offset + 7];
+    if (s.easterWeek) return resurrectionVerses[s.offset];
+    if (s.inLent) return lentVerses[(s.dayOfLent - 1) % lentVerses.length];
+    return null;
+  }
+}
+
+const lentVerses = <VerseRef>[
+  VerseRef(29, 2, 12), // ارجعوا إليّ بكل قلوبكم
+  VerseRef(19, 51, 10), // قلباً نقياً
+  VerseRef(19, 51, 17), // ذبائح الله روح منكسرة
+  VerseRef(23, 58, 6), // الصوم الذي اختاره
+  VerseRef(23, 55, 7), // فيرحمه
+  VerseRef(28, 6, 1), // هلم نرجع إلى الرب
+  VerseRef(32, 3, 5), // آمن أهل نينوى
+  VerseRef(33, 6, 8), // ما هو صالح
+  VerseRef(40, 4, 4), // ليس بالخبز وحده
+  VerseRef(40, 6, 6), // صلّ إلى أبيك في الخفاء
+  VerseRef(40, 6, 18), // الصوم في الخفاء
+  VerseRef(40, 6, 21), // حيث كنزك
+  VerseRef(40, 6, 33), // اطلبوا أولاً ملكوت الله
+  VerseRef(40, 7, 7), // اسألوا تعطوا
+  VerseRef(41, 1, 15), // توبوا وآمنوا
+  VerseRef(42, 9, 23), // يحمل صليبه
+  VerseRef(42, 15, 18), // أقوم وأذهب إلى أبي
+  VerseRef(42, 15, 20), // ركض ووقع على عنقه
+  VerseRef(43, 4, 14), // الماء الحي
+  VerseRef(43, 9, 25), // كنت أعمى والآن أبصر
+  VerseRef(45, 12, 1), // ذبيحة حية
+  VerseRef(47, 7, 10), // الحزن الذي بحسب مشيئة الله
+  VerseRef(48, 2, 20), // مع المسيح صلبت
+  VerseRef(48, 6, 14), // حاشا لي أن أفتخر إلا بصليب
+  VerseRef(49, 5, 14), // استيقظ أيها النائم
+  VerseRef(50, 3, 10), // لأعرفه وقوة قيامته
+  VerseRef(50, 4, 6), // لا تهتموا بشيء
+  VerseRef(58, 12, 2), // ناظرين إلى يسوع
+  VerseRef(59, 4, 8), // اقتربوا إلى الله
+  VerseRef(62, 1, 9), // إن اعترفنا بخطايانا
+];
+
+/// آيات أسبوع البصخة، من أحد الشعانين (٠) لسبت النور (٦).
+const passionVerses = <VerseRef>[
+  VerseRef(40, 21, 9), // أحد الشعانين: أوصنا
+  VerseRef(41, 11, 17), // الاثنين: بيتي بيت الصلاة
+  VerseRef(40, 24, 42), // الثلاثاء: اسهروا
+  VerseRef(40, 26, 12), // الأربعاء: الطيب لدفني
+  VerseRef(42, 22, 19), // الخميس: هذا هو جسدي
+  VerseRef(43, 19, 30), // الجمعة: قد أُكمل
+  VerseRef(23, 53, 5), // السبت: بجراحه شفينا
+];
+
+/// آيات القيامة، من الأحد (٠) للسبت (٦).
+const resurrectionVerses = <VerseRef>[
+  VerseRef(40, 28, 6), // ليس هو ههنا لأنه قام
+  VerseRef(42, 24, 5), // لماذا تطلبون الحي
+  VerseRef(43, 20, 19), // سلام لكم
+  VerseRef(46, 15, 20), // باكورة الراقدين
+  VerseRef(45, 6, 4), // نسلك في جدة الحياة
+  VerseRef(66, 1, 18), // أنا هو الحي
+  VerseRef(43, 11, 25), // أنا هو القيامة والحياة
+];
