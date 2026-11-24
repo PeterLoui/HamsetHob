@@ -34,6 +34,7 @@ import 'screens/nativity.dart';
 import 'screens/lent.dart';
 import 'screens/memory.dart';
 import 'screens/search.dart';
+import 'bible_map.dart';
 import 'screens/needs.dart';
 import '../data/needs.dart';
 import '../data/memory.dart';
@@ -130,6 +131,10 @@ class ReadingPlanOverlay extends SubScreen {
 class SearchOverlay extends SubScreen {
   const SearchOverlay([this.query = '']);
   final String query;
+}
+
+class BibleMapOverlay extends SubScreen {
+  const BibleMapOverlay();
 }
 
 class NeedsOverlay extends SubScreen {
@@ -376,6 +381,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b)),
             onOpenGuide: (g) => _open(StudyGuideOverlay(g)),
             onOpenQuiz: (t, q) => _open(QuizSessionOverlay(t, q)),
+            onOpenMap: () => _open(const BibleMapOverlay()),
           ),
         _ => MoreScreen(
             onOpenFavorites: () => _open(const FavoritesOverlay()),
@@ -431,6 +437,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
         ReadingPlanOverlay(:final plan) =>
           ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        BibleMapOverlay() => BibleMapScreen(onBack: _back, onVerse: (r) => _open(ChapterOverlay(r)), onOpenCommentary: _openChapterCommentary),
         NeedsOverlay() => NeedsScreen(onBack: _back, onOpen: (n) => _open(NeedOverlay(n))),
         NeedOverlay(:final need) => NeedScreen(
             need: need,

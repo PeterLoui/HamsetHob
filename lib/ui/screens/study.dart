@@ -22,7 +22,9 @@ class StudyScreen extends StatefulWidget {
     required this.onOpenDoc,
     required this.onOpenGuide,
     required this.onOpenQuiz,
+    required this.onOpenMap,
   });
+  final VoidCallback onOpenMap;
   final ValueChanged<StudyBook> onOpenBook;
   final void Function(List<StudyDoc> docs, int index, StudyBook? book) onOpenDoc;
   final ValueChanged<StudyGuide> onOpenGuide;
@@ -63,7 +65,8 @@ class _StudyScreenState extends State<StudyScreen> {
                   onOpenBook: widget.onOpenBook,
                   onOpenDoc: widget.onOpenDoc,
                   onOpenGuide: widget.onOpenGuide,
-                  onOpenQuiz: widget.onOpenQuiz)
+                  onOpenQuiz: widget.onOpenQuiz,
+                  onOpenMap: widget.onOpenMap)
             else
               _QuizHome(cat: cat, bank: bank, qprog: qprog, onOpenQuiz: widget.onOpenQuiz),
           ],
@@ -85,7 +88,9 @@ class _StudyHome extends StatefulWidget {
     required this.onOpenDoc,
     required this.onOpenGuide,
     required this.onOpenQuiz,
+    required this.onOpenMap,
   });
+  final VoidCallback onOpenMap;
   final StudyCatalog cat;
   final StudyProgress prog;
   final QuizBank bank;
@@ -158,6 +163,22 @@ class _StudyHomeState extends State<_StudyHome> {
               ),
               const SizedBox(height: 6),
               Text('${ar(done)} من ${ar(cat.totalChapters)} أصحاح — الطريق بينوّر وراك كل ما تخلّص أصحاح', style: TextStyle(fontSize: 12, color: c.textFaint)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          GlassPanel(
+            padding: const EdgeInsets.all(14),
+            onTap: widget.onOpenMap,
+            child: Row(children: [
+              Icon(Icons.map_outlined, color: c.honey, size: 26),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('خريطة الكتاب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
+                  Text('رحلة إبراهيم والخروج ورحلات بولس، محطة محطة', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                ]),
+              ),
+              Icon(Icons.chevron_left, color: c.textFaint),
             ]),
           ),
           const SizedBox(height: 16),
