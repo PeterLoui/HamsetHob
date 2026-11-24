@@ -119,6 +119,33 @@ class NativeBridge {
     }
   }
 
+  /// ضغطة على زرار إشعار التحكم الاحتياطي: toggle / back30 / fwd30 / next / stop.
+  static void Function(String action)? onMediaAction;
+
+  /// يعرض أو يحدّث إشعار التحكم الاحتياطي (مع جلسة وسائط لشاشة القفل).
+  static Future<void> mediaUpdate({
+    required String title,
+    required String subtitle,
+    required bool playing,
+    required bool live,
+    required int positionMs,
+    required int durationMs,
+  }) =>
+      _call('mediaUpdate', {'title': title, 'subtitle': subtitle, 'playing': playing, 'live': live, 'pos': positionMs, 'dur': durationMs});
+
+  static Future<void> mediaHide() => _call('mediaHide', {});
+
+  /// فيه إشعار تحكم ظاهر (من audio_service)؟ true لو مش أندرويد.
+  static Future<bool> hasMediaNotification() async {
+    try {
+      return await _channel.invokeMethod<bool>('hasMediaNotification') ?? true;
+    } on MissingPluginException {
+      return true;
+    } on PlatformException {
+      return true;
+    }
+  }
+
   /// يفتح إعدادات إشعارات التطبيق في النظام.
   static Future<void> openNotificationSettings() => _call('openNotificationSettings', {});
 
@@ -141,6 +168,7 @@ class NativeBridge {
 
   static void onLaunchRef(void Function(VerseRef) handler) {
     _channel.setMethodCallHandler((call) async {
+      if (call.method == 'mediaAction') onMediaAction?.call(call.arguments as String);
       if (call.method == 'resumeRadio') onResumeRadio?.call();
       if (call.method == 'openUpdate') onOpenUpdate?.call();
       if (call.method == 'openPrayer') onOpenPrayer?.call(call.arguments as String);

@@ -64,10 +64,13 @@ class RadioPlayer extends ChangeNotifier {
         _bufferingSince = null;
       }
       _updateLock(active);
+      _syncOwn();
       notifyListeners();
     });
+    NativeBridge.onMediaAction = _onMediaAction;
     // مراقب: بث واقف على التحميل كتير = اتصال ميت، نعيده
     Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_own && _player.playing) _pushOwn(); // المكان والعنوان في إشعار التحكم الاحتياطي
       final since = _bufferingSince;
       if (_intent && since != null && DateTime.now().difference(since) > const Duration(seconds: 25)) {
         _bufferingSince = null;
@@ -225,6 +228,70 @@ class RadioPlayer extends ChangeNotifier {
   Duration duration = Duration.zero;
 
   bool get isPlaying => _player.playing;
+
+  // ─── إشعار التحكم الاحتياطي ───
+  // إشعار audio_service ماظهرش في بعض الأجهزة (حتى والصوت شغال). فلو بعد ٤ ثواني من التشغيل ماظهرش إشعار تحكم،
+  // بنطلب من أندرويد إشعارنا الخاص بجلسة وسائط (أزرار على شاشة القفل وشريط الإشعارات وسماعات البلوتوث).
+  bool _own = false;
+  Timer? _ownCheck;
+
+  void _syncOwn() {
+    final now = nowPlaying;
+    if (now == null) {
+      if (_own) {
+        _own = false;
+        NativeBridge.mediaHide();
+      }
+      _ownCheck?.cancel();
+      _ownCheck = null;
+      return;
+    }
+    if (_own) {
+      _pushOwn();
+      return;
+    }
+    if (_player.playing && _ownCheck == null) {
+      _ownCheck = Timer(const Duration(seconds: 4), () async {
+        _ownCheck = null;
+        if (!_player.playing || nowPlaying == null || _own) return;
+        if (!await NativeBridge.hasMediaNotification()) {
+          _own = true;
+          _pushOwn();
+        }
+      });
+    }
+  }
+
+  void _pushOwn() {
+    final now = nowPlaying;
+    if (now == null) return;
+    NativeBridge.mediaUpdate(
+      title: now.title,
+      subtitle: subtitle,
+      playing: _player.playing,
+      live: live,
+      positionMs: position.inMilliseconds,
+      durationMs: duration.inMilliseconds,
+    );
+  }
+
+  void _onMediaAction(String action) {
+    switch (action) {
+      case 'toggle':
+        toggle();
+      case 'back30':
+        seekBy(-30);
+      case 'fwd30':
+        seekBy(30);
+      case 'next':
+        next();
+      case 'stop':
+        _intent = false;
+        _player.pause();
+        _own = false;
+        NativeBridge.mediaHide();
+    }
+  }
 
   /// اسم اللي بيتذاع دلوقتي على المحطة لو بتبعته (ترنيمة، عظة، لحن)، وإلا null.
   String? streamTitle;

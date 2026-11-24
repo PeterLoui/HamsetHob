@@ -114,6 +114,25 @@ class MainActivity : AudioServiceActivity() {
                         result.success(launchUpdate)
                         launchUpdate = false
                     }
+                    "mediaUpdate" -> {
+                        MediaNotificationService.update(
+                            ctx,
+                            call.argument<String>("title") ?: "",
+                            call.argument<String>("subtitle") ?: "",
+                            call.argument<Boolean>("playing") == true,
+                            call.argument<Boolean>("live") == true,
+                            (call.argument<Number>("pos") ?: 0).toLong(),
+                            (call.argument<Number>("dur") ?: 0).toLong(),
+                        )
+                        result.success(null)
+                    }
+                    "mediaHide" -> {
+                        MediaNotificationService.hide(ctx)
+                        result.success(null)
+                    }
+                    "hasMediaNotification" -> result.success(
+                        if (Build.VERSION.SDK_INT >= 23) MediaNotificationService.hasOtherMediaNotification(ctx) else true,
+                    )
                     "mediaStatus" -> {
                         // فحص أسباب اختفاء أزرار التشغيل من شاشة القفل وشريط الإشعارات
                         val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
@@ -162,6 +181,8 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
         }
+        // أزرار إشعار التحكم الاحتياطي بتوصل لـ Flutter عن طريق نفس القناة
+        MediaNotificationService.channel = channel
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

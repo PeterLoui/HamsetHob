@@ -127,6 +127,8 @@
         <receiver android:name=".ReminderReceiver" android:exported="false" />
         <receiver android:name=".InstallReceiver" android:exported="false" />
         <receiver android:name=".UpdateCheckReceiver" android:exported="false" />
+        <!-- إشعار التحكم في الصوت الاحتياطي (لو إشعار audio_service ماظهرش) -->
+        <service android:name=".MediaNotificationService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
