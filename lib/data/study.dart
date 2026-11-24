@@ -307,3 +307,65 @@ class CommentaryRepository {
     return blocks;
   }
 }
+
+/// فقرات التفسير الخاصة بآية (أو آيات): [verses] أرقام الآيات اللي بيشرحها، و[blocks] الشرح.
+class VerseCommentary {
+  const VerseCommentary(this.verses, this.blocks);
+  final List<int> verses;
+  final List<Block> blocks;
+
+  String get label => verses.length == 1 ? 'آية ${verses.first}' : 'الآيات ${verses.first}–${verses.last}';
+}
+
+/// أرقام الآيات من أول سطر شرح «آية (1):-» أو «الآيات ( 43 - 44 ):» أو «الآيات 5،4:-»، أو null لو مش سطر آيات.
+List<int>? verseNumbersOf(String header) {
+  final m = RegExp(r'^(?:الآيات?|الآية|الآيه|آيات|آية|آيه)\s*[\(:]?\s*([0-9٠-٩\s،,\-–و]+)').firstMatch(header);
+  if (m == null) return null;
+  final raw = m[1]!.replaceAllMapped(RegExp(r'[٠-٩]'), (d) => '${d[0]!.codeUnitAt(0) - 0x0660}');
+  final nums = RegExp(r'\d+').allMatches(raw).map((e) => int.parse(e[0]!)).toList();
+  if (nums.isEmpty) return null;
+  if (nums.length == 2 && RegExp(r'[\-–]').hasMatch(raw)) {
+    final (a, b) = (nums[0], nums[1]);
+    if (b >= a && b - a < 60) return [for (var i = a; i <= b; i++) i];
+  }
+  return nums.toSet().toList()..sort();
+}
+
+/// يقسّم تفسير الأصحاح على الآيات: كل سطر «آية …» بيبدأ مجموعة، والفقرات اللي بعده شرحها لحد الآية الجاية.
+/// الفقرات اللي قبل أول آية (مقدمة الأصحاح) بتتحط تحت الرقم ٠.
+Map<int, VerseCommentary> splitByVerse(List<Block> blocks) {
+  final out = <int, VerseCommentary>{};
+  List<int> current = const [0];
+  var bucket = <Block>[];
+  void flush() {
+    if (bucket.isEmpty) return;
+    final vc = VerseCommentary(current, List.of(bucket));
+    for (final v in current) {
+      out[v] = vc;
+    }
+    bucket = [];
+  }
+
+  for (final b in blocks) {
+    if (b.kind == BlockKind.h1) continue;
+    final nums = b.kind == BlockKind.verse ? verseNumbersOf(b.text) : null;
+    if (nums != null) {
+      flush();
+      current = nums;
+    } else {
+      bucket.add(b);
+    }
+  }
+  flush();
+  return out;
+}
+
+extension CommentaryByChapter on CommentaryRepository {
+  /// تفسير أصحاح من الكتاب (برقم السفر في كتاب التطبيق)، مقسّم على الآيات. null لو السفر مالوش تفسير.
+  Future<Map<int, VerseCommentary>?> forChapter(int bibleBook, int chapter) async {
+    final cat = await StudyCatalog.load();
+    final book = cat.books.where((b) => b.bibleNumber == bibleBook).firstOrNull;
+    if (book == null || chapter < 1 || chapter > book.chapters) return null;
+    return splitByVerse(await load(cat.chapter(book, chapter)));
+  }
+}

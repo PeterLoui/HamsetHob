@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
 import '../../data/store.dart';
+import '../../data/study.dart';
 import '../glass.dart';
+import 'study.dart' show CommentaryBlockView;
 import '../theme.dart';
 import 'home.dart' show VerseActions;
 
@@ -220,9 +222,15 @@ class _BibleScreenState extends State<BibleScreen> {
 
 /// الإصحاح كاملاً مع تمييز الآية المطلوبة (verse = 0 بدون تمييز) والتنقل بين الإصحاحات.
 class ChapterScreen extends StatefulWidget {
-  const ChapterScreen({super.key, required this.start, required this.onBack});
+  const ChapterScreen({super.key, required this.start, required this.onBack, this.onOpenCommentary, this.loadVerses});
   final VerseRef start;
   final VoidCallback onBack;
+
+  /// فتح تفسير الأصحاح كاملاً (رقم السفر في الكتاب، والأصحاح).
+  final void Function(int book, int chapter)? onOpenCommentary;
+
+  /// مصدر آيات الأصحاح (للاختبار؛ الافتراضي قاعدة الكتاب).
+  final Future<List<Verse>> Function(int book, int chapter)? loadVerses;
 
   @override
   State<ChapterScreen> createState() => _ChapterScreenState();
@@ -235,6 +243,37 @@ class _ChapterScreenState extends State<ChapterScreen> {
   bool _failed = false;
   int _selected = 0;
   final _keys = <int, GlobalKey>{};
+
+  // تفسير القمص أنطونيوس فكري للآية المختارة (بيتحمّل أول مرة بس لكل أصحاح ويتحفظ)
+  Map<int, VerseCommentary>? _comm;
+  bool _commLoading = false;
+  bool _commFailed = false;
+  bool _commNone = false;
+  int _commFor = 0;
+
+  Future<void> _showCommentary(int verse) async {
+    setState(() => _commFor = _commFor == verse ? 0 : verse);
+    if (_commFor == 0 || _comm != null || _commNone || _commLoading) return;
+    setState(() {
+      _commLoading = true;
+      _commFailed = false;
+    });
+    final book = _book, chapter = _chapter;
+    try {
+      final m = await CommentaryRepository.instance.forChapter(book, chapter);
+      if (!mounted || book != _book || chapter != _chapter) return;
+      setState(() {
+        _comm = m;
+        _commNone = m == null;
+        _commLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _commFailed = true;
+        _commLoading = false;
+      });
+    }
+  }
 
   int get _highlight => _book == widget.start.book && _chapter == widget.start.chapter ? widget.start.verse : -1;
 
@@ -250,9 +289,14 @@ class _ChapterScreenState extends State<ChapterScreen> {
       _failed = false;
       _selected = 0;
       _keys.clear();
+      _comm = null;
+      _commNone = false;
+      _commFailed = false;
+      _commLoading = false;
+      _commFor = 0;
     });
     try {
-      final v = await BibleRepository.instance.chapter(_book, _chapter);
+      final v = await (widget.loadVerses ?? BibleRepository.instance.chapter)(_book, _chapter);
       if (!mounted) return;
       setState(() => _verses = v);
       // آخر موضع قراءة، عشان «كمّل القراءة» في شاشة الكتاب
@@ -266,6 +310,41 @@ class _ChapterScreenState extends State<ChapterScreen> {
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     }
+  }
+
+  Widget _commentaryPanel(BuildContext context, int verse) {
+    final c = context.colors;
+    Widget note(String text, {Widget? action}) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(text, style: TextStyle(fontSize: 13, height: 1.6, color: c.textSoft)),
+            if (action != null) Padding(padding: const EdgeInsets.only(top: 8), child: action),
+          ]),
+        );
+    if (_commLoading) return const Padding(padding: EdgeInsets.all(14), child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+    if (_commFailed) return note('تعذّر تحميل التفسير، اتأكد من الاتصال بالنت', action: AppChip(label: 'حاول تاني', onTap: () {
+          setState(() => _commFor = 0);
+          _showCommentary(verse);
+        }));
+    if (_commNone) return note('مفيش تفسير للسفر ده في تفاسير القمص أنطونيوس فكري.');
+    final vc = _comm?[verse];
+    final full = widget.onOpenCommentary == null ? null : AppChip(label: 'افتح تفسير الأصحاح كاملاً', onTap: () => widget.onOpenCommentary!(_book, _chapter));
+    if (vc == null) return note('تفسير الأصحاح مش مقسّم على الآية دي.', action: full);
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(right: BorderSide(color: c.accent, width: 3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('تفسير القمص أنطونيوس فكري — ${vc.label}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.accent)),
+        const SizedBox(height: 8),
+        for (final b in vc.blocks) CommentaryBlockView(b),
+        if (full != null) Align(alignment: AlignmentDirectional.centerStart, child: full),
+      ]),
+    );
   }
 
   void _move(int step) {
@@ -352,6 +431,12 @@ class _ChapterScreenState extends State<ChapterScreen> {
                                   if (v.number == _selected) ...[
                                     const SizedBox(height: 8),
                                     _VerseTools(ref: ref, text: v.text, current: hi),
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: AlignmentDirectional.centerStart,
+                                      child: AppChip(label: _commFor == v.number ? 'إخفاء التفسير' : 'تفسير الآية', selected: _commFor == v.number, onTap: () => _showCommentary(v.number)),
+                                    ),
+                                    if (_commFor == v.number) _commentaryPanel(context, v.number),
                                   ],
                                 ]),
                               ),

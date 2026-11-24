@@ -557,7 +557,7 @@ class _StudyReaderScreenState extends State<StudyReaderScreen> {
             );
           }
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            for (final b in snap.data!) _BlockView(b),
+            for (final b in snap.data!) CommentaryBlockView(b),
             const SizedBox(height: 24),
             if (_isChapter) _DoneButton(docKey: _doc.key, onDone: _i + 1 < widget.docs.length ? () => _go(_i + 1) : null),
             Row(children: [
@@ -612,8 +612,9 @@ class _DoneButton extends StatelessWidget {
   }
 }
 
-class _BlockView extends StatelessWidget {
-  const _BlockView(this.b);
+/// فقرة من التفسير: عنوان أو آية أو نقطة أو فقرة.
+class CommentaryBlockView extends StatelessWidget {
+  const CommentaryBlockView(this.b, {super.key});
   final Block b;
 
   @override

@@ -313,6 +313,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void _open(SubScreen o) => setState(() => _overlays.add(o));
   void _back() => setState(() => _overlays.removeLast());
 
+  Future<void> _openChapterCommentary(int bibleBook, int chapter) async {
+    final cat = await StudyCatalog.load();
+    final book = cat.books.where((b) => b.bibleNumber == bibleBook).firstOrNull;
+    if (book == null || !mounted) return;
+    final docs = [if (book.intro != null) cat.intro(book), for (var i = 1; i <= book.chapters; i++) cat.chapter(book, i)];
+    _open(StudyReaderOverlay(docs, (book.intro != null ? 1 : 0) + chapter - 1, book));
+  }
+
   /// تحديث الويدجتس وإشعار القفل برسالة اليوم نفسها.
   void _syncWidgets([DailyVerse? v]) {
     final verse = v ?? _lastVerse;
@@ -367,7 +375,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       };
 
   Widget _overlayBody(SubScreen o) => switch (o) {
-        ChapterOverlay(:final ref) => ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back),
+        ChapterOverlay(:final ref) => ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back, onOpenCommentary: _openChapterCommentary),
         SynaxariumOverlay(:final date) => SynaxariumScreen(
             start: date,
             onBack: _back,
