@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +21,7 @@ class SaintImages {
   static const imageHeaders = {'User-Agent': 'HamsetHob/2.0 (Android)'};
 
   /// ملفات ويكيميديا الأصلية بترجع ٤٢٩ كتير (كبيرة)، لكن النسخ المصغّرة بأحجام قياسية بتتحمّل.
-  /// فبنجرّب ٩٦٠ ثم ٥٠٠ ثم ٣٣٠، والأصلي آخر حاجة.
+  /// فبنجرّب ٥٠٠ ثم ٣٣٠ ثم ٩٦٠ (بيرفضه ٤٢٩ لو أكبر من الأصلي)، والأصلي آخر حاجة.
   static List<String> candidates(String url) {
     final m = RegExp(r'/commons/(?:thumb/)?([0-9a-f])/([0-9a-f]{2})/([^/]+)').firstMatch(url);
     if (m == null) return [url];
@@ -28,7 +29,7 @@ class SaintImages {
     final ext = name.split('.').last.toLowerCase();
     final suffix = const {'jpg', 'jpeg', 'png'}.contains(ext) ? '' : '.png';
     return [
-      for (final w in const [960, 500, 330]) 'https://upload.wikimedia.org/wikipedia/commons/thumb/$a/$ab/$name/${w}px-$name$suffix',
+      for (final w in const [500, 330, 960]) 'https://upload.wikimedia.org/wikipedia/commons/thumb/$a/$ab/$name/${w}px-$name$suffix',
       'https://upload.wikimedia.org/wikipedia/commons/$a/$ab/$name',
     ];
   }
@@ -37,8 +38,8 @@ class SaintImages {
 
   /// الصورة كـbytes: من الملف المحفوظ على الجهاز لو اتحمّلت قبل كده، وإلا بتتحمّل من ويكيميديا
   /// (مع إعادة المحاولة لما يرد ٤٢٩، لأن أول طلب لحجم جديد بيخلّي ويكيميديا تجهّزه). [log] بيسجّل كل محاولة.
-  Future<Uint8List?> loadBytes(String url, {List<String>? log}) {
-    final hit = _bytesMemo[url];
+  Future<Uint8List?> loadBytes(String url, {List<String>? log, bool fresh = false}) {
+    final hit = fresh ? null : _bytesMemo[url];
     if (hit != null) return hit;
     final f = _fetch(url, log).then((b) {
       if (b == null) _bytesMemo.remove(url); // نجرّب تاني المرة الجاية
@@ -47,7 +48,24 @@ class SaintImages {
     return _bytesMemo[url] = f;
   }
 
+  /// اسم ملف الصورة المضمّنة في التطبيق (assets/saints) للرابط ده، لو الصورة من الجدول.
+  static String? assetOf(String url) {
+    for (final e in verified.entries) {
+      if (e.value == url) return 'assets/saints/${e.key.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_')}.jpg';
+    }
+    return null;
+  }
+
   Future<Uint8List?> _fetch(String url, List<String>? log) async {
+    // الصور المؤكدة متضمّنة جوه التطبيق: بتظهر فوراً ومن غير نت ومن غير ما نعتمد على ويكيميديا
+    final asset = assetOf(url);
+    if (asset != null) {
+      try {
+        final d = await rootBundle.load(asset);
+        log?.add('من داخل التطبيق: ${asset.split('/').last}  ${(d.lengthInBytes / 1024).round()} ك.ب');
+        return d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes);
+      } catch (_) {/* مش متضمّنة: نحمّلها من الشبكة */}
+    }
     final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'saint_imgs'));
     final name = candidates(url).last.split('/').last;
     final file = File(p.join(dir.path, name));
@@ -56,7 +74,7 @@ class SaintImages {
       if (b.isNotEmpty) return b;
     }
     for (final u in candidates(url)) {
-      for (var attempt = 0; attempt < 3; attempt++) {
+      for (var attempt = 0; attempt < 2; attempt++) {
         try {
           final r = await http.get(Uri.parse(u), headers: imageHeaders).timeout(const Duration(seconds: 30));
           log?.add('${r.statusCode}  ${u.split('/').last}  ${(r.bodyBytes.length / 1024).round()} ك.ب');
