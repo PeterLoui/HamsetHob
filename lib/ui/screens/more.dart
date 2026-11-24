@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
+import '../../data/google_images.dart';
 import '../../data/reminders.dart';
 import '../../data/store.dart';
 import '../../data/updater.dart';
@@ -195,6 +196,7 @@ class _MoreScreenState extends State<MoreScreen> {
           _group(null, [
             _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
             _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
+            _item('صور جوجل (احتياطي لصور التذكار)', settings.googleKey.isEmpty ? 'مش مفعّل: محتاج مفتاح API مجاني من حسابك' : (settings.googleFallback ? 'مفعّل' : 'متوقف'), _googleSetup),
             _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
             _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
           ]),
@@ -307,6 +309,64 @@ class _MoreScreenState extends State<MoreScreen> {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(children: children),
       );
+
+  /// إعداد البحث في صور جوجل: مفتاح الـAPI ومعرّف محرك البحث (من حساب المستخدم، وبيتحفظوا على جهازه بس).
+  Future<void> _googleSetup() async {
+    final key = TextEditingController(text: settings.googleKey);
+    final cx = TextEditingController(text: settings.googleCx);
+    var on = settings.googleFallback;
+    String? result;
+    final c = context.colors;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: const Text('صور جوجل كاحتياطي'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                'لما مانلاقيش صورة للتذكار في معرض الأنبا تكلا، التطبيق بيبحث باسمه في صور جوجل وياخد أول صورة بتتحمّل. '
+                'لازم أول صورة تتراجع بنفسك لأنها ممكن ماتكونش للقديس الصح.\n\n'
+                '١) في console.cloud.google.com فعّل «Custom Search API» وأنشئ مفتاح API.\n'
+                '٢) في programmablesearchengine.google.com أنشئ محرك بحث، وفعّل «Image search» و«Search the entire web»، وانسخ «Search engine ID».\n'
+                'المجاني ١٠٠ بحث في اليوم، والتطبيق بيحفظ النتيجة ٣٠ يوم.',
+                style: TextStyle(fontSize: 12, height: 1.7, color: c.textSoft),
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: key, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'مفتاح API')),
+              TextField(controller: cx, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'معرّف محرك البحث (cx)')),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('استخدامه كاحتياطي'), value: on, onChanged: (v) => set(() => on = v)),
+              if (result != null) SelectableText(result!, style: TextStyle(fontSize: 12, height: 1.6, color: c.text)),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                try {
+                  final links = await GoogleImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), cx: cx.text.trim(), num: 1);
+                  set(() => result = links.isEmpty ? 'اشتغل، بس مفيش نتايج' : 'اشتغل ✓\n${links.first}');
+                } catch (e) {
+                  set(() => result = 'فشل: $e');
+                }
+              },
+              child: const Text('جرّب'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () {
+                settings.googleKey = key.text;
+                settings.googleCx = cx.text;
+                settings.googleFallback = on;
+                SaintImages.instance.resetMemo();
+                Navigator.pop(ctx);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   /// يجرّب تحميل صورة تذكار النهارده بنفس الطريقة وبنفس اسم التطبيق، ويعرض النتيجة (كود الرد، الحجم، أو سبب الفشل).
   Future<void> _checkImage() async {

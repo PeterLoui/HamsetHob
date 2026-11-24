@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'google_images.dart';
+
 import 'net.dart' show normalizeArabic;
 
 /// صورة تذكار اليوم من ويكيميديا كومنز فقط، من جدول متراجع [verified] بمفتاح اليوم أو بكلمة في عنوان التذكار.
@@ -158,7 +160,25 @@ class SaintImages {
     }
     final fuzzy = _fuzzy(albums, name);
     if (fuzzy != null) return _galleryUrl(fuzzy);
-    return id == null ? null : verified[id];
+    // صورة ويكيميديا المتراجعة: نتأكد إنها بتتحمّل فعلاً (ويكيميديا بتحجب كتير)
+    final wm = id == null ? null : verified[id];
+    if (!GoogleImageSearch.configured) return wm;
+    if (wm != null && (await loadBytes(wm)) != null) return wm;
+    // آخر حل: بحث صور جوجل بالاسم (لو المستخدم فعّله بمفتاحه)، وأول نتيجة بتتحمّل
+    {
+      try {
+        for (final link in await GoogleImageSearch.forName(name)) {
+          if ((await loadBytes(link)) != null) return link;
+        }
+      } catch (_) {/* الحصة خلصت أو المفتاح غلط: نكمّل من غير صورة */}
+    }
+    return wm; // لو ويكيميديا ماتحمّلتش دلوقتي، نسيبها تتجرّب تاني من الواجهة
+  }
+
+  /// بعد تغيير إعدادات جوجل: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
+  void resetMemo() {
+    _memo.clear();
+    _bytesMemo.clear();
   }
 
   /// ألبوم قديس عنوانه بيطابق اسم صاحب التذكار.

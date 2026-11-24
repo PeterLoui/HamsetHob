@@ -53,6 +53,14 @@ class AppSettings extends ChangeNotifier {
   int get morningMinutes => _prefs.getInt('morning_at') ?? 7 * 60;
   set morningMinutes(int v) => _set(() => _prefs.setInt('morning_at', v));
 
+  /// صور جوجل كاحتياطي لصور التذكار (مفتاح الـAPI ومعرّف محرك البحث من حساب المستخدم، ومحفوظين على جهازه بس).
+  String get googleKey => _prefs.getString('g_key') ?? '';
+  set googleKey(String v) => _set(() => _prefs.setString('g_key', v.trim()));
+  String get googleCx => _prefs.getString('g_cx') ?? '';
+  set googleCx(String v) => _set(() => _prefs.setString('g_cx', v.trim()));
+  bool get googleFallback => _prefs.getBool('g_on') ?? true;
+  set googleFallback(bool v) => _set(() => _prefs.setBool('g_on', v));
+
   /// فحص إصدارات GitHub وتعريف المستخدم بالنسخة الجديدة.
   bool get autoUpdate => _prefs.getBool('auto_update') ?? true;
   set autoUpdate(bool v) => _set(() => _prefs.setBool('auto_update', v));
