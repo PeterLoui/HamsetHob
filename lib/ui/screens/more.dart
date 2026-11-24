@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../../audio/audio_levels.dart';
 import '../../core/coptic.dart';
@@ -317,22 +316,19 @@ class _MoreScreenState extends State<MoreScreen> {
       report = 'تذكار النهارده (${com.title}) مالوش صورة مؤكدة في الجدول، فبيظهر الصليب.';
     } else {
       final sw = Stopwatch()..start();
-      try {
-        final r = await http.get(Uri.parse(url), headers: SaintImages.imageHeaders).timeout(const Duration(seconds: 40));
-        var decoded = 'غير مفحوصة';
-        if (r.statusCode == 200) {
-          try {
-            final codec = await ui.instantiateImageCodec(r.bodyBytes);
-            final f = (await codec.getNextFrame()).image;
-            decoded = '${f.width}×${f.height} بكسل';
-          } catch (e) {
-            decoded = 'الملف مش صورة صالحة ($e)';
-          }
+      final log = <String>[];
+      final bytes = await SaintImages.instance.loadBytes(url, log: log);
+      var decoded = 'لم تتحمّل';
+      if (bytes != null) {
+        try {
+          final codec = await ui.instantiateImageCodec(bytes);
+          final f = (await codec.getNextFrame()).image;
+          decoded = 'تمام: ${f.width}×${f.height} بكسل، ${(bytes.length / 1024).round()} ك.ب';
+        } catch (e) {
+          decoded = 'الملف مش صورة صالحة ($e)';
         }
-        report = 'الرد: ${r.statusCode}\nالنوع: ${r.headers['content-type']}\nالحجم: ${(r.bodyBytes.length / 1024).round()} ك.ب\nالزمن: ${sw.elapsedMilliseconds} م.ث\nالصورة: $decoded';
-      } catch (e) {
-        report = 'فشل الاتصال بعد ${sw.elapsedMilliseconds} م.ث\n$e';
       }
+      report = '${log.isEmpty ? 'من الملف المحفوظ على الجهاز' : log.join('\n')}\n\nالنتيجة: $decoded\nالزمن: ${sw.elapsedMilliseconds} م.ث';
     }
     if (!mounted) return;
     await showDialog<void>(

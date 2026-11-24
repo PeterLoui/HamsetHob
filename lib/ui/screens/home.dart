@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../audio/radio_player.dart';
@@ -11,6 +10,7 @@ import '../../data/katameros.dart';
 import '../../data/meditations.dart';
 import '../../core/season.dart';
 import '../../data/demiana.dart';
+import '../saint_photo.dart';
 import '../season_widgets.dart';
 import '../../data/saint_images.dart';
 import '../../data/store.dart';
@@ -375,13 +375,10 @@ class _SaintBackdrop extends StatelessWidget {
                       opacity: url == null ? .28 : .3,
                       child: url == null
                           ? const _CrossBackdrop()
-                          : CachedNetworkImage(
-                              imageUrl: url,
-                              httpHeaders: SaintImages.imageHeaders,
-                              fit: BoxFit.cover,
+                          : SaintPhoto(
+                              url: url,
                               alignment: SaintImages.focus(wiki, img.maxWidth, img.maxHeight),
-                              fadeInDuration: const Duration(milliseconds: 300),
-                              errorWidget: (_, __, ___) => const _CrossBackdrop(),
+                              fallback: const _CrossBackdrop(),
                             ),
                     ),
                   ),

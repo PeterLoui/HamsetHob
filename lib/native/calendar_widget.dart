@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/synaxarium.dart';
 import '../data/net.dart';
+import '../data/saint_images.dart';
 import 'native_bridge.dart';
 
 /// يبعت لويدجت التقويم القبطي تذكارات الأيام الجاية وصورة تذكار النهارده.
@@ -43,9 +44,9 @@ class CalendarWidgetSync {
   static Future<String> _download(String url, String day) async {
     final file = File('${(await getApplicationSupportDirectory()).path}/calendar_widget.img');
     if (_lastImageUrl == url && _lastImageDay == day && file.existsSync()) return file.path;
-    final r = await getRaw(url);
-    if (r.statusCode >= 400 || r.bodyBytes.isEmpty) throw HttpStatusError(r.statusCode);
-    await file.writeAsBytes(r.bodyBytes, flush: true);
+    final bytes = await SaintImages.instance.loadBytes(url);
+    if (bytes == null || bytes.isEmpty) throw HttpStatusError(0);
+    await file.writeAsBytes(bytes, flush: true);
     _lastImageUrl = url;
     _lastImageDay = day;
     return file.path;

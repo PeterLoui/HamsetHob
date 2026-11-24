@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
@@ -9,6 +8,7 @@ import '../../data/net.dart' show normalizeArabic;
 import '../../data/demiana.dart';
 import '../../data/saint_images.dart';
 import '../glass.dart';
+import '../saint_photo.dart';
 import '../theme.dart';
 
 /// شريط التاريخ: اليوم السابق/التالي.
@@ -407,16 +407,12 @@ class SaintFrame extends StatelessWidget {
                 : url == null
                     ? _cross()
                     : LayoutBuilder(
-                        builder: (context, box) => CachedNetworkImage(
-                          imageUrl: url,
-                          httpHeaders: SaintImages.imageHeaders,
-                          fit: BoxFit.cover,
+                        builder: (context, box) => SaintPhoto(
+                          url: url,
                           width: box.maxWidth,
                           height: box.maxHeight,
                           alignment: SaintImages.focus(wiki, box.maxWidth, box.maxHeight),
-                          fadeInDuration: const Duration(milliseconds: 300),
-                          placeholder: (_, __) => const SizedBox.shrink(),
-                          errorWidget: (_, __, ___) => _cross(),
+                          fallback: _cross(),
                         ),
                       ),
           ),

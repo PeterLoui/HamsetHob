@@ -1,4 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/painting.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../core/coptic.dart';
 import 'net.dart' show normalizeArabic;
@@ -12,6 +18,64 @@ class SaintImages {
 
   /// ويكيميديا بتحجب أو بتبطّئ الطلبات اللي من غير User-Agent واضح (مكتبة الصور بتبعت اسم Dart العام)، فنبعت اسم التطبيق.
   static const imageHeaders = {'User-Agent': 'HamsetHob/2.0 (Android)'};
+
+  /// ملفات ويكيميديا الأصلية بترجع ٤٢٩ كتير (كبيرة)، لكن النسخ المصغّرة بأحجام قياسية بتتحمّل.
+  /// فبنجرّب ٩٦٠ ثم ٥٠٠ ثم ٣٣٠، والأصلي آخر حاجة.
+  static List<String> candidates(String url) {
+    final m = RegExp(r'/commons/(?:thumb/)?([0-9a-f])/([0-9a-f]{2})/([^/]+)').firstMatch(url);
+    if (m == null) return [url];
+    final (a, ab, name) = (m[1]!, m[2]!, m[3]!);
+    final ext = name.split('.').last.toLowerCase();
+    final suffix = const {'jpg', 'jpeg', 'png'}.contains(ext) ? '' : '.png';
+    return [
+      for (final w in const [960, 500, 330]) 'https://upload.wikimedia.org/wikipedia/commons/thumb/$a/$ab/$name/${w}px-$name$suffix',
+      'https://upload.wikimedia.org/wikipedia/commons/$a/$ab/$name',
+    ];
+  }
+
+  final _bytesMemo = <String, Future<Uint8List?>>{};
+
+  /// الصورة كـbytes: من الملف المحفوظ على الجهاز لو اتحمّلت قبل كده، وإلا بتتحمّل من ويكيميديا
+  /// (مع إعادة المحاولة لما يرد ٤٢٩، لأن أول طلب لحجم جديد بيخلّي ويكيميديا تجهّزه). [log] بيسجّل كل محاولة.
+  Future<Uint8List?> loadBytes(String url, {List<String>? log}) {
+    final hit = _bytesMemo[url];
+    if (hit != null) return hit;
+    final f = _fetch(url, log).then((b) {
+      if (b == null) _bytesMemo.remove(url); // نجرّب تاني المرة الجاية
+      return b;
+    });
+    return _bytesMemo[url] = f;
+  }
+
+  Future<Uint8List?> _fetch(String url, List<String>? log) async {
+    final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'saint_imgs'));
+    final name = candidates(url).last.split('/').last;
+    final file = File(p.join(dir.path, name));
+    if (await file.exists()) {
+      final b = await file.readAsBytes();
+      if (b.isNotEmpty) return b;
+    }
+    for (final u in candidates(url)) {
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          final r = await http.get(Uri.parse(u), headers: imageHeaders).timeout(const Duration(seconds: 30));
+          log?.add('${r.statusCode}  ${u.split('/').last}  ${(r.bodyBytes.length / 1024).round()} ك.ب');
+          final isImage = (r.headers['content-type'] ?? '').startsWith('image');
+          if (r.statusCode == 200 && isImage && r.bodyBytes.isNotEmpty) {
+            await dir.create(recursive: true);
+            await file.writeAsBytes(r.bodyBytes, flush: true);
+            return r.bodyBytes;
+          }
+          if (r.statusCode != 429) break; // حجم تاني
+          await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        } catch (e) {
+          log?.add('خطأ  ${u.split('/').last}  $e');
+          break;
+        }
+      }
+    }
+    return null;
+  }
 
   /// كلمات مش جزء من اسم القديس.
   static const _titles = {
