@@ -10,7 +10,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'net.dart';
-import 'wird.dart';
 import 'prayers.dart' show decodeWindows1256;
 
 /// مجموعة أسفار في العجلة (الناموس، التاريخ، الحكمة...).
@@ -144,18 +143,13 @@ class StudyProgress extends ChangeNotifier {
   int get totalDone => _done.where((k) => RegExp(r':\d+$').hasMatch(k)).length;
 
   Future<void> toggle(String key) async {
-    final added = !_done.remove(key);
-    if (added) {
-      _done.add(key);
-      if (RegExp(r':\d+$').hasMatch(key)) WirdStore.markIf(WirdItem.chapter);
-    }
+    if (!_done.remove(key)) _done.add(key);
     await _prefs.setStringList('study_done', _done.toList());
     notifyListeners();
   }
 
   Future<void> mark(String key) async {
     if (_done.add(key)) {
-      if (RegExp(r':\d+$').hasMatch(key)) WirdStore.markIf(WirdItem.chapter);
       await _prefs.setStringList('study_done', _done.toList());
       notifyListeners();
     }
@@ -312,31 +306,4 @@ class CommentaryRepository {
     await f.writeAsString(jsonEncode([for (final b in blocks) b.toJson()]));
     return blocks;
   }
-}
-
-
-/// الأصحاح الجاي في الدراسة: اللي بعد آخر حاجة فتحها الدارس، أو أول أصحاح لسه ماخلّصوش في نفس السفر.
-/// لو ماحدش بدأ: إنجيل يوحنا. بيرجّع الوثائق والترتيب والسفر عشان يفتح القارئ.
-Future<({StudyBook book, List<StudyDoc> docs, int index, int chapter})?> nextStudyChapter() async {
-  final cat = await StudyCatalog.load();
-  final prog = await StudyProgress.load();
-  final lastKey = prog.last;
-  final book = (lastKey == null ? null : cat.byId(lastKey.split(':').first)) ?? cat.byId('jhn');
-  if (book == null) return null;
-  var chapter = 1;
-  final last = lastKey == null ? null : int.tryParse(lastKey.split(':').last);
-  if (last != null && lastKey!.startsWith('${book.id}:')) {
-    // نكمّل من اللي بعد آخر أصحاح (لو خلصناه)، وإلا نفس الأصحاح
-    chapter = prog.isDone('${book.id}:$last') ? last + 1 : last;
-  }
-  if (chapter > book.chapters || prog.isDone('${book.id}:$chapter')) {
-    final undone = [for (var i = 1; i <= book.chapters; i++) if (!prog.isDone('${book.id}:$i')) i];
-    if (undone.isEmpty) return null;
-    chapter = undone.first;
-  }
-  final docs = [
-    if (book.intro != null) cat.intro(book),
-    for (var i = 1; i <= book.chapters; i++) cat.chapter(book, i),
-  ];
-  return (book: book, docs: docs, index: (book.intro != null ? 1 : 0) + chapter - 1, chapter: chapter);
 }

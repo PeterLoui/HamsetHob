@@ -197,19 +197,6 @@ class _MoreScreenState extends State<MoreScreen> {
             NativeBridge.scheduleMorning(v, settings.morningMinutes);
           }),
           if (settings.morningEnabled) _group(null, [_item('وقت الإشعار', time, _pickTime)]),
-          _toggle('تذكير ورد اليوم', 'إشعار هادي كل يوم بشمعات الورد', settings.wirdReminder, (v) {
-            settings.wirdReminder = v;
-            Reminders.sync();
-          }),
-          if (settings.wirdReminder)
-            _group(null, [
-              _item('وقت تذكير الورد', _fmt(settings.wirdAt), () async {
-                final m = await _pickMinutes(settings.wirdAt);
-                if (m == null) return;
-                settings.wirdAt = m;
-                Reminders.sync();
-              }),
-            ]),
           _toggle('شاشة القفل', 'التاريخ القبطي ورسالة اليوم في إشعار هادئ', settings.lockNotification, (v) {
             settings.lockNotification = v;
             widget.onSettingsChanged();

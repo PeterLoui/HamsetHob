@@ -67,12 +67,6 @@ class AppSettings extends ChangeNotifier {
   int hourAt(String id, int fallback) => _prefs.getInt('rem_at_$id') ?? fallback;
   void setHourAt(String id, int minutes) => _set(() => _prefs.setInt('rem_at_$id', minutes));
 
-  /// تذكير يومي هادي بورد اليوم.
-  bool get wirdReminder => _prefs.getBool('wird_rem') ?? false;
-  set wirdReminder(bool v) => _set(() => _prefs.setBool('wird_rem', v));
-  int get wirdAt => _prefs.getInt('wird_at') ?? 20 * 60 + 30;
-  set wirdAt(int v) => _set(() => _prefs.setInt('wird_at', v));
-
   /// تنبيه مساء اليوم السابق للأعياد وبدايات الأصوام.
   bool get feastReminders => _prefs.getBool('rem_feast') ?? false;
   set feastReminders(bool v) => _set(() => _prefs.setBool('rem_feast', v));

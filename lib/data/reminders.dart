@@ -48,14 +48,6 @@ class Reminders {
         'prayer': h.prayerId,
       });
     }
-    if (s.wirdReminder) {
-      out.add({
-        'id': 90,
-        'title': 'وردك اليوم',
-        'body': 'شمعات النهارده مستنياك، خطوة خطوة',
-        'minutes': s.wirdAt,
-      });
-    }
     if (s.feastReminders) {
       final at = s.feastAt;
       for (var d = 1; d <= horizonDays; d++) {

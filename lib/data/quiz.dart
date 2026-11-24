@@ -5,8 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'wird.dart';
-
 class QuizCategory {
   const QuizCategory(this.id, this.name);
   final String id, name;
@@ -78,7 +76,6 @@ class QuizProgress extends ChangeNotifier {
   int knownIn(Iterable<QuizQuestion> qs) => qs.where((q) => isKnown(q.id)).length;
 
   Future<void> record(int id, {required bool knew}) async {
-    WirdStore.markIf(WirdItem.quiz);
     if (knew) {
       _known.add('$id');
       _review.remove('$id');

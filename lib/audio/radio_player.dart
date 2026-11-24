@@ -12,7 +12,6 @@ import '../data/prayers.dart' show Station, stations;
 import '../native/native_bridge.dart';
 import '../data/sermon_downloads.dart';
 import '../data/sermons.dart';
-import '../data/wird.dart';
 
 class NowPlaying {
   const NowPlaying(this.id, this.title, this.category);
@@ -76,17 +75,6 @@ class RadioPlayer extends ChangeNotifier {
       }
     });
     _player.positionStream.listen((p) {
-      // ورد اليوم: دقيقة استماع فعلية لعظة (مش بث الإذاعة) تعلّم البند
-      final now = DateTime.now();
-      if (_player.playing && !live && _sermon != null) {
-        final last = _wirdTick;
-        if (last != null) _wirdListened += now.difference(last) > const Duration(seconds: 2) ? Duration.zero : now.difference(last);
-        if (_wirdListened >= const Duration(seconds: 60)) {
-          _wirdListened = Duration.zero;
-          WirdStore.markIf(WirdItem.sermon);
-        }
-      }
-      _wirdTick = now;
       position = p;
       _persist();
       notifyListeners();
@@ -237,13 +225,6 @@ class RadioPlayer extends ChangeNotifier {
   Duration duration = Duration.zero;
 
   bool get isPlaying => _player.playing;
-
-  DateTime? _wirdTick;
-  Duration _wirdListened = Duration.zero;
-
-  /// اسم آخر عظة أو محطة (شغالة أو محفوظة)، لعرضه في ورد اليوم.
-  String? get lastTitle => nowPlaying?.title ?? _pendingSermon?.title ?? _pendingStation?.name;
-  bool get lastIsSermon => live ? false : (_sermon != null || _pendingSermon != null);
 
   /// اسم اللي بيتذاع دلوقتي على المحطة لو بتبعته (ترنيمة، عظة، لحن)، وإلا null.
   String? streamTitle;
