@@ -13,8 +13,11 @@ import 'theme.dart';
 /// - بيظهر رقم النسبة لحظة القرص.
 /// الشاشات بتقرا المقياس في كل رسم، فالشِل بيعيد بناء المحتوى مع كل خطوة.
 class PinchZoom extends StatefulWidget {
-  const PinchZoom({super.key, required this.child});
+  const PinchZoom({super.key, required this.child, this.enabled = true});
   final Widget child;
+
+  /// مقفول في الشاشات اللي القرص فيها له معنى تاني (الخريطة)، عشان مايكبّرش خط القراءة بالغلط.
+  final bool enabled;
 
   static const min = 0.8, max = 1.7, step = 0.02;
 
@@ -83,6 +86,7 @@ class _PinchZoomState extends State<PinchZoom> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
     final c = context.colors;
     final percent = (AppSettings.instance.readingScale * 100).round();
     return Listener(

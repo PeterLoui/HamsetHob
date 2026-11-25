@@ -40,6 +40,10 @@ class AppSettings extends ChangeNotifier {
   bool get showCoptic => _prefs.getBool('show_coptic') ?? (_prefs.getBool('tasbeha_show_coptic') ?? true);
   set showCoptic(bool v) => _set(() => _prefs.setBool('show_coptic', v));
 
+  /// الجولة التعريفية اتشافت؟ (أول تشغيل بس)
+  bool get introSeen => _prefs.getBool('intro_seen') ?? false;
+  set introSeen(bool v) => _prefs.setBool('intro_seen', v);
+
   bool get lockNotification => _prefs.getBool('lock_notif') ?? true;
   set lockNotification(bool v) => _set(() => _prefs.setBool('lock_notif', v));
 

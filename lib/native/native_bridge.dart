@@ -136,6 +136,9 @@ class NativeBridge {
   /// قايمة المحطات لأندرويد أوتو (id, name, url).
   static Future<void> autoStations(List<Map<String, String>> list) => _call('autoStations', {'list': list});
 
+  /// يمنع قفل الشاشة تلقائياً طول ما القراءة مفتوحة.
+  static Future<void> keepAwake(bool on) => _call('keepAwake', {'on': on});
+
   static Future<void> mediaHide() => _call('mediaHide', {});
 
   /// فيه إشعار تحكم ظاهر (من audio_service)؟ true لو مش أندرويد.

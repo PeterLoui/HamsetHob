@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/coptic.dart';
 import '../data/bible.dart';
@@ -35,6 +36,8 @@ import 'screens/lent.dart';
 import 'screens/memory.dart';
 import 'screens/search.dart';
 import 'bible_map.dart';
+import 'intro.dart';
+import 'keep_awake.dart';
 import 'screens/needs.dart';
 import '../data/needs.dart';
 import '../data/memory.dart';
@@ -222,6 +225,8 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _tab = 0;
+  bool _intro = !AppSettings.instance.introSeen;
+  DateTime? _lastBack;
   final _overlays = <SubScreen>[];
   DateTime _today = DateTime.now();
   Timer? _dayTicker;
@@ -374,7 +379,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenNeeds: () => _open(const NeedsOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
-        2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
+        2 => KeepAwake(child: ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d)))),
         3 => CalendarScreen(today: _today),
         4 => StudyScreen(
             onOpenBook: (b) => _open(StudyBookOverlay(b)),
@@ -384,6 +389,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onOpenMap: () => _open(const BibleMapOverlay()),
           ),
         _ => MoreScreen(
+            onOpenIntro: () => setState(() => _intro = true),
             onOpenFavorites: () => _open(const FavoritesOverlay()),
             onOpenReadingPlans: () => _open(const ReadingPlansOverlay()),
             onSettingsChanged: () {
@@ -394,7 +400,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       };
 
   Widget _overlayBody(SubScreen o) => switch (o) {
-        ChapterOverlay(:final ref) => ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back, onOpenCommentary: _openChapterCommentary),
+        ChapterOverlay(:final ref) =>
+          KeepAwake(child: ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back, onOpenCommentary: _openChapterCommentary)),
         SynaxariumOverlay(:final date) => SynaxariumScreen(
             start: date,
             onBack: _back,
@@ -501,7 +508,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         StudyGuideOverlay(:final guide) =>
           StudyGuideScreen(guide: guide, onBack: _back, onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b))),
         StudyReaderOverlay(:final docs, :final index, :final book) =>
-          StudyReaderScreen(docs: docs, index: index, book: book, onBack: _back),
+          KeepAwake(child: StudyReaderScreen(docs: docs, index: index, book: book, onBack: _back)),
         QuizSessionOverlay(:final title, :final questions) => QuizSessionScreen(title: title, questions: questions, onBack: _back),
         TasbehaOverlay() => TasbehaScreen(
             onBack: _back,
@@ -524,13 +531,32 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     final barArea = bottomBarHeight(context) + safeBottom;
 
     return PopScope(
-      canPop: _overlays.isEmpty && _tab == 0,
+      // الرجوع: صفحة فرعية → اللي قبلها، تبويب تاني → الرئيسية، والرئيسية → ضغطتين للخروج
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_overlays.isNotEmpty) {
+        if (_intro) {
+          setState(() => _intro = false);
+          AppSettings.instance.introSeen = true;
+        } else if (_overlays.isNotEmpty) {
           _back();
-        } else {
+        } else if (_tab != 0) {
           setState(() => _tab = 0);
+        } else {
+          final now = DateTime.now();
+          if (_lastBack != null && now.difference(_lastBack!) < const Duration(seconds: 2)) {
+            SystemNavigator.pop();
+            return;
+          }
+          _lastBack = now;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: const Text('اضغط رجوع مرة تانية للخروج', textAlign: TextAlign.center),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.fromLTRB(60, 0, 60, barArea + 20),
+            ));
         }
       },
       child: Scaffold(
@@ -541,6 +567,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             // المحتوى بيبدأ تحت منطقة التلاشي، فالتغبيش يلمس بس اللي بيطلع لفوق وأنت بتعمل سكرول
             // قرص بإصبعين يكبّر ويصغّر خط القراءة في كل الشاشات
             child: PinchZoom(
+              enabled: top is! BibleMapOverlay,
               child: MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 padding: MediaQuery.paddingOf(context).copyWith(top: MediaQuery.paddingOf(context).top + StatusBarFade.fade),
@@ -595,6 +622,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             ),
           ],
+          if (_intro)
+            Positioned.fill(
+              child: IntroScreen(onDone: () {
+                AppSettings.instance.introSeen = true;
+                setState(() => _intro = false);
+              }),
+            ),
         ]),
       ),
     );
