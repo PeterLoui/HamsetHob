@@ -1,7 +1,23 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// أيقونات مرسومة خصيصاً (شبكة 24×24) — منها الكتاب الذي في وسطه صليب.
-enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next }
+enum AppIcon { home, bible, readings, calendar, more, radio, play, pause, back30, forward30, next, prayer, books, antenna, tasbeha, study }
+
+/// صورة البابا شنوده الثالث من شعار مئوية ميلاده، مقصوصة للرأس والكتفين وبتتلوّن بلون الأيقونات.
+class PopeIcon extends StatelessWidget {
+  const PopeIcon({super.key, this.size = 24, this.color});
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? IconTheme.of(context).color ?? const Color(0xFFFFFFFF);
+    return Image.asset('assets/pope_shenouda.png',
+        width: size, height: size, color: c, colorBlendMode: BlendMode.srcIn, filterQuality: FilterQuality.medium);
+  }
+}
 
 class AppIconView extends StatelessWidget {
   const AppIconView(this.icon, {super.key, this.size = 24, this.color});
@@ -77,6 +93,52 @@ class _IconPainter extends CustomPainter {
         for (final x in [6.0, 12.0, 18.0]) {
           canvas.drawCircle(Offset(x, 12), 1.7, fill);
         }
+      case AppIcon.prayer:
+        // شمعة: جسم ولهب
+        canvas.drawRRect(RRect.fromLTRBR(9, 11, 15, 21, const Radius.circular(1.2)), stroke);
+        canvas.drawPath(
+            Path()
+              ..moveTo(12, 2.8)
+              ..cubicTo(14.2, 5.2, 14.4, 7.2, 12, 8.6)
+              ..cubicTo(9.6, 7.2, 9.8, 5.2, 12, 2.8)
+              ..close(),
+            stroke);
+        canvas.drawLine(const Offset(7, 21), const Offset(17, 21), stroke);
+      case AppIcon.books:
+        // كتابين واقفين وكتاب مايل
+        canvas.drawRRect(RRect.fromLTRBR(4, 5, 8, 20, const Radius.circular(1)), stroke);
+        canvas.drawRRect(RRect.fromLTRBR(8, 3.5, 12, 20, const Radius.circular(1)), stroke);
+        canvas.drawPath(line(const [Offset(13, 6.5), Offset(16.8, 5.5), Offset(20.4, 19), Offset(16.6, 20), Offset(13, 6.5)]), stroke);
+        canvas.drawLine(const Offset(3, 20.5), const Offset(21, 20.5), stroke);
+      case AppIcon.tasbeha:
+        // شورية (مجمرة) بسلاسلها: التسبحة بخور نصف الليل
+        canvas.drawLine(const Offset(12, 2.5), const Offset(12, 4.5), stroke);
+        canvas.drawLine(const Offset(10.5, 3.5), const Offset(13.5, 3.5), stroke);
+        canvas.drawPath(line(const [Offset(12, 5), Offset(6.5, 12)]), stroke);
+        canvas.drawPath(line(const [Offset(12, 5), Offset(17.5, 12)]), stroke);
+        canvas.drawLine(const Offset(12, 5), const Offset(12, 10.5), stroke);
+        canvas.drawLine(const Offset(5.5, 12), const Offset(18.5, 12), stroke);
+        canvas.drawArc(const Rect.fromLTRB(5.5, 6.5, 18.5, 19.5), 0, 3.14159, false, stroke);
+        canvas.drawLine(const Offset(10, 19.2), const Offset(9, 21.5), stroke);
+        canvas.drawLine(const Offset(14, 19.2), const Offset(15, 21.5), stroke);
+      case AppIcon.study:
+        // عجلة: حلقة وفي وسطها صليب صغير
+        canvas.drawCircle(const Offset(12, 12), 8.5, stroke);
+        canvas.drawCircle(const Offset(12, 12), 3.2, stroke);
+        for (final a in const [0.0, 1.5708, 3.14159, 4.71239]) {
+          canvas.drawLine(Offset(12 + 3.2 * math.cos(a + .785), 12 + 3.2 * math.sin(a + .785)),
+              Offset(12 + 8.5 * math.cos(a + .785), 12 + 8.5 * math.sin(a + .785)), stroke);
+        }
+      case AppIcon.antenna:
+        // برج إذاعة وموجتين
+        canvas.drawCircle(const Offset(12, 9), 1.6, fill);
+        canvas.drawPath(line(const [Offset(12, 11), Offset(8.5, 21)]), stroke);
+        canvas.drawPath(line(const [Offset(12, 11), Offset(15.5, 21)]), stroke);
+        canvas.drawLine(const Offset(9.6, 17.5), const Offset(14.4, 17.5), stroke);
+        canvas.drawArc(const Rect.fromLTRB(7, 4, 17, 14), 3.6, 1.3, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(7, 4, 17, 14), -0.8, 1.3, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(3.5, 0.5, 20.5, 17.5), 3.75, 1.0, false, stroke);
+        canvas.drawArc(const Rect.fromLTRB(3.5, 0.5, 20.5, 17.5), -0.75, 1.0, false, stroke);
       case AppIcon.radio:
         canvas.drawRRect(RRect.fromLTRBR(9, 3, 15, 14, const Radius.circular(3)), stroke);
         canvas.drawArc(const Rect.fromLTRB(6, 5, 18, 17), 0, 3.14159, false, stroke);

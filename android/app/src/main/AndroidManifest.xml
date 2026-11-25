@@ -2,15 +2,23 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- التحديث من GitHub: التطبيق بينزّل نسخة جديدة ويطلب من النظام تركيبها (المستخدم بيوافق) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- للضوء المتزامن مع الإيقاع بس (Visualizer)، بيتطلب لما المستخدم يفعّله، والتطبيق مابيسجّلش حاجة -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
         android:label="همسة حب"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true">
 
         <activity
@@ -35,6 +43,16 @@
         <service
             android:name="com.ryanheise.audioservice.AudioService"
             android:foregroundServiceType="mediaPlayback"
+            android:exported="true" />
+
+        <!-- أندرويد أوتو: تصفّح المحطات وتشغيلها من شاشة العربية (خدمة تصفّح واحدة بس للتطبيق) -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <service
+            android:name=".AutoService"
+            android:foregroundServiceType="mediaPlayback"
+            android:label="همسة حب"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
@@ -74,9 +92,53 @@
                 android:resource="@xml/lock_widget_info" />
         </receiver>
 
+        <!-- ويدجت شاشة القفل التاني: سطر التاريخ وتحته الآية -->
+        <receiver
+            android:name=".LockLineWidgetProvider"
+            android:label="@string/widget_lock_line_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lock_line_widget_info" />
+        </receiver>
+
+        <!-- ويدجت الإذاعة: اللي شغال وزرار تشغيل/إيقاف -->
+        <receiver
+            android:name=".RadioWidgetProvider"
+            android:label="@string/widget_radio_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/radio_widget_info" />
+        </receiver>
+
+        <!-- ويدجت التقويم القبطي: التاريخ وتذكار اليوم وصورته -->
+        <receiver
+            android:name=".CalendarWidgetProvider"
+            android:label="@string/widget_calendar_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calendar_widget_info" />
+        </receiver>
+
         <!-- تحديث يومي ورسالة الصباح وإعادة الجدولة بعد إعادة التشغيل -->
         <receiver android:name=".DailyReceiver" android:exported="false" />
         <receiver android:name=".MorningReceiver" android:exported="false" />
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
+        <receiver android:name=".InstallReceiver" android:exported="false" />
+        <receiver android:name=".UpdateCheckReceiver" android:exported="false" />
+        <!-- إشعار التحكم في الصوت الاحتياطي (لو إشعار audio_service ماظهرش) -->
+        <service android:name=".MediaNotificationService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

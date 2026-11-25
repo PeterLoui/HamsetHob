@@ -1,5 +1,5 @@
 name: hamset_hob
-description: "همسة حب — التقويم القبطي ورسالة اليوم والقراءات وعظات البابا شنوده، بتصميم الزجاج السائل."
+description: "همسة حب — التقويم القبطي ورسالة اليوم والقراءات والتسبحة وعظات البابا شنوده، بتصميم مخطوطة وسهرانية."
 publish_to: "none"
 version: 2.0.0+2
 
@@ -12,8 +12,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  liquid_glass_widgets: ^1.15.1
   http: ^1.2.2
+  crypto: ^3.0.3
   shared_preferences: ^2.3.2
   google_fonts: ^6.2.1
   cached_network_image: ^3.4.1
@@ -22,8 +22,19 @@ dependencies:
   path: ^1.9.0
   archive: ^4.0.0
   share_plus: ^11.0.0
+  pdfrx: 2.11.0
   just_audio: any
   just_audio_background: any
+  html: ^0.15.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/agpeya.json
+    - assets/agpeya_LICENSE.txt
+    - assets/pope_shenouda.png
+    - assets/coptic_cross.png
+    - assets/tasbeha.json
+    - assets/liturgies.json
+    - assets/study_fekry.json
+    - assets/study_quiz.json

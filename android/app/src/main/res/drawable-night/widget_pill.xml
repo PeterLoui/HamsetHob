@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- الوضع الداكن: زجاج مدخّن بلون الخشب، والخلفية باينة من وراه، وضوء شمعة عسلي على الركن -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="200dp" />
+            <gradient android:angle="270" android:startColor="#9914120F" android:endColor="#7814120F" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="200dp" />
+            <gradient android:angle="315" android:startColor="#00FFF0D2" android:centerColor="#1AFFF0D2" android:endColor="#00FFF0D2" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="200dp" />
+            <gradient android:type="radial" android:centerX="0.15" android:centerY="0" android:gradientRadius="160dp"
+                android:startColor="#47E2A84B" android:endColor="#00E2A84B" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="200dp" />
+            <stroke android:width="1dp" android:color="#33EFE7DA" />
+        </shape>
+    </item>
+</layer-list>

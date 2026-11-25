@@ -13,6 +13,10 @@ Future<String> getText(String url) async {
 Future<http.Response> getRaw(String url) =>
     http.get(Uri.parse(url), headers: _headers).timeout(const Duration(seconds: 30));
 
+/// فتح اتصال لتنزيل ملف كبير على دفعات (من غير ما يتحمّل كله في الذاكرة).
+Future<http.StreamedResponse> openStream(http.Client client, String url) =>
+    client.send(http.Request('GET', Uri.parse(url))..headers.addAll(_headers)).timeout(const Duration(seconds: 30));
+
 Future<dynamic> getJson(String url) async => jsonDecode(await getText(url));
 
 class HttpStatusError implements Exception {

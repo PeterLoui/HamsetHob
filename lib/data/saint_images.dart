@@ -1,71 +1,81 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'dart:typed_data';
 
-import 'net.dart';
+import 'package:flutter/painting.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
-/// صورة التذكار: صفحة ويكيبيديا الإنجليزية المحددة أولاً، ثم البحث في ويكيبيديا
-/// العربية باسم القديس (لا تُقبل نتيجة إلا إذا احتوى عنوانها على الاسم).
-/// إن لم توجد صورة تعرض الواجهة رسمة الصليب.
+import 'image_search.dart';
+import 'net.dart' show normalizeArabic;
+
+/// صورة تذكار اليوم: من البحث في الصور بالاسم (SerpApi أو Brave) بمفتاح المستخدم، وأول نتيجة بتتحمّل.
+/// من غير مفتاح مافيش صورة والواجهة بتعرض الصليب القبطي. الصور بتتحفظ على الجهاز.
 class SaintImages {
   SaintImages._();
   static final instance = SaintImages._();
 
-  static const _titles = {
-    'نياحه', 'استشهاد', 'تذكار', 'عيد', 'القديس', 'القديسه', 'القديسين', 'البابا', 'الانبا', 'انبا',
-    'مار', 'الشهيد', 'الشهيده', 'رئيس', 'الملائكه', 'الملاك', 'السيده', 'ابي', 'ابو', 'البطريرك',
-    'الكبير', 'الرسول', 'الرسولين', 'الانجيلي', 'بطاركه', 'الكرازه', 'المرقسيه', 'اسقف', 'الاسقف',
-    'التذكار', 'الشهري', 'سنكسار', 'اليوم', 'دخول', 'بدايه', 'صوم', 'المجيد',
-  };
+  static const imageHeaders = {'User-Agent': 'HamsetHob/2.0 (Android)'};
 
   final _memo = <String, Future<String?>>{};
+  final _bytesMemo = <String, Future<Uint8List?>>{};
 
-  /// نفس الطلب يرجع نفس الـ Future حتى لا تُعاد الصورة مع كل إعادة رسم.
-  Future<String?> imageUrl(String? wikiTitle, String name) =>
-      _memo.putIfAbsent('${wikiTitle ?? ''}|$name', () => _imageUrl(wikiTitle, name));
-
-  Future<String?> _imageUrl(String? wikiTitle, String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = 'saint_img_${wikiTitle ?? 'search:$name'}';
-    if (prefs.containsKey(key)) {
-      final v = prefs.getString(key);
-      return v == null || v.isEmpty ? null : v;
-    }
-    String? url;
-    if (wikiTitle != null) url = await _safe(() => _summary(wikiTitle));
-    url ??= await _safe(() => _searchArabic(name));
-    await prefs.setString(key, url ?? ''); // نحفظ النتيجة الفارغة أيضاً
-    return url;
-  }
-
-  Future<String?> _safe(Future<String?> Function() f) async {
-    try {
-      return await f();
-    } catch (_) {
+  /// رابط الصورة لاسم التذكار (أو null). نفس الطلب بيرجّع نفس الـ Future، فالصورة ماتتحمّلش من جديد مع كل إعادة رسم.
+  /// [wikiTitle] و[date] متبقيين عشان الاستدعاءات القديمة، والبحث بالاسم بس.
+  Future<String?> imageUrl(String? wikiTitle, String name, DateTime date) {
+    if (!ImageSearch.configured) return Future.value(null);
+    final key = normalizeArabic(name);
+    return _memo.putIfAbsent(key, () async {
+      try {
+        for (final link in await ImageSearch.forName(name)) {
+          if ((await loadBytes(link)) != null) return link;
+        }
+      } catch (_) {/* الحصة خلصت أو المفتاح غلط أو مفيش نت: من غير صورة */}
+      _memo.remove(key); // نجرّب تاني المرة الجاية
       return null;
+    });
+  }
+
+  /// بعد تغيير إعدادات البحث: نمسح النتايج المحفوظة في الذاكرة عشان تتحسب من جديد.
+  void resetMemo() {
+    _memo.clear();
+    _bytesMemo.clear();
+  }
+
+  /// الصورة كـbytes: من الملف المحفوظ على الجهاز لو اتحمّلت قبل كده، وإلا من الرابط.
+  /// [log] بيسجّل كل محاولة، و[fresh] بيتخطى الذاكرة (للفحص).
+  Future<Uint8List?> loadBytes(String url, {List<String>? log, bool fresh = false}) {
+    final hit = fresh ? null : _bytesMemo[url];
+    if (hit != null) return hit;
+    final f = _fetch(url, log).then((b) {
+      if (b == null) _bytesMemo.remove(url); // نجرّب تاني المرة الجاية
+      return b;
+    });
+    return _bytesMemo[url] = f;
+  }
+
+  Future<Uint8List?> _fetch(String url, List<String>? log) async {
+    final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'saint_imgs'));
+    final file = File(p.join(dir.path, url.hashCode.toUnsigned(32).toRadixString(16)));
+    if (await file.exists()) {
+      final b = await file.readAsBytes();
+      if (b.isNotEmpty) return b;
     }
-  }
-
-  Future<String?> _summary(String title) async {
-    final j = await getJson('https://en.wikipedia.org/api/rest_v1/page/summary/${Uri.encodeComponent(title)}') as Map;
-    final img = (j['originalimage'] ?? j['thumbnail']) as Map?;
-    return img?['source'] as String?;
-  }
-
-  Future<String?> _searchArabic(String name) async {
-    final keys = normalizeArabic(name)
-        .split(RegExp(r'[\s،()]+'))
-        .map((w) => w.startsWith('و') && w.length > 3 ? w.substring(1) : w)
-        .where((w) => w.length >= 3 && !_titles.contains(w))
-        .toList();
-    if (keys.isEmpty) return null;
-    final j = await getJson('https://ar.wikipedia.org/w/api.php?action=query&generator=search'
-        '&gsrsearch=${Uri.encodeQueryComponent(keys.join(' '))}&gsrlimit=6&prop=pageimages&piprop=original&format=json') as Map;
-    final pages = ((j['query'] as Map?)?['pages'] as Map?)?.values.cast<Map>().toList() ?? [];
-    pages.sort((a, b) => (a['index'] as int? ?? 0).compareTo(b['index'] as int? ?? 0));
-    for (final p in pages) {
-      final title = normalizeArabic(p['title'] as String? ?? '');
-      final original = p['original'] as Map?;
-      if (original != null && keys.any(title.contains)) return original['source'] as String?;
+    try {
+      final r = await http.get(Uri.parse(url), headers: imageHeaders).timeout(const Duration(seconds: 25));
+      final isImage = (r.headers['content-type'] ?? '').startsWith('image');
+      log?.add('${r.statusCode}  ${Uri.parse(url).host}  ${(r.bodyBytes.length / 1024).round()} ك.ب${isImage ? '' : '  (مش صورة)'}');
+      if (r.statusCode == 200 && isImage && r.bodyBytes.isNotEmpty && r.bodyBytes.length < 8 * 1024 * 1024) {
+        await dir.create(recursive: true);
+        await file.writeAsBytes(r.bodyBytes, flush: true);
+        return r.bodyBytes;
+      }
+    } catch (e) {
+      log?.add('خطأ  ${Uri.parse(url).host}  $e');
     }
     return null;
   }
+
+  /// محاذاة الصورة جوه الصندوق: الوش غالباً في الثلث العلوي، فبنميل للأعلى.
+  static Alignment focus(String? wikiTitle, double boxW, double boxH) => const Alignment(0, -.6);
 }

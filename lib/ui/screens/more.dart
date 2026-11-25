@@ -1,18 +1,32 @@
-import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../../audio/audio_levels.dart';
+import '../../audio/radio_player.dart';
 import '../../core/coptic.dart';
 import '../../data/bible.dart';
+import '../../data/image_search.dart';
+import '../../data/reminders.dart';
 import '../../data/store.dart';
+import '../../data/updater.dart';
 import '../../native/native_bridge.dart';
+import '../accent_picker.dart';
+import '../../core/synaxarium.dart';
+import '../../data/saint_images.dart';
 import '../glass.dart';
 import '../theme.dart';
+import '../update_dialog.dart';
 import 'home.dart' show VerseActions;
 
 /// المزيد: المفضلة والإعدادات وتحميل الكتاب المقدس.
 class MoreScreen extends StatefulWidget {
-  const MoreScreen({super.key, required this.onOpenFavorites, required this.onSettingsChanged});
+  const MoreScreen({super.key, required this.onOpenFavorites, required this.onOpenReadingPlans, required this.onSettingsChanged, required this.onOpenIntro});
+  final VoidCallback onOpenIntro;
   final VoidCallback onOpenFavorites;
+  final VoidCallback onOpenReadingPlans;
   final VoidCallback onSettingsChanged;
 
   @override
@@ -60,11 +74,88 @@ class _MoreScreenState extends State<MoreScreen> {
     setState(() {});
   }
 
+  static String _fmt(int minutes) {
+    final h = minutes ~/ 60, m = minutes % 60;
+    return '${ar(h % 12 == 0 ? 12 : h % 12)}:${ar(m.toString().padLeft(2, '0'))} ${h < 12 ? 'صباحاً' : 'مساءً'}';
+  }
+
+  /// يختار وقت جديد ويرجّعه، أو null لو المستخدم لغى.
+  Future<int?> _pickMinutes(int current) async {
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60));
+    return t == null ? null : t.hour * 60 + t.minute;
+  }
+
+  /// صف التحديث: فحص يدوي، أو النسخة الجديدة لو لقيناها.
+  Widget _updateItem() {
+    final up = Updater.instance;
+    return ListenableBuilder(
+      listenable: up,
+      builder: (context, _) {
+        final u = up.available;
+        if (up.checking) return _item('جارٍ فحص التحديثات…', 'لحظة', () {});
+        if (u != null) {
+          return _item('نسخة جديدة ${ar(u.version)}', 'اضغط للتحديث', () => showUpdateDialog(context, u));
+        }
+        return _item(
+          up.failed ? 'تعذّر فحص التحديثات' : 'فحص التحديثات الآن',
+          up.failed
+              ? 'تأكد من الاتصال بالإنترنت، واضغط للمحاولة تاني'
+              : up.installed > 0
+                  ? 'النسخة الحالية ${ar('2.1.${up.installed}')}'
+                  : 'غير متاح على الجهاز ده',
+          () async {
+            final found = await up.check(force: true);
+            if (!context.mounted) return;
+            if (found != null) {
+              showUpdateDialog(context, found);
+            } else if (!up.failed) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أنت على آخر نسخة')));
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Widget _hourRow(PrayerHour h) {
+    final c = context.colors;
+    final on = settings.hourOn(h.id);
+    final at = settings.hourAt(h.id, h.defaultMinutes);
+    return InkWell(
+      onTap: on
+          ? () async {
+              final m = await _pickMinutes(at);
+              if (m == null) return;
+              settings.setHourAt(h.id, m);
+              Reminders.sync();
+            }
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(h.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
+              Text(on ? '${_fmt(at)} • اضغط لتغيير الوقت' : 'متوقف', style: TextStyle(fontSize: 12, color: c.textSoft)),
+            ]),
+          ),
+          AppSwitch(
+            value: on,
+            label: 'تذكير ${h.name}',
+            onChanged: (v) {
+              settings.setHourOn(h.id, v);
+              Reminders.sync();
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final h = settings.morningMinutes ~/ 60, m = settings.morningMinutes % 60;
-    final time = '${ar(h % 12 == 0 ? 12 : h % 12)}:${ar(m.toString().padLeft(2, '0'))} ${h < 12 ? 'صباحاً' : 'مساءً'}';
+    final time = _fmt(settings.morningMinutes);
 
     return ListenableBuilder(
       listenable: settings,
@@ -73,23 +164,45 @@ class _MoreScreenState extends State<MoreScreen> {
         children: [
           const ScreenHeader('المزيد'),
           _group(null, [
-            _item('♡  المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
+            _item('المفضلة', '${ar(Favorites.instance.items.length)} آية محفوظة', widget.onOpenFavorites),
+            _item('خطط قراءة الكتاب', 'اقرأ الكتاب بترتيب وتابع تقدّمك', widget.onOpenReadingPlans),
+            _item('جولة تعريفية', 'اعرف إزاي تستخدم التطبيق', widget.onOpenIntro),
           ]),
           _label('المظهر'),
-          GlassSegmentedControl(
-            segments: [for (final t in ThemeChoice.values) GlassSegment(label: t.label)],
+          AppSegmented(
+            labels: [for (final t in ThemeChoice.values) t.label],
             selectedIndex: settings.theme.index,
-            onSegmentSelected: (i) {
+            onSelected: (i) {
               settings.theme = ThemeChoice.values[i];
               widget.onSettingsChanged();
             },
           ),
+          const SizedBox(height: 12),
+          AccentPicker(onChanged: widget.onSettingsChanged),
           const SizedBox(height: 10),
-          _toggle('ألوان المواسم الكنسية', 'بنفسجي في الأصوام وذهبي في الأعياد', settings.seasonalColors, (v) {
-            settings.seasonalColors = v;
-            widget.onSettingsChanged();
+          _toggle('ضوء متزامن مع الإيقاع', 'الضوء اللي بيظهر والصوت شغال يتحرك مع الصوت نفسه. أندرويد بيطلب إذن الميكروفون، والتطبيق مابيسجّلش حاجة', settings.syncLight, (v) async {
+            if (!v) {
+              settings.syncLight = false;
+              return;
+            }
+            final ok = await AudioLevels.enableSync();
+            if (!ok && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('من غير الإذن الضوء هيفضل يتنفس بإيقاع هادي لوحده')));
+            }
           }),
           _toggle('خط أميري للآيات', 'خط عربي جميل للنصوص المقدسة', settings.scriptureFont, (v) => settings.scriptureFont = v),
+          const SizedBox(height: 10),
+          _readingSize(),
+          _toggle('القبطي المعرّب', 'يظهر في مربع منفصل تحت العربي في الخولاجي والتسبحة', settings.showCoptic, (v) => settings.showCoptic = v),
+          _label('الصوت في الخلفية'),
+          _group(null, [
+            _item('التشغيل التلقائي', 'في شاومي وHyperOS: فعّله عشان الإذاعة ماتقفش بعد ما تخرج', () => NativeBridge.openBackgroundSettings('autostart')),
+            _item('توفير البطارية', 'اختار «بدون قيود» للتطبيق', () => NativeBridge.openBackgroundSettings('battery')),
+            _item('البحث في الصور (مصدر صور التذكار)', settings.searchKey.isEmpty ? 'مش مفعّل: محتاج مفتاح SerpApi أو Brave مجاني' : (settings.searchFallback ? 'مفعّل (${ImageSearch.providers[settings.searchProvider]})' : 'متوقف'), _searchSetup),
+            _item('فحص صورة تذكار اليوم', 'يجرّب تحميل الصورة من ويكيميديا ويقولك السبب لو فشلت', _checkImage),
+            _item('فحص أزرار شاشة القفل والإشعارات', 'يتأكد من الإذن والبطارية وقناة الإذاعة', _checkMedia),
+          ]),
           _label('الإشعارات'),
           _toggle('رسالة الصباح', 'إشعار يومي برسالة اليوم', settings.morningEnabled, (v) {
             settings.morningEnabled = v;
@@ -100,6 +213,39 @@ class _MoreScreenState extends State<MoreScreen> {
             settings.lockNotification = v;
             widget.onSettingsChanged();
           }),
+          _label('التحديثات'),
+          _toggle('تحديث تلقائي من GitHub', 'يفحص النسخ الجديدة ويعلّمك بيها. التركيب بيتم بموافقتك', settings.autoUpdate, (v) {
+            settings.autoUpdate = v;
+            NativeBridge.setUpdateOptions(v, settings.betaUpdates);
+          }),
+          if (settings.autoUpdate)
+            _toggle('تضمين النسخ التجريبية', 'نسخ من فروع التطوير قبل ما تتدمج في الرئيسية', settings.betaUpdates, (v) {
+              settings.betaUpdates = v;
+              NativeBridge.setUpdateOptions(settings.autoUpdate, v);
+              Updater.instance.check(force: true);
+            }),
+          _group(null, [_updateItem()]),
+          _label('تذكير الصلاة'),
+          for (final h in prayerHours) _hourRow(h),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Text('الضغط على الإشعار بيفتح الصلاة. التذكير ممكن يتأخر دقايق قليلة لتوفير البطارية.',
+                style: TextStyle(fontSize: 11, height: 1.5, color: c.textFaint)),
+          ),
+          _label('الأعياد والأصوام'),
+          _toggle('تنبيه قبلها بيوم', 'إشعار مساء اليوم السابق للأعياد وبدايات الأصوام', settings.feastReminders, (v) {
+            settings.feastReminders = v;
+            Reminders.sync();
+          }),
+          if (settings.feastReminders)
+            _group(null, [
+              _item('وقت التنبيه', _fmt(settings.feastAt), () async {
+                final m = await _pickMinutes(settings.feastAt);
+                if (m == null) return;
+                settings.feastAt = m;
+                Reminders.sync();
+              }),
+            ]),
           _label('الكتاب المقدس بدون إنترنت'),
           _group(null, [
             if (_progress != null)
@@ -108,7 +254,7 @@ class _MoreScreenState extends State<MoreScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('جارٍ التحميل… ${ar((_progress! * 100).round())}٪', style: TextStyle(color: c.text)),
                   const SizedBox(height: 8),
-                  LinearProgressIndicator(value: _progress, color: c.accent, backgroundColor: c.chip),
+                  LinearProgressIndicator(value: _progress, color: c.live, backgroundColor: c.chip),
                 ]),
               )
             else if (_offline == true)
@@ -131,14 +277,200 @@ class _MoreScreenState extends State<MoreScreen> {
 
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
-        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.accent)),
+        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: context.colors.textFaint)),
       );
+
+  /// حجم خط القراءة في كل الشاشات (الكتاب، الأجبية، القداس، التسبحة، السنكسار).
+  Widget _readingSize() {
+    final c = context.colors;
+    final s = AppSettings.instance.readingScale;
+    void set(double v) => setState(() => AppSettings.instance.readingScale = (v * 20).round() / 20);
+    return _group(null, [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 10, 12, 4),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('حجم خط القراءة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text)),
+              Text('يسري على كل شاشات القراءة', style: TextStyle(fontSize: 12, color: c.textSoft)),
+            ]),
+          ),
+          AppIconButton(icon: Text('أ-', style: TextStyle(fontSize: 15, color: c.text)), label: 'تصغير الخط', onTap: () => set(s - .1)),
+          SizedBox(width: 56, child: Text('${ar((s * 100).round())}٪', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: c.textSoft))),
+          AppIconButton(icon: Text('أ+', style: TextStyle(fontSize: 19, color: c.text)), label: 'تكبير الخط', onTap: () => set(s + .1)),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 2, 18, 12),
+        child: Text('مثال: الله محبة، ومن يثبت في المحبة يثبت في الله', style: context.scripture(size: 18)),
+      ),
+    ]);
+  }
 
   Widget _group(String? title, List<Widget> children) => GlassPanel(
         radius: 26,
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(children: children),
       );
+
+  /// إعداد البحث في الصور (Brave): مفتاح الـAPI من حساب المستخدم، وبيتحفظ على جهازه بس.
+  Future<void> _searchSetup() async {
+    final key = TextEditingController(text: settings.searchKey);
+    var on = settings.searchFallback;
+    var provider = settings.searchProvider;
+    String? result;
+    final c = context.colors;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: const Text('البحث في الصور (مصدر صور التذكار)'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                'صور التذكار بتيجي من البحث في الصور بالاسم (ده الوحيد المصدر)، وبتاخد أول صورة بتتحمّل. '
+                'الصورة الأولى ممكن ماتكونش للقديس الصح، فراجعها.\n\n'
+                'SerpApi: اعمل حساب مجاني في serpapi.com وانسخ «API key» من الـDashboard (الخطة المجانية فيها بحوث محدودة في الشهر).\n'
+                'Brave: api-dashboard.search.brave.com، خطة بحث الصور المجانية.\n'
+                'المفتاح بيتحفظ على موبايلك بس، والنتيجة بتتحفظ ٣٠ يوم عشان نوفّر الحصة.',
+                style: TextStyle(fontSize: 12, height: 1.7, color: c.textSoft),
+              ),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, children: [
+                for (var i = 0; i < ImageSearch.providers.length; i++)
+                  ChoiceChip(label: Text(ImageSearch.providers[i]), selected: provider == i, onSelected: (_) => set(() => provider = i)),
+              ]),
+              const SizedBox(height: 12),
+              TextField(controller: key, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'مفتاح API')),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('تفعيل'), value: on, onChanged: (v) => set(() => on = v)),
+              if (result != null) SelectableText(result!, style: TextStyle(fontSize: 12, height: 1.6, color: c.text)),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                try {
+                  final links = await ImageSearch.search('مار مينا أيقونة قديس', key: key.text.trim(), provider: provider, count: 1);
+                  set(() => result = links.isEmpty ? 'اشتغل، بس مفيش نتايج' : 'اشتغل ✓\n${links.first}');
+                } catch (e) {
+                  set(() => result = 'فشل: $e');
+                }
+              },
+              child: const Text('جرّب'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () {
+                settings.searchKey = key.text;
+                settings.searchFallback = on;
+                settings.searchProvider = provider;
+                SaintImages.instance.resetMemo();
+                Navigator.pop(ctx);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// يجرّب تحميل صورة تذكار النهارده بنفس الطريقة وبنفس اسم التطبيق، ويعرض النتيجة (كود الرد، الحجم، أو سبب الفشل).
+  Future<void> _checkImage() async {
+    final com = Synaxarium.forDate(DateTime.now());
+    final url = await SaintImages.instance.imageUrl(com.wiki, com.title, DateTime.now());
+    final c = context.colors;
+    String report;
+    if (url == null) {
+      report = 'مفيش صورة لتذكار النهارده (${com.title}): ${ImageSearch.configured ? 'البحث ماطلّعش صورة بتتحمّل' : 'مفعّلش البحث في الصور (محتاج مفتاح SerpApi أو Brave)'}، فبيظهر الصليب.';
+    } else {
+      final sw = Stopwatch()..start();
+      final log = <String>[];
+      // فحص الشبكة نفسها: هل ويكيميديا بتتفتح من الجهاز أصلاً؟
+      try {
+        final ips = await InternetAddress.lookup(Uri.parse(url).host).timeout(const Duration(seconds: 10));
+        log.add('DNS ${Uri.parse(url).host}: ${ips.map((e) => e.address).take(2).join(', ')}');
+      } catch (e) {
+        log.add('DNS فشل: $e');
+      }
+      try {
+        final r = await http.get(Uri.parse('https://st-takla.org/Gallery/lib/images/logo.png'), headers: SaintImages.imageHeaders).timeout(const Duration(seconds: 15));
+        log.add('شعار st-takla: ${r.statusCode}');
+      } catch (e) {
+        log.add('شعار st-takla فشل: $e');
+      }
+      final bytes = await SaintImages.instance.loadBytes(url, log: log, fresh: true);
+      var decoded = 'لم تتحمّل';
+      if (bytes != null) {
+        try {
+          final codec = await ui.instantiateImageCodec(bytes);
+          final f = (await codec.getNextFrame()).image;
+          decoded = 'تمام: ${f.width}×${f.height} بكسل، ${(bytes.length / 1024).round()} ك.ب';
+        } catch (e) {
+          decoded = 'الملف مش صورة صالحة ($e)';
+        }
+      }
+      report = '${log.isEmpty ? 'من الملف المحفوظ على الجهاز' : log.join('\n')}\n\nالنتيجة: $decoded\nالزمن: ${sw.elapsedMilliseconds} م.ث';
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('فحص صورة التذكار'),
+        content: SelectableText('${com.title}\n${url ?? ''}\n\n$report', style: TextStyle(fontSize: 13, height: 1.6, color: c.text)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تمام'))],
+      ),
+    );
+  }
+
+  /// يفحص إن أزرار تشغيل الإذاعة والعظات ممكن تظهر في شاشة القفل وشريط الإشعارات، ويقول إيه اللي ناقص.
+  Future<void> _checkMedia() async {
+    final m = await NativeBridge.mediaStatus();
+    if (!mounted) return;
+    final c = context.colors;
+    Widget row(bool ok, String text, {VoidCallback? fix, String fixLabel = 'إصلاح'}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(children: [
+            Icon(ok ? Icons.check_circle : Icons.error_outline, size: 20, color: ok ? Colors.green : c.saint),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text, style: TextStyle(fontSize: 14, height: 1.5, color: c.text))),
+            if (!ok && fix != null) TextButton(onPressed: fix, child: Text(fixLabel)),
+          ]),
+        );
+    final notif = m?['notifications'] == true;
+    final channel = (m?['channel'] as int?) ?? -1;
+    final battery = m?['battery'] == true;
+    final playing = RadioPlayer.instance.isPlaying;
+    final mediaNotif = m?['mediaNotification'] == true;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('فحص أزرار التشغيل'),
+        content: m == null
+            ? const Text('الفحص متاح على أندرويد بس')
+            : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                row(notif, notif ? 'الإشعارات مفعّلة للتطبيق' : 'الإشعارات مقفولة: من غيرها مفيش أزرار', fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
+                row(channel != 0, channel == -1 ? 'قناة الإذاعة هتتعمل أول ما تشغّل صوت' : (channel == 0 ? 'قناة «الإذاعة» مقفولة في إعدادات الإشعارات' : 'قناة «الإذاعة» شغالة'),
+                    fix: NativeBridge.openNotificationSettings, fixLabel: 'فتح'),
+                row(
+                  mediaNotif || !playing,
+                  mediaNotif
+                      ? 'إشعار التشغيل ظاهر دلوقتي (فيه أزرار التحكم)'
+                      : (playing ? 'الصوت شغال لكن إشعار التحكم مش ظاهر! ابعتلي النتيجة دي مع موديل الموبايل' : 'شغّل إذاعة أو عظة وافتح الفحص تاني عشان نتأكد إن إشعار التحكم بيظهر'),
+                  fix: NativeBridge.openNotificationSettings,
+                  fixLabel: 'فتح',
+                ),
+                row(battery, battery ? 'توفير البطارية مش بيقيّد التطبيق' : 'توفير البطارية ممكن يقفل الصوت بعد ما تخرج', fix: () => NativeBridge.openBackgroundSettings('battery'), fixLabel: 'فتح'),
+                const SizedBox(height: 8),
+                Text('الجهاز: ${m['maker']} • أندرويد ${m['sdk']}', style: TextStyle(fontSize: 12, color: c.textFaint)),
+                const SizedBox(height: 6),
+                Text('في شاومي وHyperOS: فعّل «التشغيل التلقائي» وثبّت التطبيق في قائمة التطبيقات الأخيرة (قفل)، لأن السحب منها بيقفل التطبيق والإشعار.',
+                    style: TextStyle(fontSize: 12, height: 1.6, color: c.textSoft)),
+              ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تمام'))],
+      ),
+    );
+  }
 
   Widget _item(String title, String subtitle, VoidCallback onTap) {
     final c = context.colors;
@@ -171,7 +503,7 @@ class _MoreScreenState extends State<MoreScreen> {
             Text(subtitle, style: TextStyle(fontSize: 12, color: c.textSoft)),
           ]),
         ),
-        GlassSwitch(value: value, onChanged: onChanged, activeColor: c.accent, semanticLabel: title),
+        AppSwitch(value: value, onChanged: onChanged, label: title),
       ]),
     );
   }

@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../data/bible.dart';
 import '../ui/theme.dart';
 
-/// مشاركة الآية كصورة بتصميم الزجاج، أو نسخها نصاً.
+/// مشاركة الآية كصورة بتصميم المخطوطة، أو نسخها نصاً.
 class VerseImage {
   static Future<void> copy(BuildContext context, VerseRef ref, String text) async {
     await Clipboard.setData(ClipboardData(text: '«$text»\n${ref.label}'));
@@ -37,40 +37,16 @@ class VerseImage {
     final rec = ui.PictureRecorder();
     final canvas = Canvas(rec, const Rect.fromLTWH(0, 0, w, h));
 
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 0, w, h),
-      Paint()..shader = ui.Gradient.linear(Offset.zero, const Offset(0, h), c.wallpaper, const [0, .5, 1]),
-    );
-    const spots = [(0.85, 0.12, 0.6), (0.1, 0.35, 0.65), (0.7, 0.7, 0.55), (0.2, 0.95, 0.7)];
-    for (var i = 0; i < spots.length; i++) {
-      final (x, y, r) = spots[i];
-      final center = Offset(w * x, h * y);
-      canvas.drawCircle(center, w * r,
-          Paint()..shader = ui.Gradient.radial(center, w * r, [c.blobs[i], c.blobs[i].withValues(alpha: 0)]));
-    }
-
-    // لوح الزجاج
-    final card = RRect.fromLTRBR(80, 240, w - 80, h - 240, const Radius.circular(72));
-    canvas.drawRRect(
-      card,
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(0, card.top), Offset(0, card.bottom),
-            const [Color(0x47FFFFFF), Color(0x14FFFFFF), Color(0x26FFFFFF)], const [0, .5, 1]),
-    );
-    canvas.drawRRect(
-      card,
-      Paint()
-        ..shader = ui.Gradient.radial(Offset(card.left + card.width * .15, card.top), card.width * .8,
-            const [Color(0x55FFFFFF), Color(0x00FFFFFF)]),
-    );
-    canvas.drawRRect(
-      card,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..shader = ui.Gradient.linear(card.outerRect.topLeft, card.outerRect.bottomRight,
-            const [Color(0xCCFFFFFF), Color(0x22FFFFFF), Color(0x88FFFFFF)], const [0, .5, 1]),
-    );
+    // صفحة مخطوطة (أو سهرانية): سطح ثابت، وإطار رفيع مزدوج زي حواشي الكتب
+    canvas.drawRect(const Rect.fromLTWH(0, 0, w, h), Paint()..color = c.surface);
+    final card = RRect.fromLTRBR(80, 240, w - 80, h - 240, const Radius.circular(24));
+    canvas.drawRRect(card, Paint()..color = c.card);
+    final frame = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = c.hairline.withValues(alpha: c.hairline.a * 2.2);
+    canvas.drawRRect(card, frame);
+    canvas.drawRRect(card.deflate(18), frame..strokeWidth = 1.2);
 
     // النص: يُصغَّر حتى يتسع داخل اللوح
     final maxWidth = card.width - 120;
@@ -87,7 +63,7 @@ class VerseImage {
     body.paint(canvas, Offset(card.left + 60, card.top + (card.height - body.height) / 2 - 40));
 
     final refText = TextPainter(
-      text: TextSpan(text: ref.label, style: TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: c.accent)),
+      text: TextSpan(text: ref.label, style: TextStyle(fontSize: 44, fontWeight: FontWeight.w500, color: c.accent)),
       textDirection: TextDirection.rtl,
     )..layout();
     refText.paint(canvas, Offset((w - refText.width) / 2, card.bottom - 130));

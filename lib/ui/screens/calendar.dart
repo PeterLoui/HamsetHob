@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../core/coptic.dart';
 import '../../core/synaxarium.dart';
@@ -18,6 +17,12 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   bool _coptic = false;
   late DateTime _anchor = dateOnly(widget.today);
+
+  @override
+  void didUpdateWidget(CalendarScreen old) {
+    super.didUpdateWidget(old);
+    if (dateOnly(old.today) != dateOnly(widget.today) && _anchor == dateOnly(old.today)) _anchor = dateOnly(widget.today);
+  }
 
   // الأسبوع يبدأ السبت: DateTime.weekday للسبت = 6
   static const _weekOrder = [6, 7, 1, 2, 3, 4, 5];
@@ -72,10 +77,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           subtitle: 'الأعياد وبدايات الأصوام',
           trailing: SizedBox(
             width: 150,
-            child: GlassSegmentedControl(
-              segments: const [GlassSegment(label: 'ميلادي'), GlassSegment(label: 'قبطي')],
+            child: AppSegmented(
+              labels: const ['ميلادي', 'قبطي'],
               selectedIndex: _coptic ? 1 : 0,
-              onSegmentSelected: (i) => setState(() {
+              onSelected: (i) => setState(() {
                 _coptic = i == 1;
                 _anchor = today;
               }),

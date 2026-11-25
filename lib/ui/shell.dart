@@ -1,22 +1,50 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:flutter/services.dart';
 
 import '../core/coptic.dart';
 import '../data/bible.dart';
+import '../data/meditations.dart';
+import '../data/prayers.dart';
+import '../data/reminders.dart';
+import '../data/updater.dart';
 import '../data/store.dart';
+import '../data/tasbeha.dart';
 import '../native/native_bridge.dart';
-import '../native/widget_glass.dart';
 import '../audio/radio_player.dart';
 import 'glass.dart';
 import 'icons.dart';
 import 'screens/bible.dart';
+import 'screens/books.dart';
+import '../data/books.dart';
 import 'screens/calendar.dart';
 import 'screens/home.dart';
+import 'screens/meditation.dart';
+import 'screens/prayers.dart';
+import 'screens/stations.dart';
+import 'pinch_zoom.dart';
+import 'update_dialog.dart';
 import 'screens/more.dart';
 import 'screens/radio.dart';
+import 'screens/reading_plans.dart';
 import 'screens/readings.dart';
+import 'screens/tasbeha.dart';
+import 'screens/study.dart';
+import 'screens/nativity.dart';
+import 'screens/lent.dart';
+import 'screens/memory.dart';
+import 'screens/search.dart';
+import 'bible_map.dart';
+import 'intro.dart';
+import 'keep_awake.dart';
+import 'screens/needs.dart';
+import '../data/needs.dart';
+import '../data/memory.dart';
+import '../core/season.dart';
+import '../data/study.dart';
+import '../data/quiz.dart';
+import '../data/reading_plans.dart';
 
 /// شاشات فرعية تُفتح فوق التبويبات.
 sealed class SubScreen {
@@ -26,6 +54,10 @@ sealed class SubScreen {
 class ChapterOverlay extends SubScreen {
   const ChapterOverlay(this.ref);
   final VerseRef ref;
+}
+
+class SynaxariumBrowseOverlay extends SubScreen {
+  const SynaxariumBrowseOverlay();
 }
 
 class SynaxariumOverlay extends SubScreen {
@@ -41,6 +73,148 @@ class RadioOverlay extends SubScreen {
   const RadioOverlay();
 }
 
+class MeditationOverlay extends SubScreen {
+  const MeditationOverlay(this.meditation);
+  final Meditation meditation;
+}
+
+class PrayersOverlay extends SubScreen {
+  const PrayersOverlay();
+}
+
+class AgpeyaPrayerOverlay extends SubScreen {
+  const AgpeyaPrayerOverlay(this.prayer);
+  final Prayer prayer;
+}
+
+class LiturgyOverlay extends SubScreen {
+  const LiturgyOverlay(this.liturgy);
+  final Liturgy liturgy;
+}
+
+class LiturgyPartOverlay extends SubScreen {
+  const LiturgyPartOverlay(this.liturgy, this.parts, this.index);
+  final Liturgy liturgy;
+  final List<LiturgyPart> parts;
+  final int index;
+}
+
+class StationsOverlay extends SubScreen {
+  const StationsOverlay();
+}
+
+class BooksOverlay extends SubScreen {
+  const BooksOverlay();
+}
+
+class BookCategoryOverlay extends SubScreen {
+  const BookCategoryOverlay(this.category);
+  final BookCategory category;
+}
+
+class BookOverlay extends SubScreen {
+  const BookOverlay(this.book);
+  final LibraryBook book;
+}
+
+class BookReaderOverlay extends SubScreen {
+  const BookReaderOverlay(this.book);
+  final LibraryBook book;
+}
+
+class ReadingPlansOverlay extends SubScreen {
+  const ReadingPlansOverlay();
+}
+
+class ReadingPlanOverlay extends SubScreen {
+  const ReadingPlanOverlay(this.plan);
+  final ReadingPlan plan;
+}
+
+class SearchOverlay extends SubScreen {
+  const SearchOverlay([this.query = '']);
+  final String query;
+}
+
+class BibleMapOverlay extends SubScreen {
+  const BibleMapOverlay();
+}
+
+class NeedsOverlay extends SubScreen {
+  const NeedsOverlay();
+}
+
+class NeedOverlay extends SubScreen {
+  const NeedOverlay(this.need);
+  final Need need;
+}
+
+class MemoryOverlay extends SubScreen {
+  const MemoryOverlay();
+}
+
+class MemoryReviewOverlay extends SubScreen {
+  const MemoryReviewOverlay(this.queue);
+  final List<MemoryVerse> queue;
+}
+
+class LentOverlay extends SubScreen {
+  const LentOverlay();
+}
+
+class HolyWeekOverlay extends SubScreen {
+  const HolyWeekOverlay();
+}
+
+class NativityOverlay extends SubScreen {
+  const NativityOverlay();
+}
+
+class StudyBookOverlay extends SubScreen {
+  const StudyBookOverlay(this.book);
+  final StudyBook book;
+}
+
+class StudyGuideOverlay extends SubScreen {
+  const StudyGuideOverlay(this.guide);
+  final StudyGuide guide;
+}
+
+class StudyReaderOverlay extends SubScreen {
+  const StudyReaderOverlay(this.docs, this.index, this.book);
+  final List<StudyDoc> docs;
+  final int index;
+  final StudyBook? book;
+}
+
+class QuizSessionOverlay extends SubScreen {
+  const QuizSessionOverlay(this.title, this.questions);
+  final String title;
+  final List<QuizQuestion> questions;
+}
+
+class TasbehaOverlay extends SubScreen {
+  const TasbehaOverlay();
+}
+
+class TasbehaBookOverlay extends SubScreen {
+  const TasbehaBookOverlay(this.book);
+  final TasbehaBook book;
+}
+
+class TasbehaDayOverlay extends SubScreen {
+  const TasbehaDayOverlay(this.book, this.day);
+  final TasbehaBook book;
+  final TasbehaDay day;
+}
+
+class TasbehaReaderOverlay extends SubScreen {
+  const TasbehaReaderOverlay(this.book, this.day, this.index);
+  final TasbehaBook book;
+  final TasbehaDay day;
+  final int index;
+}
+
 class Shell extends StatefulWidget {
   const Shell({super.key, required this.onThemeChanged});
   final VoidCallback onThemeChanged;
@@ -49,51 +223,125 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _tab = 0;
+  bool _intro = !AppSettings.instance.introSeen;
+  DateTime? _lastBack;
   final _overlays = <SubScreen>[];
   DateTime _today = DateTime.now();
-  Timer? _midnight;
+  Timer? _dayTicker;
   DailyVerse? _lastVerse;
 
   static const _tabs = [
-    LiquidGlassTab(label: 'الرئيسية', icon: AppIconView(AppIcon.home)),
-    LiquidGlassTab(label: 'الكتاب', icon: AppIconView(AppIcon.bible)),
-    LiquidGlassTab(label: 'القراءات', icon: AppIconView(AppIcon.readings)),
-    LiquidGlassTab(label: 'النتيجة', icon: AppIconView(AppIcon.calendar)),
-    LiquidGlassTab(label: 'المزيد', icon: AppIconView(AppIcon.more)),
+    NavTab(label: 'الرئيسية', icon: AppIconView(AppIcon.home)),
+    NavTab(label: 'الكتاب', icon: AppIconView(AppIcon.bible)),
+    NavTab(label: 'القراءات', icon: AppIconView(AppIcon.readings)),
+    NavTab(label: 'النتيجة', icon: AppIconView(AppIcon.calendar)),
+    NavTab(label: 'دراسة', icon: AppIconView(AppIcon.study)),
+    NavTab(label: 'المزيد', icon: AppIconView(AppIcon.more)),
   ];
 
   @override
   void initState() {
     super.initState();
-    _scheduleMidnight();
+    WidgetsBinding.instance.addObserver(this);
+    AppSettings.instance.addListener(_onSettings);
+    // مؤقّت واحد لنص الليل مابيشتغلش والتطبيق في الخلفية أو الموبايل نايم، فاليوم كان بيفضل زي ما هو.
+    // بنقارن التاريخ كل شوية، وكمان أول ما التطبيق يرجع للواجهة.
+    _dayTicker = Timer.periodic(const Duration(seconds: 20), (_) => _checkDay());
     NativeBridge.onLaunchRef((ref) => _open(ChapterOverlay(ref)));
+    // زرار التشغيل في ويدجت الإذاعة
+    NativeBridge.onResumeRadio = RadioPlayer.instance.resumeLast;
+    NativeBridge.takeResume().then((yes) {
+      if (yes) RadioPlayer.instance.resumeLast();
+    });
     NativeBridge.takeLaunchRef().then((ref) {
       if (ref != null) _open(ChapterOverlay(ref));
     });
+    // إشعار تذكير الصلاة بيفتح الصلاة نفسها
+    NativeBridge.onOpenPrayer = _openPrayerById;
+    NativeBridge.takeLaunchPrayer().then((id) {
+      if (id != null) _openPrayerById(id);
+    });
     final s = AppSettings.instance;
     NativeBridge.scheduleMorning(s.morningEnabled, s.morningMinutes);
-  }
-
-  void _scheduleMidnight() {
-    final now = DateTime.now();
-    final next = DateTime(now.year, now.month, now.day + 1, 0, 0, 1);
-    _midnight = Timer(next.difference(now), () {
-      setState(() => _today = DateTime.now());
-      widget.onThemeChanged(); // الموسم قد يتغير
-      _scheduleMidnight();
+    Reminders.sync();
+    // تحديث من GitHub: فحص عند فتح التطبيق، وإشعار «نسخة جديدة» بيفتح نفس الشاشة
+    NativeBridge.onOpenUpdate = () => _checkUpdate(force: true);
+    NativeBridge.takeLaunchUpdate().then((yes) {
+      if (yes) _checkUpdate(force: true);
+    });
+    Updater.instance.init().then((_) {
+      // أول ما يتفتح التطبيق: لو فيه نسخة جديدة يسأل «تحديث الآن» ولا «لاحقاً»، وبيسأل تاني في كل فتحة لحد ما يتحدّث
+      if (s.autoUpdate) _checkUpdate(force: true);
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkDay();
+      if (RadioPlayer.instance.isPlaying) RadioPlayer.instance.refreshNotificationState(); // ممكن يكون فعّلها من الإعدادات
+    } else {
+      RadioPlayer.instance.saveNow(); // مكان العظة يتحفظ لو التطبيق اتقفل
+    }
+  }
+
+  bool _updateShowing = false;
+
+  /// يفحص GitHub ويعرض شاشة التحديث لو فيه نسخة أحدث. بعد «لاحقاً» مابيعرضهاش تاني في فتح التطبيق
+  /// (لكن [force]، من الإشعار أو الإعدادات، بيعرضها).
+  Future<void> _checkUpdate({bool force = false}) async {
+    final u = await Updater.instance.check(force: force);
+    if (u == null || !mounted || _updateShowing) return;
+    if (!force && await Updater.instance.dismissedBuild(u.build)) return;
+    if (!mounted) return;
+    _updateShowing = true;
+    await showUpdateDialog(context, u);
+    _updateShowing = false;
+  }
+
+  Future<void> _openPrayerById(String id) async {
+    final agpeya = await AgpeyaRepository.instance.load();
+    final prayer = agpeya.hours.where((p) => p.id == id).firstOrNull;
+    if (prayer != null && mounted) _open(AgpeyaPrayerOverlay(prayer));
+  }
+
+  void _checkDay() {
+    final now = DateTime.now();
+    if (!mounted || dateOnly(now) == dateOnly(_today)) return;
+    setState(() => _today = now);
+    Reminders.sync(); // نافذة الأعياد القادمة بتتحرك مع اليوم
+  }
+
+  double _scale = AppSettings.instance.readingScale;
+
+  /// حجم الخط اتغيّر (بالقرص أو من الخيارات): الشاشات بتقراه وقت الرسم، فنعيد بناء المحتوى.
+  void _onSettings() {
+    final s = AppSettings.instance.readingScale;
+    if (s == _scale) return;
+    _scale = s;
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
-    _midnight?.cancel();
+    AppSettings.instance.removeListener(_onSettings);
+    WidgetsBinding.instance.removeObserver(this);
+    _dayTicker?.cancel();
     super.dispose();
   }
 
   void _open(SubScreen o) => setState(() => _overlays.add(o));
   void _back() => setState(() => _overlays.removeLast());
+
+  Future<void> _openChapterCommentary(int bibleBook, int chapter) async {
+    final cat = await StudyCatalog.load();
+    final book = cat.books.where((b) => b.bibleNumber == bibleBook).firstOrNull;
+    if (book == null || !mounted) return;
+    final docs = [if (book.intro != null) cat.intro(book), for (var i = 1; i <= book.chapters; i++) cat.chapter(book, i)];
+    _open(StudyReaderOverlay(docs, (book.intro != null ? 1 : 0) + chapter - 1, book));
+  }
 
   /// تحديث الويدجتس وإشعار القفل برسالة اليوم نفسها.
   void _syncWidgets([DailyVerse? v]) {
@@ -118,13 +366,32 @@ class _ShellState extends State<Shell> {
             onOpenReadings: () => setState(() => _tab = 2),
             onOpenFavorites: () => _open(const FavoritesOverlay()),
             onOpenRadio: () => _open(const RadioOverlay()),
+            onOpenMeditation: (m) => _open(MeditationOverlay(m)),
+            onOpenPrayers: () => _open(const PrayersOverlay()),
+            onOpenStations: () => _open(const StationsOverlay()),
+            onOpenBooks: () => _open(const BooksOverlay()),
+            onOpenTasbeha: () => _open(const TasbehaOverlay()),
             onVerseLoaded: _syncWidgets,
+            onOpenNativity: () => _open(const NativityOverlay()),
+            onOpenLent: () => _open(const LentOverlay()),
+            onOpenMemory: () => _open(const MemoryOverlay()),
+            onOpenSearch: () => _open(const SearchOverlay()),
+            onOpenNeeds: () => _open(const NeedsOverlay()),
           ),
         1 => BibleScreen(onOpenChapter: (r) => _open(ChapterOverlay(r))),
-        2 => ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d))),
+        2 => KeepAwake(child: ReadingsScreen(today: _today, onOpenSynaxarium: (d) => _open(SynaxariumOverlay(d)))),
         3 => CalendarScreen(today: _today),
+        4 => StudyScreen(
+            onOpenBook: (b) => _open(StudyBookOverlay(b)),
+            onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b)),
+            onOpenGuide: (g) => _open(StudyGuideOverlay(g)),
+            onOpenQuiz: (t, q) => _open(QuizSessionOverlay(t, q)),
+            onOpenMap: () => _open(const BibleMapOverlay()),
+          ),
         _ => MoreScreen(
+            onOpenIntro: () => setState(() => _intro = true),
             onOpenFavorites: () => _open(const FavoritesOverlay()),
+            onOpenReadingPlans: () => _open(const ReadingPlansOverlay()),
             onSettingsChanged: () {
               widget.onThemeChanged();
               _syncWidgets();
@@ -133,10 +400,127 @@ class _ShellState extends State<Shell> {
       };
 
   Widget _overlayBody(SubScreen o) => switch (o) {
-        ChapterOverlay(:final ref) => ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back),
-        SynaxariumOverlay(:final date) => SynaxariumScreen(start: date, onBack: _back),
+        ChapterOverlay(:final ref) =>
+          KeepAwake(child: ChapterScreen(key: ValueKey(ref), start: ref, onBack: _back, onOpenCommentary: _openChapterCommentary)),
+        SynaxariumOverlay(:final date) => SynaxariumScreen(
+            start: date,
+            onBack: _back,
+            onBrowse: () => _open(const SynaxariumBrowseOverlay()),
+          ),
+        SynaxariumBrowseOverlay() => SynaxariumBrowseScreen(
+            today: _today,
+            onBack: _back,
+            onOpenDate: (d) {
+              _back();
+              _open(SynaxariumOverlay(d));
+            },
+          ),
         FavoritesOverlay() => FavoritesScreen(onOpenChapter: (r) => _open(ChapterOverlay(r)), onBack: _back),
         RadioOverlay() => RadioScreen(onBack: _back),
+        MeditationOverlay(:final meditation) => MeditationScreen(meditation: meditation, onBack: _back),
+        PrayersOverlay() => PrayersScreen(
+            onBack: _back,
+            onOpenPrayer: (p) => _open(AgpeyaPrayerOverlay(p)),
+            onOpenLiturgy: (l) => _open(LiturgyOverlay(l)),
+          ),
+        AgpeyaPrayerOverlay(:final prayer) => AgpeyaPrayerScreen(prayer: prayer, onBack: _back),
+        LiturgyOverlay(:final liturgy) => LiturgyScreen(
+            liturgy: liturgy,
+            onBack: _back,
+            onOpenPart: (parts, i) => _open(LiturgyPartOverlay(liturgy, parts, i)),
+          ),
+        LiturgyPartOverlay(:final liturgy, :final parts, :final index) =>
+          LiturgyPartScreen(liturgy: liturgy, parts: parts, index: index, onBack: _back),
+        StationsOverlay() => StationsScreen(onBack: _back),
+        BooksOverlay() => BooksScreen(
+            onBack: _back,
+            onOpenCategory: (cat) => _open(BookCategoryOverlay(cat)),
+            onOpenBook: (b) => _open(BookOverlay(b)),
+          ),
+        BookCategoryOverlay(:final category) =>
+          BookCategoryScreen(category: category, onBack: _back, onOpenBook: (b) => _open(BookOverlay(b))),
+        BookOverlay(:final book) => BookScreen(book: book, onBack: _back, onRead: () => _open(BookReaderOverlay(book))),
+        BookReaderOverlay(:final book) => BookReaderScreen(book: book, onBack: _back),
+        ReadingPlansOverlay() => ReadingPlansScreen(onBack: _back, onOpenPlan: (p) => _open(ReadingPlanOverlay(p))),
+        ReadingPlanOverlay(:final plan) =>
+          ReadingPlanScreen(plan: plan, onBack: _back, onOpenChapter: (ref) => _open(ChapterOverlay(ref))),
+        BibleMapOverlay() => BibleMapScreen(onBack: _back, onVerse: (r) => _open(ChapterOverlay(r)), onOpenCommentary: _openChapterCommentary),
+        NeedsOverlay() => NeedsScreen(onBack: _back, onOpen: (n) => _open(NeedOverlay(n))),
+        NeedOverlay(:final need) => NeedScreen(
+            need: need,
+            onBack: _back,
+            onVerse: (r) => _open(ChapterOverlay(r)),
+            onPrayer: _openPrayerById,
+            onSermons: (q) => _open(SearchOverlay(q)),
+          ),
+        SearchOverlay(:final query) => SearchScreen(
+            initialQuery: query,
+            onBack: _back,
+            today: _today,
+            actions: SearchActions(
+              onVerse: (r) => _open(ChapterOverlay(r)),
+              onPrayer: (p) => _open(AgpeyaPrayerOverlay(p)),
+              onTasbeha: (h) => _open(TasbehaReaderOverlay(h.book, h.day, h.index)),
+              onFeast: (d) => _open(SynaxariumOverlay(d)),
+              onSermon: (sm) {
+                RadioPlayer.instance.play(sm);
+                _open(const RadioOverlay());
+              },
+              onStudyBook: (b) => _open(StudyBookOverlay(b)),
+              onQuestion: (q) => _open(QuizSessionOverlay('سؤال من نتيجة البحث', [q])),
+            ),
+          ),
+        MemoryOverlay() => MemoryScreen(onBack: _back, onReview: (q) => _open(MemoryReviewOverlay(q))),
+        MemoryReviewOverlay(:final queue) => MemoryReviewScreen(queue: queue, onBack: _back),
+        LentOverlay() => LentScreen(
+            today: _today,
+            onBack: _back,
+            onOpenReadings: () {
+              _overlays.clear();
+              setState(() => _tab = 2);
+            },
+            onOpenHolyWeek: () => _open(const HolyWeekOverlay()),
+            onOpenVerse: () {
+              final v = LentSeason.verseFor(LentSeason.of(_today));
+              if (v != null) _open(ChapterOverlay(v));
+            },
+          ),
+        HolyWeekOverlay() => HolyWeekScreen(today: _today, onBack: _back),
+        NativityOverlay() => NativityScreen(
+            today: _today,
+            onBack: _back,
+            onOpenTasbeha: () => _open(const TasbehaOverlay()),
+            onOpenReadings: () {
+              _overlays.clear();
+              setState(() => _tab = 2);
+            },
+            onOpenProphecy: () {
+              final s = NativitySeason.of(_today);
+              if (s.inFast) _open(ChapterOverlay(NativitySeason.verseForDay(s.dayOfFast)));
+            },
+          ),
+        StudyBookOverlay(:final book) => StudyBookScreen(
+            book: book,
+            onBack: _back,
+            onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b)),
+            onOpenQuiz: (t, q) => _open(QuizSessionOverlay(t, q)),
+          ),
+        StudyGuideOverlay(:final guide) =>
+          StudyGuideScreen(guide: guide, onBack: _back, onOpenDoc: (d, i, b) => _open(StudyReaderOverlay(d, i, b))),
+        StudyReaderOverlay(:final docs, :final index, :final book) =>
+          KeepAwake(child: StudyReaderScreen(docs: docs, index: index, book: book, onBack: _back)),
+        QuizSessionOverlay(:final title, :final questions) => QuizSessionScreen(title: title, questions: questions, onBack: _back),
+        TasbehaOverlay() => TasbehaScreen(
+            onBack: _back,
+            onOpenBook: (b) => _open(TasbehaBookOverlay(b)),
+            onRead: (b, d, i) => _open(TasbehaReaderOverlay(b, d, i)),
+          ),
+        TasbehaBookOverlay(:final book) =>
+          TasbehaBookScreen(book: book, onBack: _back, onOpenDay: (d) => _open(TasbehaDayOverlay(book, d))),
+        TasbehaDayOverlay(:final book, :final day) => TasbehaDayScreen(
+            book: book, day: day, onBack: _back, onOpenPiece: (i) => _open(TasbehaReaderOverlay(book, day, i))),
+        TasbehaReaderOverlay(:final book, :final day, :final index) =>
+          TasbehaReaderScreen(book: book, day: day, index: index, onBack: _back),
       };
 
   @override
@@ -144,27 +528,50 @@ class _ShellState extends State<Shell> {
     final top = _overlays.isEmpty ? null : _overlays.last;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     // مساحة الشريط السفلي: المحتوى ينتهي فوقه ولا يظهر شيء خلفه
-    final barArea = 64 + 20 + safeBottom + 8;
+    final barArea = bottomBarHeight(context) + safeBottom;
 
     return PopScope(
-      canPop: _overlays.isEmpty && _tab == 0,
+      // الرجوع: صفحة فرعية → اللي قبلها، تبويب تاني → الرئيسية، والرئيسية → ضغطتين للخروج
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_overlays.isNotEmpty) {
+        if (_intro) {
+          setState(() => _intro = false);
+          AppSettings.instance.introSeen = true;
+        } else if (_overlays.isNotEmpty) {
           _back();
-        } else {
+        } else if (_tab != 0) {
           setState(() => _tab = 0);
+        } else {
+          final now = DateTime.now();
+          if (_lastBack != null && now.difference(_lastBack!) < const Duration(seconds: 2)) {
+            SystemNavigator.pop();
+            return;
+          }
+          _lastBack = now;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: const Text('اضغط رجوع مرة تانية للخروج', textAlign: TextAlign.center),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.fromLTRB(60, 0, 60, barArea + 20),
+            ));
         }
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(children: [
-          // سطح زجاج الويدجتس يُرسم هنا خلف الخلفية ثم يُلتقط صورةً
-          const Positioned(left: 0, top: 0, child: WidgetGlassCapture()),
           const Positioned.fill(child: Wallpaper()),
           Positioned.fill(
-            child: AdaptiveLiquidGlassLayer(
-              settings: glassSettings,
+            // المحتوى بيبدأ تحت منطقة التلاشي، فالتغبيش يلمس بس اللي بيطلع لفوق وأنت بتعمل سكرول
+            // قرص بإصبعين يكبّر ويصغّر خط القراءة في كل الشاشات
+            child: PinchZoom(
+              enabled: top is! BibleMapOverlay,
+              child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: MediaQuery.paddingOf(context).copyWith(top: MediaQuery.paddingOf(context).top + StatusBarFade.fade),
+              ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 child: top != null
@@ -173,16 +580,18 @@ class _ShellState extends State<Shell> {
                         key: ValueKey('tab$_tab'),
                         listenable: RadioPlayer.instance,
                         builder: (context, _) {
-                          final mini = RadioPlayer.instance.nowPlaying != null ? 68.0 : 0.0;
+                          final p = RadioPlayer.instance;
+                          final mini = p.nowPlaying != null && !p.hasPending ? 68.0 : 0.0;
                           return Padding(
-                            padding: EdgeInsets.only(bottom: barArea + mini),
+                            // المحتوى بيدخل شوية تحت الكبسولة العائمة (التلاشي بيغطي الحافة)، فمفيش فراغ كبير فوقها
+                            padding: EdgeInsets.only(bottom: barArea + mini - 22),
                             child: ShaderMask(
                               // تلاشي الحافة السفلية للمحتوى
                               shaderCallback: (r) => const LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [Colors.black, Colors.black, Colors.transparent],
-                                stops: [0, .95, 1],
+                                stops: [0, .96, 1],
                               ).createShader(r),
                               blendMode: BlendMode.dstIn,
                               child: _tabBody(),
@@ -192,7 +601,9 @@ class _ShellState extends State<Shell> {
                       ),
               ),
             ),
+            ),
           ),
+          const Positioned(left: 0, right: 0, top: 0, child: StatusBarFade()),
           if (top == null) ...[
             Positioned(
               left: 0,
@@ -204,13 +615,20 @@ class _ShellState extends State<Shell> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: LiquidGlassBottomNavBar(
+              child: BottomNavBar(
                 selectedIndex: _tab,
                 tabs: _tabs,
                 onTabSelected: (i) => setState(() => _tab = i),
               ),
             ),
           ],
+          if (_intro)
+            Positioned.fill(
+              child: IntroScreen(onDone: () {
+                AppSettings.instance.introSeen = true;
+                setState(() => _intro = false);
+              }),
+            ),
         ]),
       ),
     );

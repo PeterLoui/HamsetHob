@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ويدجت شاشة القفل «سطر التاريخ»: كبسولة تحت الساعة من غير عمود للرقم.
+  سطر صغير فوق فيه الصليب والتاريخ القبطي، وتحته آية اليوم بعرض الكبسولة كله في سطرين.
+  زجاج صافي بالنهار، ومدخّن بالليل (drawable-night و values-night).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layoutDirection="rtl">
+
+    <ImageView
+        android:id="@+id/glass"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_pill" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="22dp"
+        android:paddingEnd="22dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="9dp"
+                android:layout_height="9dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_coptic_cross" />
+
+            <TextView
+                android:id="@+id/coptic_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:maxLines="1"
+                android:textColor="@color/widget_accent"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/verse_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:fontFamily="serif"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="2"
+            android:textColor="@color/widget_ink"
+            android:textSize="12sp" />
+    </LinearLayout>
+</FrameLayout>

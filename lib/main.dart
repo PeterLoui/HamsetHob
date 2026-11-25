@@ -2,25 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
-import 'core/synaxarium.dart';
+import 'audio/radio_player.dart';
+import 'data/books.dart';
+import 'data/memory.dart';
+import 'data/prayers.dart' show stations;
+import 'data/sermon_downloads.dart';
 import 'data/store.dart';
+import 'native/native_bridge.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // لو جزء من الشاشة فشل في الرسم: سطر هادي بدل الشاشة الرمادي أو الأحمر، وباقي التطبيق يكمل
+  ErrorWidget.builder = (details) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('تعذّر عرض الجزء ده', textDirection: TextDirection.rtl, style: TextStyle(fontSize: 13, color: Color(0xFF8C8477))),
+        ),
+      );
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.hamsethob.radio',
     androidNotificationChannelName: 'الإذاعة',
-    androidNotificationOngoing: true,
+    androidNotificationChannelDescription: 'زرار التشغيل والإيقاف على شاشة القفل وفي شريط الإشعارات',
+    // أيقونة الإشعار لازم تكون رسمة أحادية اللون: أيقونة التطبيق (adaptive) مش صالحة كأيقونة إشعار
+    androidNotificationIcon: 'drawable/ic_stat_cross',
+    // الإشعار يفضل ظاهر وأنت موقّف مؤقتاً، عشان زرار التشغيل يفضل في شاشة القفل وشريط الإشعارات
+    // (لو الخدمة خرجت من الواجهة وقت الإيقاف النظام ممكن يقفلها ويشيل الإشعار)
+    androidStopForegroundOnPause: false,
+    androidNotificationOngoing: false,
+    fastForwardInterval: const Duration(seconds: 30),
+    rewindInterval: const Duration(seconds: 30),
   );
-  await LiquidGlassWidgets.initialize();
   await AppSettings.load();
   await Favorites.load();
+  await BibleMarks.load();
+  await ReadingProgress.load();
+  await SermonDownloads.load();
+  await MemoryStore.load();
+  await RadioPlayer.instance.restoreLast();
+  NativeBridge.autoStations([for (final s in stations) {'id': s.id, 'name': s.name, 'url': s.url}]);
+  await BooksRepository.instance.load();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(LiquidGlassWidgets.wrap(child: const HamsetApp()));
+  runApp(const HamsetApp());
 }
 
 class HamsetApp extends StatefulWidget {
@@ -54,8 +79,7 @@ class _HamsetAppState extends State<HamsetApp> with WidgetsBindingObserver {
       ThemeChoice.dark => true,
       ThemeChoice.system => WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark,
     };
-    final season = settings.seasonalColors ? seasonOf(DateTime.now()) : Season.ordinary;
-    final colors = AppColors.of(dark, season);
+    final colors = AppColors.of(dark);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ويدجت شاشة القفل: التاريخ القبطي ورسالة اليوم فقط، فوق زجاج الحزمة -->
+<!--
+  ويدجت شاشة القفل «رقم كبير»: كبسولة تحت الساعة.
+  رقم اليوم القبطي كبير وتحته اسم الشهر، خط رفيع، وجنبه آية اليوم في سطرين بخط صغير مقروء.
+  زجاج صافي بالنهار، ومدخّن بالليل (drawable-night و values-night).
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
@@ -12,68 +16,63 @@
         android:layout_height="match_parent"
         android:importantForAccessibility="no"
         android:scaleType="fitXY"
-        android:src="@drawable/glass_widget_bg" />
+        android:src="@drawable/widget_pill" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="20dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:gravity="center_horizontal"
+            android:minWidth="40dp"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/coptic_day"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFFFF"
-                android:textSize="34sp"
-                android:textStyle="bold"
-                android:shadowColor="#66000000"
-                android:shadowDy="1"
-                android:shadowRadius="4" />
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/widget_ink"
+                android:textSize="26sp" />
 
             <TextView
                 android:id="@+id/coptic_month"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:textColor="#F2FFFFFF"
-                android:textSize="16sp"
-                android:shadowColor="#66000000"
-                android:shadowDy="1"
-                android:shadowRadius="4" />
+                android:layout_marginTop="2dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/widget_accent"
+                android:textSize="10sp" />
         </LinearLayout>
+
+        <ImageView
+            android:layout_width="1dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="12dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_hairline" />
 
         <TextView
             android:id="@+id/verse_text"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
             android:ellipsize="end"
-            android:gravity="center"
-            android:lineSpacingExtra="3dp"
-            android:maxLines="4"
-            android:textColor="#FFFFFFFF"
-            android:textSize="14sp"
-            android:shadowColor="#80000000"
-            android:shadowDy="1"
-            android:shadowRadius="5" />
-
-        <TextView
-            android:id="@+id/verse_ref"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#FFF3C77A"
-            android:textSize="11sp"
-            android:shadowColor="#66000000"
-            android:shadowDy="1"
-            android:shadowRadius="4" />
+            android:fontFamily="serif"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="2"
+            android:textColor="@color/widget_ink"
+            android:textSize="12sp" />
     </LinearLayout>
 </FrameLayout>
